@@ -1,16 +1,18 @@
-import { FileQuestion } from 'lucide-react'
+import { FileQuestion, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { useVisibleContent } from '@/contexts/visible-content-context'
 import { useNoteToolStore } from '@/stores/note-tool-store'
+import { useEditorStore } from '@/stores/editor-store'
 import { useRefreshKey } from '@/stores/view-context'
 import type { BoardFile } from '@/types/board'
 import { fetchPreview } from './api'
 import { BoardViewer } from './board-viewer'
 import { HtmlViewer } from './html-viewer'
 import { ImageViewer } from './image-viewer'
+import { MarkdownEditor } from './markdown/markdown-editor'
 import { MarkdownViewer } from './markdown/markdown-viewer'
 import { PDFViewer } from './pdf-viewer'
 import { SelectionToolbar } from './selection/selection-toolbar'
@@ -161,15 +163,34 @@ export function FileViewer({ repo, path }: FileViewerProps) {
     return <HtmlViewer body={preview.body} />
   }
 
+  const isEditMode = useEditorStore(s => s.isEditMode)
+  const editedContent = useEditorStore(s => s.editedFiles[`${repo}:${path}`]?.content)
+  const openFile = useEditorStore(s => s.openFile)
+
   if (preview.type === 'markdown') {
+    const displayBody = editedContent ?? preview.body
     return (
       <div className="h-full relative">
-        <MarkdownViewer
-          body={preview.body}
-          repoName={repo}
-          filePath={path}
-          elementsRef={elementsRef}
-        />
+        {!isEditMode && (
+          <button
+            type="button"
+            onClick={() => openFile(repo, path, displayBody)}
+            className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
+            title="编辑"
+          >
+            <Pencil size={16} />
+          </button>
+        )}
+        {isEditMode ? (
+          <MarkdownEditor repo={repo} path={path} initialContent={displayBody} />
+        ) : (
+          <MarkdownViewer
+            body={displayBody}
+            repoName={repo}
+            filePath={path}
+            elementsRef={elementsRef}
+          />
+        )}
       </div>
     )
   }

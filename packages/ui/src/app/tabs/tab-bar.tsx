@@ -2,12 +2,14 @@ import { X } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type Tab, useTabsStore } from '@/stores/tabs-store'
+import { useEditorStore } from '@/stores/editor-store'
 import { getFileIcon } from '../file-tree'
 
 export function TabBar() {
   const tabs = useTabsStore(s => s.tabs)
   const activeId = useTabsStore(s => s.activeId)
   const closeTab = useTabsStore(s => s.closeTab)
+  const editedFiles = useEditorStore(s => s.editedFiles)
   const navigate = useNavigate()
 
   if (tabs.length === 0) return null
@@ -46,6 +48,9 @@ export function TabBar() {
           >
             {getFileIcon(filename)}
             <span className="max-w-[160px] truncate">{filename}</span>
+            {editedFiles[`${tab.repo}:${tab.path}`] && editedFiles[`${tab.repo}:${tab.path}`].content !== editedFiles[`${tab.repo}:${tab.path}`].originalContent && (
+              <span className="size-2 shrink-0 rounded-full bg-amber-500" />
+            )}
             <button
               type="button"
               onClick={event => handleClose(event, tab)}
