@@ -1,4 +1,5 @@
 import { Menu, MessageSquare, Monitor, Moon, Sun, X } from 'lucide-react'
+import { useCallback, useRef } from 'react'
 import { Outlet } from 'react-router-dom'
 
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -61,7 +62,7 @@ function DesktopLayout() {
   )
 }
 
-/** Mobile layout: drawer-based single panel navigation */
+/** Mobile layout: drawer-based single panel navigation with swipe-to-close */
 function MobileLayout() {
   const leftPanelVisible = useUIStore((s) => s.leftPanelVisible)
   const rightPanelVisible = useUIStore((s) => s.rightPanelVisible)
@@ -75,27 +76,23 @@ function MobileLayout() {
         <Outlet />
       </div>
 
-      {/* Left panel drawer overlay */}
+      {/* Left panel drawer overlay with swipe-to-close */}
       {leftPanelVisible && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/50"
-            onClick={toggleLeftPanel}
-          />
-          <div className="fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm shadow-xl animate-in slide-in-from-left duration-200">
-            <LeftPanel />
-          </div>
-        </>
+        <SwipeableDrawer
+          side="left"
+          onClose={toggleLeftPanel}
+        >
+          <LeftPanel />
+        </SwipeableDrawer>
       )}
 
-      {/* Right panel (chat) - fullscreen on mobile */}
+      {/* Right panel (chat) - fullscreen on mobile with swipe-to-close */}
       {rightPanelVisible && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/50"
-            onClick={toggleRightPanel}
-          />
-          <div className="fixed inset-0 z-50 bg-white dark:bg-gray-950 animate-in slide-in-from-bottom duration-200 flex flex-col">
+        <SwipeableDrawer
+          side="bottom"
+          onClose={toggleRightPanel}
+        >
+          <div className="flex flex-col h-full">
             <div className="flex items-center justify-between border-b px-3 py-2 bg-gray-50 dark:bg-gray-900">
               <span className="text-sm font-medium">AI Chat</span>
               <Button variant="ghost" size="icon-sm" onClick={toggleRightPanel}>
@@ -106,9 +103,108 @@ function MobileLayout() {
               <ChatPanel hideHeader />
             </div>
           </div>
-        </>
+        </SwipeableDrawer>
       )}
     </div>
+  )
+}
+
+/** Swipeable drawer component with touch gesture support */
+function SwipeableDrawer({
+  side,
+  onClose,
+  children,
+}: {
+  side: 'left' | 'bottom'
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const touchRef = useRef<{ startX: number; startY: number; currentX: number; swiping: boolean }>({
+    startX: 0, startY: 0, currentX: 0, swiping: false,
+  })
+
+  const isLeft = side === 'left'
+  const threshold = 60
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    touchRef.current = { startX: touch.clientX, startY: touch.clientY, currentX: 0, swiping: false }
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    const t = touchRef.current
+    const dx = touch.clientX - t.startX
+    const dy = touch.clientY - t.startY
+
+    // Determine if this is a horizontal (left drawer) or vertical (bottom drawer) swipe
+    if (!t.swiping) {
+      if (isLeft) {
+        // Only start swiping if horizontal movement exceeds vertical
+        if (Math.abs(dx) < Math.abs(dy)) return
+        // Only allow swipe to the left for left drawer
+        if (dx < -5) t.swiping = true
+      } else {
+        // Only start swiping if vertical movement exceeds horizontal
+        if (Math.abs(dy) < Math.abs(dx)) return
+        // Only allow swipe down for bottom drawer
+        if (dy < -5) return // Swiping up should not close
+        if (dy > 5) t.swiping = true
+      }
+    }
+
+    if (t.swiping && drawerRef.current) {
+      if (isLeft) {
+        const translateX = Math.min(0, dx) // Only translate left
+        drawerRef.current.style.transform = `translateX(${translateX}px)`
+        drawerRef.current.style.transition = 'none'
+        t.currentX = dx
+      } else {
+        const translateY = Math.max(0, dy) // Only translate down
+        drawerRef.current.style.transform = `translateY(${translateY}px)`
+        drawerRef.current.style.transition = 'none'
+        t.currentX = dy
+      }
+    }
+  }, [isLeft])
+
+  const handleTouchEnd = useCallback(() => {
+    const t = touchRef.current
+    if (drawerRef.current) {
+      drawerRef.current.style.transform = ''
+      drawerRef.current.style.transition = ''
+    }
+    if (t.swiping) {
+      if (isLeft && t.currentX < -threshold) {
+        onClose()
+      } else if (!isLeft && t.currentX > threshold) {
+        onClose()
+      }
+    }
+    touchRef.current.swiping = false
+  }, [isLeft, onClose, threshold])
+
+  const overlayClass = isLeft
+    ? 'fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm shadow-xl animate-in slide-in-from-left duration-200'
+    : 'fixed inset-0 z-50 bg-white dark:bg-gray-950 animate-in slide-in-from-bottom duration-200'
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/50"
+        onClick={onClose}
+      />
+      <div
+        ref={drawerRef}
+        className={overlayClass}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {children}
+      </div>
+    </>
   )
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { X, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { ArrowLeft, X, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 
 type GraphNode = { id: string; label: string; type: string }
@@ -35,7 +35,14 @@ export function KnowledgeGraph({ onClose }: { onClose?: () => void }) {
   const transformRef = useRef({ scale: 1, ox: 0, oy: 0 })
   const rafRef = useRef(0)
   const navigate = useNavigate()
+  const location = useLocation()
   const isMobile = useIsMobile()
+
+  // When used as a standalone page route (/graph), provide back navigation
+  const isPageRoute = location.pathname === '/graph'
+  const handleBack = useCallback(() => {
+    navigate(-1)
+  }, [navigate])
 
   // Touch-related refs
   const touchDragRef = useRef<TouchDragState>({ nodeId: null, lastX: 0, lastY: 0, moved: false })
@@ -351,7 +358,16 @@ export function KnowledgeGraph({ onClose }: { onClose?: () => void }) {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
       <div className="flex items-center justify-between px-3 py-2 border-b">
-        <h2 className="text-sm font-semibold flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 text-sm font-semibold">
+          {(isPageRoute) && (
+            <button
+              onClick={handleBack}
+              className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors md:hidden"
+              title="返回"
+            >
+              <ArrowLeft size={16} />
+            </button>
+          )}
           <span className="inline-block size-2.5 rounded-full bg-emerald-500" />
           知识图谱
           {graphData && (
@@ -359,7 +375,7 @@ export function KnowledgeGraph({ onClose }: { onClose?: () => void }) {
               {graphData.nodes.length} 节点 · {graphData.edges.length} 连接
             </span>
           )}
-        </h2>
+        </div>
         <div className="flex items-center gap-1">
           {graphData && graphData.nodes.length > 0 && (
             <div className="flex items-center gap-0.5 mr-1">
@@ -391,6 +407,15 @@ export function KnowledgeGraph({ onClose }: { onClose?: () => void }) {
               onClick={onClose}
               className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="关闭"
+            >
+              <X size={16} />
+            </button>
+          )}
+          {!onClose && isPageRoute && (
+            <button
+              onClick={handleBack}
+              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="返回"
             >
               <X size={16} />
             </button>
