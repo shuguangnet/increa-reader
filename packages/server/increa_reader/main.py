@@ -24,6 +24,7 @@ from .chat import cleanup_active_sessions, create_chat_routes
 from .config_routes import create_config_routes
 
 # Import local modules
+from .ai_routes import create_ai_routes
 from .file_routes import create_file_routes
 from .links_routes import create_links_routes
 from .models import WorkspaceConfig
@@ -32,6 +33,7 @@ from .pdf_routes import create_pdf_routes
 from .search_routes import create_search_routes
 from .session_routes import create_session_routes
 from .tags_routes import create_tags_routes
+from .version_routes import create_version_routes
 from .workspace import load_workspace_config
 from .workspace_routes import create_workspace_routes
 
@@ -101,6 +103,8 @@ def create_app() -> FastAPI:
     create_search_routes(app, workspace_config)
     create_tags_routes(app, workspace_config)
     create_links_routes(app, workspace_config)
+    create_ai_routes(app, workspace_config)
+    create_version_routes(app, workspace_config)
 
     @app.get("/api")
     async def root():

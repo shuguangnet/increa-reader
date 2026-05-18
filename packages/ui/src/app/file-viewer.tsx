@@ -1,4 +1,4 @@
-import { FileQuestion, Pencil } from 'lucide-react'
+import { FileQuestion, History, Pencil, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -9,6 +9,7 @@ import { useEditorStore } from '@/stores/editor-store'
 import { useRefreshKey } from '@/stores/view-context'
 import type { BoardFile } from '@/types/board'
 import { fetchPreview } from './api'
+import { AiToolsPanel } from './ai-tools-panel'
 import { BoardViewer } from './board-viewer'
 import { HtmlViewer } from './html-viewer'
 import { ImageViewer } from './image-viewer'
@@ -16,6 +17,7 @@ import { MarkdownEditor } from './markdown/markdown-editor'
 import { MarkdownViewer } from './markdown/markdown-viewer'
 import { PDFViewer } from './pdf-viewer'
 import { SelectionToolbar } from './selection/selection-toolbar'
+import { VersionHistoryPanel } from './version-history-panel'
 
 type PreviewData =
   | { type: 'markdown'; body: string }
@@ -54,6 +56,8 @@ export function FileViewer({ repo, path }: FileViewerProps) {
     loading: true,
     error: null,
   })
+  const [showAiPanel, setShowAiPanel] = useState(false)
+  const [showVersionPanel, setShowVersionPanel] = useState(false)
   const refreshKey = useRefreshKey()
   const scrollBodyRef = useRef<HTMLDivElement>(null)
   const elementsRef = useVisibleContent()
@@ -170,26 +174,62 @@ export function FileViewer({ repo, path }: FileViewerProps) {
   if (preview.type === 'markdown') {
     const displayBody = editedContent ?? preview.body
     return (
-      <div className="h-full relative">
-        {!isEditMode && (
-          <button
-            type="button"
-            onClick={() => openFile(repo, path, displayBody)}
-            className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
-            title="编辑"
-          >
-            <Pencil size={16} />
-          </button>
+      <div className="h-full flex">
+        <div className="flex-1 min-w-0 relative">
+          {!isEditMode && (
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAiPanel(v => !v)
+                  setShowVersionPanel(false)
+                }}
+                className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
+                  showAiPanel ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="AI工具"
+              >
+                <Sparkles size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVersionPanel(v => !v)
+                  setShowAiPanel(false)
+                }}
+                className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
+                  showVersionPanel ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="版本历史"
+              >
+                <History size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => openFile(repo, path, displayBody)}
+                className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
+                title="编辑"
+              >
+                <Pencil size={16} />
+              </button>
+            </div>
+          )}
+          {isEditMode ? (
+            <MarkdownEditor repo={repo} path={path} initialContent={displayBody} />
+          ) : (
+            <MarkdownViewer
+              body={displayBody}
+              repoName={repo}
+              filePath={path}
+              elementsRef={elementsRef}
+            />
+          )}
+        </div>
+        {showAiPanel && (
+          <AiToolsPanel repo={repo} path={path} onClose={() => setShowAiPanel(false)} />
         )}
-        {isEditMode ? (
-          <MarkdownEditor repo={repo} path={path} initialContent={displayBody} />
-        ) : (
-          <MarkdownViewer
-            body={displayBody}
-            repoName={repo}
-            filePath={path}
-            elementsRef={elementsRef}
-          />
+        {showVersionPanel && (
+          <VersionHistoryPanel repo={repo} path={path} onClose={() => setShowVersionPanel(false)} />
         )}
       </div>
     )
