@@ -1,20 +1,172 @@
 import { useEffect, useState } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useNavigate } from 'react-router-dom'
+import { Clock, FolderOpen, Keyboard, Network, Search, Star } from 'lucide-react'
 import { VisibleContentProvider } from '../contexts/visible-content-context'
-import { useUIStore } from '../stores/ui-store'
 import { useFavoritesStore } from '../stores/favorites-store'
 import { useRecentFilesStore } from '../stores/recent-files-store'
-import { useTabsStore } from '../stores/tabs-store'
 import { useProgressStore } from '../stores/progress-store'
+import { useTabsStore } from '../stores/tabs-store'
+import { useUIStore } from '../stores/ui-store'
+import { useIsMobile } from '../hooks/use-mobile'
+import { getFileIcon } from './file-tree'
 import { BoardViewer } from './board-viewer'
 import { KnowledgeGraph } from './knowledge-graph'
 import { Layout } from './layout'
 import { TabbedViewer } from './tabs/tabbed-viewer'
 
 function HomePage() {
+  const navigate = useNavigate()
+  const isMobile = useIsMobile()
+  const recentFiles = useRecentFilesStore(s => s.recentFiles)
+  const favorites = useFavoritesStore(s => s.favorites)
+  const progressMap = useProgressStore(s => s.progressMap)
+  const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
+  const setSearchPanelOpen = useUIStore(s => s.setSearchPanelOpen)
+
+  const navigateToFile = (repo: string, path: string) => {
+    navigate(`/views/${repo}/${path}`)
+  }
+
+  const sortedRecent = [...recentFiles].sort((a, b) => b.openedAt - a.openedAt).slice(0, 8)
+  const sortedFavorites = [...favorites].sort((a, b) => b.addedAt - a.addedAt).slice(0, 8)
+
+  // Group recent files by time
+  const now = Date.now()
+  const todayFiles = sortedRecent.filter(f => now - f.openedAt < 86400000)
+
+  const quickActions = [
+    { label: '搜索文件内容', icon: <Search className="size-5" />, onClick: () => setSearchPanelOpen(true), color: 'text-blue-500 bg-blue-50 dark:bg-blue-950' },
+    { label: '命令面板', icon: <Keyboard className="size-5" />, onClick: () => setCommandPaletteOpen(true), color: 'text-violet-500 bg-violet-50 dark:bg-violet-950' },
+    { label: '知识图谱', icon: <Network className="size-5" />, onClick: () => navigate('/graph'), color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950' },
+  ]
+
+  const displayRecent = todayFiles.length > 0 ? todayFiles : sortedRecent
+  const recentLabel = todayFiles.length > 0 ? '今天' : '近期'
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">AI Chat</h1>
+    <div className="h-full overflow-auto">
+      <div className={`mx-auto ${isMobile ? 'px-4 py-6' : 'px-8 py-10'} max-w-3xl`}>
+        {/* Hero Section */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold tracking-tight mb-1">
+            Increa Reader
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            你的个人知识库，快速访问文件与笔记
+          </p>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          {quickActions.map(action => (
+            <button
+              key={action.label}
+              onClick={action.onClick}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:bg-accent/50 transition-colors"
+            >
+              <div className={`p-2.5 rounded-lg ${action.color}`}>
+                {action.icon}
+              </div>
+              <span className="text-xs font-medium">{action.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Recent Files */}
+        {displayRecent.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">{recentLabel}</h2>
+            </div>
+            <div className="space-y-1">
+              {displayRecent.map(item => {
+                const progress = progressMap[`${item.repo}:${item.path}`]
+                const percent = progress ? Math.round(progress.percent * 100) : undefined
+                return (
+                  <button
+                    key={`${item.repo}-${item.path}`}
+                    onClick={() => navigateToFile(item.repo, item.path)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left"
+                  >
+                    {getFileIcon(item.name)}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm truncate">{item.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{item.repo}/{item.path}</div>
+                    </div>
+                    {percent !== undefined && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">{percent}%</span>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Favorites */}
+        {sortedFavorites.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <Star className="size-4 text-yellow-500" />
+              <h2 className="text-sm font-semibold">收藏</h2>
+            </div>
+            <div className="space-y-1">
+              {sortedFavorites.map(item => {
+                const progress = progressMap[`${item.repo}:${item.path}`]
+                const percent = progress ? Math.round(progress.percent * 100) : undefined
+                return (
+                  <button
+                    key={`fav-${item.repo}-${item.path}`}
+                    onClick={() => navigateToFile(item.repo, item.path)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left"
+                  >
+                    {getFileIcon(item.name)}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm truncate">{item.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{item.repo}/{item.path}</div>
+                    </div>
+                    {percent !== undefined && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">{percent}%</span>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {sortedRecent.length === 0 && sortedFavorites.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <FolderOpen className="size-12 mb-3 opacity-30" />
+            <p className="text-sm mb-1">还没有打开过文件</p>
+            <p className="text-xs opacity-60">从左侧面板选择文件开始阅读</p>
+          </div>
+        )}
+
+        {/* Keyboard shortcut hint */}
+        <div className={`flex items-center justify-center gap-4 text-xs text-muted-foreground ${isMobile ? 'mt-6' : 'mt-10'}`}>
+          <span><kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Ctrl+K</kbd> 快速导航</span>
+          <span><kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Ctrl+Shift+F</kbd> 全局搜索</span>
+        </div>
+      </div>
     </div>
   )
 }

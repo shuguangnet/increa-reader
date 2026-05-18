@@ -6,6 +6,7 @@ export function useKeyboardShortcuts() {
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel)
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
   const setShortcutsOpen = useUIStore((s) => s.setShortcutsOpen)
+  const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -25,10 +26,11 @@ export function useKeyboardShortcuts() {
         return
       }
 
-      // Ctrl+Shift+F: Global search (open command palette with search prefix)
+      // Ctrl+Shift+F: Global search
       if (mod && e.shiftKey && e.key === 'F') {
         e.preventDefault()
-        setCommandPaletteOpen(true)
+        setCommandPaletteOpen(false)
+        setSearchPanelOpen(true)
         return
       }
 
@@ -62,5 +64,5 @@ export function useKeyboardShortcuts() {
 
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [toggleLeftPanel, toggleRightPanel, setCommandPaletteOpen, setShortcutsOpen])
+  }, [toggleLeftPanel, toggleRightPanel, setCommandPaletteOpen, setShortcutsOpen, setSearchPanelOpen])
 }

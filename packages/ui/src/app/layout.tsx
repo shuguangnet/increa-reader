@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { ChatPanel } from './chat'
 import { CommandPalette } from './command-palette'
 import { LeftPanel } from './left-panel'
+import { SearchPanel } from './search-panel'
 import { ShortcutsDialog } from './shortcuts-dialog'
 import { ToastContainer } from './toast'
 
@@ -118,6 +119,8 @@ export function Layout() {
   const isMobile = useIsMobile()
   const toggleLeftPanel = useUIStore((s) => s.toggleLeftPanel)
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel)
+  const searchPanelOpen = useUIStore((s) => s.searchPanelOpen)
+  const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
 
   return (
     <div className="h-full">
@@ -147,6 +150,7 @@ export function Layout() {
       {/* Overlays */}
       <CommandPalette />
       <ShortcutsDialog />
+      <SearchPanel open={searchPanelOpen} onClose={() => setSearchPanelOpen(false)} />
       <ToastContainer />
     </div>
   )

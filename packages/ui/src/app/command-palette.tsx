@@ -52,6 +52,7 @@ export function CommandPalette() {
   const open = useUIStore((s) => s.commandPaletteOpen)
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
   const setShortcutsOpen = useUIStore((s) => s.setShortcutsOpen)
+  const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
   const navigate = useNavigate()
   const { toggle: toggleTheme } = useTheme()
   const addFavorite = useFavoritesStore((s) => s.addFavorite)
@@ -129,7 +130,7 @@ export function CommandPalette() {
         group: 'commands',
         action: () => {
           setCommandPaletteOpen(false)
-          window.dispatchEvent(new CustomEvent('increa:open-search'))
+          setSearchPanelOpen(true)
         },
       },
       {
@@ -175,7 +176,7 @@ export function CommandPalette() {
         },
       },
     ],
-    [toggleTheme, navigate, viewContext, addFavorite, setCommandPaletteOpen, setShortcutsOpen],
+    [toggleTheme, navigate, viewContext, addFavorite, setCommandPaletteOpen, setShortcutsOpen, setSearchPanelOpen],
   )
 
   const filteredItems: PaletteItem[] = useMemo(() => {

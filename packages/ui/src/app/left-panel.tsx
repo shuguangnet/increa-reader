@@ -10,9 +10,9 @@ import { FavoritesPanel } from './favorites-panel'
 import { getLeftPanelSearchStatus } from './left-panel-search-status'
 import { RecentFilesPanel } from './recent-files-panel'
 import { RepoPanel } from './repo-panel'
-import { SearchPanel } from './search-panel'
 import { SettingsDrawer } from './settings-drawer'
 import { TagsPanel } from './tags-panel'
+import { useUIStore } from '@/stores/ui-store'
 
 type LeftTab = 'files' | 'favorites' | 'recent' | 'tags' | 'calendar'
 
@@ -22,7 +22,7 @@ export function LeftPanel() {
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchPanelOpen, setSearchPanelOpen] = useState(false)
+  const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
   const [activeTab, setActiveTab] = useState<LeftTab>('files')
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const isFiltering = searchQuery !== deferredSearchQuery
@@ -176,7 +176,6 @@ export function LeftPanel() {
       )}
 
       <SettingsDrawer open={drawerOpen} onOpenChange={setDrawerOpen} onReposChanged={loadRepos} />
-      <SearchPanel open={searchPanelOpen} onClose={() => setSearchPanelOpen(false)} />
     </div>
   )
 }

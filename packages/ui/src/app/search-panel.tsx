@@ -1,5 +1,5 @@
 import { Hash, Search, X } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
@@ -37,12 +37,25 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   const [loading, setLoading] = useState(false)
   const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const navigate = useNavigate()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const debounceRef = useRef<number>(0)
 
-  const doSearch = useCallback(async () => {
-    if (!query.trim()) return
+  // Auto-focus input when panel opens
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [open])
+
+  // Debounced search
+  const doSearch = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setResults([])
+      return
+    }
     setLoading(true)
     try {
-      const params = new URLSearchParams({ q: query })
+      const params = new URLSearchParams({ q: searchQuery })
       if (typeFilter) params.set('file_types', typeFilter)
       const res = await fetch(`/api/search?${params}`)
       const data = await res.json()
@@ -52,17 +65,39 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
     } finally {
       setLoading(false)
     }
-  }, [query, typeFilter])
+  }, [typeFilter])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') doSearch()
-  }
+  // Debounce search query changes
+  useEffect(() => {
+    if (!open) return
+    clearTimeout(debounceRef.current)
+    debounceRef.current = window.setTimeout(() => {
+      doSearch(query)
+    }, 300)
+    return () => clearTimeout(debounceRef.current)
+  }, [query, open, doSearch])
+
+  // Re-search when type filter changes
+  useEffect(() => {
+    if (!open || !query.trim()) return
+    doSearch(query)
+  }, [typeFilter, open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const navigateToFile = (repo: string, filePath: string) => {
     const clean = filePath.startsWith('/') ? filePath.slice(1) : filePath
     navigate(`/views/${repo}/${clean}`)
     onClose()
   }
+
+  // Handle escape key
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onClose])
 
   if (!open) return null
 
@@ -83,9 +118,9 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
               placeholder="搜索所有仓库内容..."
               className="pl-8"
               autoFocus
@@ -140,6 +175,13 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
               )}
             </button>
           ))}
+        </div>
+
+        <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
+          <span><kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">Esc</kbd> 关闭</span>
+          {results.length > 0 && (
+            <span>{results.length} 条结果</span>
+          )}
         </div>
       </div>
     </div>

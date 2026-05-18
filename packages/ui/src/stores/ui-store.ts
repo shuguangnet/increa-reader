@@ -6,10 +6,12 @@ interface UIState {
   rightPanelVisible: boolean
   commandPaletteOpen: boolean
   shortcutsOpen: boolean
+  searchPanelOpen: boolean
   toggleLeftPanel: () => void
   toggleRightPanel: () => void
   setCommandPaletteOpen: (open: boolean) => void
   setShortcutsOpen: (open: boolean) => void
+  setSearchPanelOpen: (open: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -19,6 +21,7 @@ export const useUIStore = create<UIState>()(
       rightPanelVisible: true,
       commandPaletteOpen: false,
       shortcutsOpen: false,
+      searchPanelOpen: false,
 
       toggleLeftPanel: () =>
         set((state) => ({ leftPanelVisible: !state.leftPanelVisible })),
@@ -31,6 +34,9 @@ export const useUIStore = create<UIState>()(
 
       setShortcutsOpen: (open: boolean) =>
         set({ shortcutsOpen: open }),
+
+      setSearchPanelOpen: (open: boolean) =>
+        set({ searchPanelOpen: open }),
     }),
     {
       name: 'increa-ui',
