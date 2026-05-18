@@ -65,7 +65,7 @@ export function ApiSettingsForm({ open }: { open: boolean }) {
     <div className="space-y-4 px-4 py-2">
       <div className="space-y-1.5">
         <label htmlFor={baseUrlId} className="text-sm font-medium">
-          Base URL
+          API 地址
         </label>
         <Input
           id={baseUrlId}
@@ -77,7 +77,7 @@ export function ApiSettingsForm({ open }: { open: boolean }) {
 
       <div className="space-y-1.5">
         <label htmlFor={apiKeyId} className="text-sm font-medium">
-          API Key
+          API 密钥
         </label>
         <div className="relative">
           <Input
@@ -105,7 +105,7 @@ export function ApiSettingsForm({ open }: { open: boolean }) {
 
       <div className="space-y-1.5">
         <label htmlFor={defaultModelId} className="text-sm font-medium">
-          Default Model
+          默认模型
         </label>
         <Input
           id={defaultModelId}
@@ -116,7 +116,7 @@ export function ApiSettingsForm({ open }: { open: boolean }) {
       </div>
 
       <Button onClick={handleSave} disabled={loading} size="sm">
-        {status === 'saved' ? 'Saved' : loading ? 'Saving...' : 'Save'}
+        {status === 'saved' ? '已保存' : loading ? '保存中...' : '保存'}
       </Button>
     </div>
   )

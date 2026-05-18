@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { MermaidBlock } from '@/components/mermaid-block'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useVisibleContent } from '@/contexts/visible-content-context'
 import { useNoteToolStore } from '@/stores/note-tool-store'
 import { useEditorStore } from '@/stores/editor-store'
@@ -50,6 +51,19 @@ type FileViewerProps = {
   path: string
 }
 
+/** Full-screen overlay wrapper for side panels on mobile */
+function MobilePanelOverlay({ children }: {
+  children: React.ReactNode
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
+      <div className="flex-1 min-h-0 overflow-auto">
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export function FileViewer({ repo, path }: FileViewerProps) {
   const [state, setState] = useState<{
     preview: PreviewData | null
@@ -95,7 +109,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
       })
       .catch(err => {
         if (id === fetchIdRef.current) {
-          setState({ preview: null, loading: false, error: err.message || 'Failed to load file' })
+          setState({ preview: null, loading: false, error: err.message || '加载文件失败' })
         }
       })
   }, [repo, path, refreshKey])
@@ -176,7 +190,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">加载中...</p>
       </div>
     )
   }
@@ -201,12 +215,17 @@ export function FileViewer({ repo, path }: FileViewerProps) {
   const editedFiles = useEditorStore(s => s.editedFiles)
   const editedContent = editedFiles[`${repo}:${path}`]?.content
   const openFile = useEditorStore(s => s.openFile)
+  const isMobile = useIsMobile()
 
   if (preview.type === 'markdown') {
     const displayBody = editedContent ?? preview.body
+
+    // On mobile, side panels display as fullscreen overlays
+    const panelOverlay = isMobile && (showAiPanel || showExportPanel || showVersionPanel)
+
     return (
       <div className="h-full flex">
-        <div className="flex-1 min-w-0 relative">
+        <div className={`flex-1 min-w-0 relative ${panelOverlay ? 'hidden md:block' : ''}`}>
           {!isEditMode && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
               <button
@@ -273,13 +292,31 @@ export function FileViewer({ repo, path }: FileViewerProps) {
           )}
         </div>
         {showAiPanel && (
-          <AiToolsPanel repo={repo} path={path} onClose={() => setShowAiPanel(false)} />
+          isMobile ? (
+            <MobilePanelOverlay>
+              <AiToolsPanel repo={repo} path={path} onClose={() => setShowAiPanel(false)} />
+            </MobilePanelOverlay>
+          ) : (
+            <AiToolsPanel repo={repo} path={path} onClose={() => setShowAiPanel(false)} />
+          )
         )}
         {showExportPanel && (
-          <ExportImportPanel repo={repo} path={path} onClose={() => setShowExportPanel(false)} />
+          isMobile ? (
+            <MobilePanelOverlay>
+              <ExportImportPanel repo={repo} path={path} onClose={() => setShowExportPanel(false)} />
+            </MobilePanelOverlay>
+          ) : (
+            <ExportImportPanel repo={repo} path={path} onClose={() => setShowExportPanel(false)} />
+          )
         )}
         {showVersionPanel && (
-          <VersionHistoryPanel repo={repo} path={path} onClose={() => setShowVersionPanel(false)} />
+          isMobile ? (
+            <MobilePanelOverlay>
+              <VersionHistoryPanel repo={repo} path={path} onClose={() => setShowVersionPanel(false)} />
+            </MobilePanelOverlay>
+          ) : (
+            <VersionHistoryPanel repo={repo} path={path} onClose={() => setShowVersionPanel(false)} />
+          )
         )}
       </div>
     )
@@ -346,7 +383,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
       {preview.type === 'unsupported' && (
         <div className="h-full flex flex-col items-center justify-center gap-4 text-muted-foreground">
           <FileQuestion size={48} />
-          <p>Unsupported file type</p>
+          <p>不支持的文件类型</p>
           <p className="text-sm font-mono">{preview.path}</p>
         </div>
       )}

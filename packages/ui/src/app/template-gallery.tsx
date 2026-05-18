@@ -40,7 +40,7 @@ export function TemplateGallery({ repoName, parentPath, onCreated, onClose }: Te
       setSelected(detail)
       setShowApplyDialog(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load template')
+      setError(err instanceof Error ? err.message : '加载模板失败')
     }
   }, [])
 
@@ -54,7 +54,7 @@ export function TemplateGallery({ repoName, parentPath, onCreated, onClose }: Te
       onCreated()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to apply template')
+      setError(err instanceof Error ? err.message : '应用模板失败')
     } finally {
       setApplying(false)
     }

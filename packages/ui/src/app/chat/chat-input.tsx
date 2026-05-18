@@ -91,10 +91,10 @@ export const ChatInput = ({
         style={{ maxHeight: '12rem' }}
         placeholder={
           isStreaming
-            ? 'type /abort to stop generation'
+            ? '输入 /abort 停止生成'
             : isMobile
-              ? 'Type a message...'
-              : 'type /help for commands (Shift+Enter for new line)'
+              ? '输入消息...'
+              : '输入消息（Shift+Enter 换行，/help 查看命令）'
         }
         spellCheck={false}
       />

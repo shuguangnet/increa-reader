@@ -22,16 +22,16 @@ type ToolbarAction = {
 }
 
 const TOOLBAR: ToolbarAction[] = [
-  { icon: <Bold size={15} />, label: 'Bold', prefix: '**', suffix: '**' },
-  { icon: <Italic size={15} />, label: 'Italic', prefix: '*', suffix: '*' },
-  { icon: <Heading1 size={15} />, label: 'H1', prefix: '# ', suffix: '' },
-  { icon: <Heading2 size={15} />, label: 'H2', prefix: '## ', suffix: '' },
-  { icon: <Heading3 size={15} />, label: 'H3', prefix: '### ', suffix: '' },
-  { icon: <Link size={15} />, label: 'Link', prefix: '[', suffix: '](url)' },
-  { icon: <Code size={15} />, label: 'Code', prefix: '`', suffix: '`' },
-  { icon: <Code size={15} />, label: 'CodeBlock', prefix: '```\n', suffix: '\n```', block: true },
-  { icon: <List size={15} />, label: 'List', prefix: '- ', suffix: '' },
-  { icon: <Quote size={15} />, label: 'Quote', prefix: '> ', suffix: '' },
+  { icon: <Bold size={15} />, label: '粗体', prefix: '**', suffix: '**' },
+  { icon: <Italic size={15} />, label: '斜体', prefix: '*', suffix: '*' },
+  { icon: <Heading1 size={15} />, label: '标题1', prefix: '# ', suffix: '' },
+  { icon: <Heading2 size={15} />, label: '标题2', prefix: '## ', suffix: '' },
+  { icon: <Heading3 size={15} />, label: '标题3', prefix: '### ', suffix: '' },
+  { icon: <Link size={15} />, label: '链接', prefix: '[', suffix: '](url)' },
+  { icon: <Code size={15} />, label: '代码', prefix: '`', suffix: '`' },
+  { icon: <Code size={15} />, label: '代码块', prefix: '```\n', suffix: '\n```', block: true },
+  { icon: <List size={15} />, label: '列表', prefix: '- ', suffix: '' },
+  { icon: <Quote size={15} />, label: '引用', prefix: '> ', suffix: '' },
 ]
 
 type Props = { repo: string; path: string; initialContent: string }

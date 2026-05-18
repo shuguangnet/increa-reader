@@ -87,7 +87,7 @@ export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
           )}
           <h3 className="font-semibold text-sm">{repoName}</h3>
           {searchActive && isFilteringTree && (
-            <span className="text-xs font-normal text-muted-foreground">Filtering...</span>
+            <span className="text-xs font-normal text-muted-foreground">筛选中...</span>
           )}
         </div>
         <button
@@ -98,16 +98,16 @@ export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
           }}
           disabled={loading}
           className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
-          title="Refresh file tree"
+          title="刷新文件树"
         >
           <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
       {!isEffectivelyCollapsed &&
         (showLoadingState ? (
-          <div className="px-2 py-1 text-sm text-gray-500">Loading...</div>
+          <div className="px-2 py-1 text-sm text-gray-500">加载中...</div>
         ) : showEmptyState ? (
-          <div className="px-2 py-2 text-sm text-muted-foreground">No matching files</div>
+          <div className="px-2 py-2 text-sm text-muted-foreground">无匹配文件</div>
         ) : (
           <FileTree
             nodes={visibleFiles}

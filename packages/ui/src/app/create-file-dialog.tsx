@@ -41,7 +41,7 @@ export function CreateFileDialog({
   const handleCreate = async () => {
     const trimmed = name.trim()
     if (!trimmed) {
-      setError('Name is required')
+      setError('请输入名称')
       return
     }
     const fullPath = parentPath ? `${parentPath}/${trimmed}` : trimmed

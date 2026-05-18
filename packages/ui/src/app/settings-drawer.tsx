@@ -73,21 +73,21 @@ export function SettingsDrawer({ open, onOpenChange, onReposChanged }: SettingsD
     <Drawer direction="right" open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Settings</DrawerTitle>
-          <DrawerDescription>Manage repositories and API configuration</DrawerDescription>
+          <DrawerTitle>设置</DrawerTitle>
+          <DrawerDescription>管理仓库和 API 配置</DrawerDescription>
         </DrawerHeader>
 
         <Tabs defaultValue="repositories" className="flex flex-1 flex-col overflow-hidden">
           <TabsList className="mx-4">
-            <TabsTrigger value="repositories">Repositories</TabsTrigger>
-            <TabsTrigger value="api">API</TabsTrigger>
+            <TabsTrigger value="repositories">仓库管理</TabsTrigger>
+            <TabsTrigger value="api">API 配置</TabsTrigger>
           </TabsList>
 
           <TabsContent value="repositories" className="flex flex-1 flex-col overflow-hidden">
             <div className="flex-1 overflow-auto px-4">
               {repos.length === 0 && (
                 <p className="py-4 text-center text-sm text-muted-foreground">
-                  No repositories configured
+                  未配置仓库
                 </p>
               )}
               <ul className="space-y-2">
@@ -120,7 +120,7 @@ export function SettingsDrawer({ open, onOpenChange, onReposChanged }: SettingsD
 
             <div className="flex gap-2 border-t p-4">
               <Input
-                placeholder="Repository path..."
+                placeholder="仓库路径..."
                 value={newPath}
                 onChange={e => setNewPath(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -128,7 +128,7 @@ export function SettingsDrawer({ open, onOpenChange, onReposChanged }: SettingsD
               />
               <Button size="sm" onClick={handleAdd} disabled={loading || !newPath.trim()}>
                 <Plus className="size-4" />
-                Add
+                添加
               </Button>
             </div>
           </TabsContent>

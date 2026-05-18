@@ -40,7 +40,7 @@ export function RenameDialog({
   const handleRename = async () => {
     const trimmed = newName.trim()
     if (!trimmed) {
-      setError('Name is required')
+      setError('请输入名称')
       return
     }
     if (trimmed === currentName) {
@@ -56,7 +56,7 @@ export function RenameDialog({
       onOpenChange(false)
       onRenamed()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to rename')
+      setError(err instanceof Error ? err.message : '重命名失败')
     } finally {
       setIsRenaming(false)
     }
@@ -80,11 +80,11 @@ export function RenameDialog({
       <div className="relative z-50 w-full max-w-md rounded-lg border bg-white p-6 shadow-lg dark:bg-gray-900">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
           <Pencil className="size-4" />
-          Rename
+          重命名
         </h2>
 
         <div className="mb-2 text-sm text-muted-foreground">
-          Current name: <span className="font-medium text-foreground">{currentName}</span>
+          当前名称：<span className="font-medium text-foreground">{currentName}</span>
         </div>
 
         <Input
@@ -92,7 +92,7 @@ export function RenameDialog({
           value={newName}
           onChange={e => setNewName(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Enter new name"
+          placeholder="输入新名称"
           disabled={isRenaming}
           className="mb-2"
         />
@@ -101,10 +101,10 @@ export function RenameDialog({
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isRenaming}>
-            Cancel
+            取消
           </Button>
           <Button type="button" onClick={handleRename} disabled={isRenaming || !newName.trim()}>
-            {isRenaming ? 'Renaming...' : 'Rename'}
+            {isRenaming ? '重命名中...' : '确认'}
           </Button>
         </div>
       </div>
