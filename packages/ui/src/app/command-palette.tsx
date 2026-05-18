@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+// useMemo is used below for viewContext stabilization
 import { useNavigate } from 'react-router-dom'
 import {
   Command,
@@ -54,7 +55,9 @@ export function CommandPalette() {
   const navigate = useNavigate()
   const { toggle: toggleTheme } = useTheme()
   const addFavorite = useFavoritesStore((s) => s.addFavorite)
-  const viewContext = useViewContext((s) => ({ repo: s.repo, path: s.path }))
+  const viewRepo = useViewContext((s) => s.repo)
+  const viewPath = useViewContext((s) => s.path)
+  const viewContext = useMemo(() => ({ repo: viewRepo, path: viewPath }), [viewRepo, viewPath])
 
   const [query, setQuery] = useState('')
   const [files, setFiles] = useState<FlatFile[]>([])

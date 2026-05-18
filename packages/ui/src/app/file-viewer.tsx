@@ -198,7 +198,8 @@ export function FileViewer({ repo, path }: FileViewerProps) {
   }
 
   const isEditMode = useEditorStore(s => s.isEditMode)
-  const editedContent = useEditorStore(s => s.editedFiles[`${repo}:${path}`]?.content)
+  const editedFiles = useEditorStore(s => s.editedFiles)
+  const editedContent = editedFiles[`${repo}:${path}`]?.content
   const openFile = useEditorStore(s => s.openFile)
 
   if (preview.type === 'markdown') {

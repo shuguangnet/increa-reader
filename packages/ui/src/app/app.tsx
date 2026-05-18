@@ -29,13 +29,34 @@ function useRehydrateStores() {
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      useUIStore.persist.rehydrate(),
-      useFavoritesStore.persist.rehydrate(),
-      useRecentFilesStore.persist.rehydrate(),
-      useTabsStore.persist.rehydrate(),
-      useProgressStore.persist.rehydrate(),
-    ]).then(() => setHydrated(true))
+    let count = 0
+    const total = 5
+    const markDone = () => {
+      count++
+      if (count >= total) {
+        setHydrated(true)
+      }
+    }
+
+    // Listen for hydration completion on each store
+    const unsubs = [
+      useUIStore.persist.onFinishHydration(markDone),
+      useFavoritesStore.persist.onFinishHydration(markDone),
+      useRecentFilesStore.persist.onFinishHydration(markDone),
+      useTabsStore.persist.onFinishHydration(markDone),
+      useProgressStore.persist.onFinishHydration(markDone),
+    ]
+
+    // Trigger rehydration (it's async, fires onFinishHydration when done)
+    useUIStore.persist.rehydrate()
+    useFavoritesStore.persist.rehydrate()
+    useRecentFilesStore.persist.rehydrate()
+    useTabsStore.persist.rehydrate()
+    useProgressStore.persist.rehydrate()
+
+    return () => {
+      unsubs.forEach((unsub) => unsub())
+    }
   }, [])
 
   return hydrated

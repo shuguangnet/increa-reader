@@ -263,7 +263,8 @@ function TreeItem({
     setContextMenu(null)
   }, [])
 
-  const isFav = useFavoritesStore(s => s.isFavorite(repoName, node.path))
+  const favorites = useFavoritesStore(s => s.favorites)
+  const isFav = favorites.some(f => f.repo === repoName && f.path === (node.path.startsWith('/') ? node.path.slice(1) : node.path))
   const addFavorite = useFavoritesStore(s => s.addFavorite)
   const removeFavorite = useFavoritesStore(s => s.removeFavorite)
 

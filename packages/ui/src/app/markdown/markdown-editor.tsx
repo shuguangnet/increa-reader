@@ -43,7 +43,8 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
   const markSaved = useEditorStore(s => s.markSaved)
   const setEditMode = useEditorStore(s => s.setEditMode)
   const openFile = useEditorStore(s => s.openFile)
-  const fileState = useEditorStore(s => s.editedFiles[`${repo}:${path}`])
+  const editedFiles = useEditorStore(s => s.editedFiles)
+  const fileState = editedFiles[`${repo}:${path}`]
   const content = fileState?.content ?? initialContent
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
