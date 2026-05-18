@@ -1,8 +1,9 @@
-import { Menu, MessageSquare, Monitor, Moon, Sun, X } from 'lucide-react'
+import { Download, Menu, MessageSquare, Monitor, Moon, Sun, X } from 'lucide-react'
 import { useCallback, useRef } from 'react'
 import { Outlet } from 'react-router-dom'
 
 import { useIsMobile } from '@/hooks/use-mobile'
+import { usePWAInstall } from '@/hooks/use-pwa-install'
 import { useTheme } from '@/hooks/use-theme'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -217,6 +218,11 @@ export function Layout() {
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel)
   const searchPanelOpen = useUIStore((s) => s.searchPanelOpen)
   const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
+  const { installable, install } = usePWAInstall()
+
+  const handleInstall = useCallback(() => {
+    install().catch(console.error)
+  }, [install])
 
   return (
     <div className="h-full">
@@ -231,6 +237,11 @@ export function Layout() {
           <span className="text-sm font-semibold tracking-tight">Increa Reader</span>
         </div>
         <div className="flex items-center gap-1">
+          {installable && (
+            <Button variant="ghost" size="icon-sm" onClick={handleInstall} title="安装应用">
+              <Download className="size-4" />
+            </Button>
+          )}
           {isMobile && (
             <Button variant="ghost" size="icon-sm" onClick={toggleRightPanel} title="AI 助手">
               <MessageSquare className="size-4" />
