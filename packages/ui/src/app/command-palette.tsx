@@ -94,7 +94,7 @@ export function CommandPalette() {
     () => [
       {
         id: 'new-file',
-        label: 'New File',
+        label: '新建文件',
         icon: <FilePlus className="size-4" />,
         group: 'commands',
         action: () => {
@@ -104,7 +104,7 @@ export function CommandPalette() {
       },
       {
         id: 'new-folder',
-        label: 'New Folder',
+        label: '新建文件夹',
         icon: <FolderPlus className="size-4" />,
         group: 'commands',
         action: () => {
@@ -114,7 +114,7 @@ export function CommandPalette() {
       },
       {
         id: 'toggle-theme',
-        label: 'Toggle Dark Mode',
+        label: '切换深色模式',
         icon: <Moon className="size-4" />,
         group: 'commands',
         action: () => {
@@ -124,7 +124,7 @@ export function CommandPalette() {
       },
       {
         id: 'global-search',
-        label: 'Global Search',
+        label: '全局搜索',
         icon: <Search className="size-4" />,
         group: 'commands',
         action: () => {
@@ -134,7 +134,7 @@ export function CommandPalette() {
       },
       {
         id: 'knowledge-graph',
-        label: 'Knowledge Graph',
+        label: '知识图谱',
         icon: <Network className="size-4" />,
         group: 'commands',
         action: () => {
@@ -144,7 +144,7 @@ export function CommandPalette() {
       },
       {
         id: 'favorite-file',
-        label: 'Favorite Current File',
+        label: '收藏当前文件',
         icon: <Star className="size-4" />,
         group: 'commands',
         action: () => {
@@ -156,7 +156,7 @@ export function CommandPalette() {
       },
       {
         id: 'version-history',
-        label: 'Version History',
+        label: '版本历史',
         icon: <GitBranch className="size-4" />,
         group: 'commands',
         action: () => {
@@ -166,7 +166,7 @@ export function CommandPalette() {
       },
       {
         id: 'show-shortcuts',
-        label: 'Show Keyboard Shortcuts',
+        label: '显示快捷键',
         icon: <Command className="size-4" />,
         group: 'commands',
         action: () => {
@@ -256,7 +256,7 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command or search files..."
+            placeholder="输入命令或搜索文件..."
             className="flex-1 bg-transparent px-3 py-3 text-sm outline-none placeholder:text-muted-foreground"
           />
           <kbd className="hidden sm:inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
@@ -268,7 +268,7 @@ export function CommandPalette() {
         <div className="max-h-80 overflow-auto py-1">
           {commandItems.length > 0 && (
             <>
-              <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Commands</div>
+              <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">命令</div>
               {commandItems.map((item, i) => {
                 const globalIndex = i
                 return (
@@ -293,7 +293,7 @@ export function CommandPalette() {
           {fileItems.length > 0 && (
             <>
               <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-                Files{fileItems.length > 50 ? ` (showing first 50 of ${files.length})` : ''}
+                文件{fileItems.length > 50 ? ` (显示前 50 / 共 ${files.length})` : ''}
               </div>
               {fileItems.map((item, i) => {
                 const globalIndex = commandItems.length + i
@@ -321,7 +321,7 @@ export function CommandPalette() {
 
           {filteredItems.length === 0 && (
             <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-              No results found
+              未找到结果
             </div>
           )}
         </div>
@@ -329,9 +329,9 @@ export function CommandPalette() {
         {/* Footer */}
         <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
           <span>
-            <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↑↓</kbd> navigate{' '}
-            <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↵</kbd> select{' '}
-            <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">Esc</kbd> close
+            <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↑↓</kbd> 导航{' '}
+            <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↵</kbd> 选择{' '}
+            <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">Esc</kbd> 关闭
           </span>
           <button
             onClick={() => {
@@ -340,7 +340,7 @@ export function CommandPalette() {
             }}
             className="hover:text-foreground transition-colors"
           >
-            All shortcuts →
+            所有快捷键 →
           </button>
         </div>
       </div>

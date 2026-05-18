@@ -40,30 +40,30 @@ export function LeftPanel() {
   }, [loadRepos])
 
   if (loading) {
-    return <div className="p-4">Loading...</div>
+    return <div className="p-4">加载中...</div>
   }
 
   const tabs: { key: LeftTab; label: string; icon: React.ReactNode }[] = [
-    { key: 'files', label: 'Files', icon: <FolderOpen className="size-3.5" /> },
-    { key: 'favorites', label: 'Stars', icon: <Star className="size-3.5" /> },
-    { key: 'recent', label: 'Recent', icon: <Clock className="size-3.5" /> },
-    { key: 'tags', label: 'Tags', icon: <Tag className="size-3.5" /> },
-    { key: 'calendar', label: 'Calendar', icon: <Calendar className="size-3.5" /> },
+    { key: 'files', label: '文件', icon: <FolderOpen className="size-3.5" /> },
+    { key: 'favorites', label: '收藏', icon: <Star className="size-3.5" /> },
+    { key: 'recent', label: '近期', icon: <Clock className="size-3.5" /> },
+    { key: 'tags', label: '标签', icon: <Tag className="size-3.5" /> },
+    { key: 'calendar', label: '日历', icon: <Calendar className="size-3.5" /> },
   ]
 
   return (
     <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="flex items-center justify-between border-b px-3 py-2">
-        <span className="text-sm font-medium">Repositories</span>
+        <span className="text-sm font-medium">仓库</span>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" onClick={() => setSearchPanelOpen(true)} title="Global search">
+          <Button variant="ghost" size="icon-sm" onClick={() => setSearchPanelOpen(true)} title="全局搜索">
             <Search className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={toggleTheme} title={`Theme: ${theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'}`}>
+          <Button variant="ghost" size="icon-sm" onClick={toggleTheme} title={`主题: ${theme === 'dark' ? '深色' : theme === 'light' ? '浅色' : '跟随系统'}`}>
             {theme === 'dark' ? <Moon className="size-4" /> : theme === 'light' ? <Sun className="size-4" /> : <Monitor className="size-4" />}
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={() => setDrawerOpen(true)}>
+          <Button variant="ghost" size="icon-sm" onClick={() => setDrawerOpen(true)} title="设置">
             <Settings className="size-4" />
           </Button>
         </div>
@@ -96,7 +96,7 @@ export function LeftPanel() {
               <Input
                 value={searchQuery}
                 onChange={event => setSearchQuery(event.target.value)}
-                placeholder="Filter repositories and files"
+                placeholder="筛选文件..."
                 className="pr-9 pl-8"
               />
               {searchQuery && (
@@ -106,7 +106,7 @@ export function LeftPanel() {
                   size="icon-sm"
                   className="absolute top-1/2 right-1 -translate-y-1/2"
                   onClick={() => setSearchQuery('')}
-                  aria-label="Clear search"
+                  aria-label="清除搜索"
                 >
                   <X className="size-4" />
                 </Button>
@@ -169,7 +169,7 @@ export function LeftPanel() {
           )}
           {repos.length === 0 && (
             <div className="p-4 text-sm text-muted-foreground">
-              No repositories configured. Add a repository to use the calendar view.
+              未配置仓库，请添加仓库以使用日历视图。
             </div>
           )}
         </div>

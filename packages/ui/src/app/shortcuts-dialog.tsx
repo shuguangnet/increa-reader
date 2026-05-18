@@ -2,13 +2,13 @@ import { Command, Search, PanelLeft, PanelRight, FileText, FilePlus } from 'luci
 import { useUIStore } from '@/stores/ui-store'
 
 const SHORTCUTS = [
-  { keys: 'Ctrl+K', description: 'Open command palette', icon: <Command className="size-3.5" /> },
-  { keys: 'Ctrl+P', description: 'Quick open file', icon: <FileText className="size-3.5" /> },
-  { keys: 'Ctrl+S', description: 'Save current file', icon: <FilePlus className="size-3.5" /> },
-  { keys: 'Ctrl+Shift+F', description: 'Global search', icon: <Search className="size-3.5" /> },
-  { keys: 'Ctrl+B', description: 'Toggle left panel', icon: <PanelLeft className="size-3.5" /> },
-  { keys: 'Ctrl+J', description: 'Toggle chat panel', icon: <PanelRight className="size-3.5" /> },
-  { keys: 'Ctrl+/', description: 'Show keyboard shortcuts', icon: <Command className="size-3.5" /> },
+  { keys: 'Ctrl+K', description: '打开命令面板', icon: <Command className="size-3.5" /> },
+  { keys: 'Ctrl+P', description: '快速打开文件', icon: <FileText className="size-3.5" /> },
+  { keys: 'Ctrl+S', description: '保存当前文件', icon: <FilePlus className="size-3.5" /> },
+  { keys: 'Ctrl+Shift+F', description: '全局搜索', icon: <Search className="size-3.5" /> },
+  { keys: 'Ctrl+B', description: '切换左侧面板', icon: <PanelLeft className="size-3.5" /> },
+  { keys: 'Ctrl+J', description: '切换聊天面板', icon: <PanelRight className="size-3.5" /> },
+  { keys: 'Ctrl+/', description: '显示快捷键', icon: <Command className="size-3.5" /> },
 ]
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone/.test(navigator.userAgent)
@@ -38,7 +38,7 @@ export function ShortcutsDialog() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Command className="size-5" />
-            Keyboard Shortcuts
+            快捷键
           </h2>
           <button
             onClick={() => setShortcutsOpen(false)}
@@ -73,7 +73,7 @@ export function ShortcutsDialog() {
             }}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            Open command palette →
+            打开命令面板 →
           </button>
         </div>
       </div>

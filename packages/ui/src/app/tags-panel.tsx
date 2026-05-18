@@ -101,13 +101,16 @@ export function TagsPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Current file tags */}
+      {/* 当前文件标签 */}
       {repo && path && (
         <div className="border-b p-3">
           <div className="text-xs font-medium text-muted-foreground mb-1.5 truncate" title={`${repo}/${path}`}>
             {path.split('/').pop()}
           </div>
           <div className="flex flex-wrap gap-1 mb-2">
+            {fileTags.length === 0 && (
+              <span className="text-xs text-muted-foreground opacity-60">暂无标签</span>
+            )}
             {fileTags.map(t => (
               <span key={t} className="inline-flex items-center gap-0.5 rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-xs">
                 <Hash className="size-3" />{t}
@@ -120,7 +123,7 @@ export function TagsPanel() {
               value={newTag}
               onChange={e => setNewTag(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addTag()}
-              placeholder="Add tag..."
+              placeholder="添加标签..."
               className="flex-1 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-xs outline-none focus:border-gray-400 dark:focus:border-gray-500"
             />
             <button onClick={addTag} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"><Plus className="size-3.5" /></button>
@@ -128,10 +131,10 @@ export function TagsPanel() {
         </div>
       )}
 
-      {/* Tags list */}
+      {/* 标签列表 */}
       <div className="flex-1 overflow-auto">
-        {loading && <div className="p-3 text-xs text-muted-foreground">Loading tags...</div>}
-        {!loading && tags.length === 0 && <div className="p-3 text-xs text-muted-foreground">No tags yet</div>}
+        {loading && <div className="p-3 text-xs text-muted-foreground">加载中...</div>}
+        {!loading && tags.length === 0 && <div className="p-3 text-xs text-muted-foreground">暂无标签</div>}
         {tags.map(tag => (
           <div key={tag.name}>
             <button
@@ -147,7 +150,7 @@ export function TagsPanel() {
             </button>
             {expanded === tag.name && (
               <div className="pl-6 pb-1">
-                {loadingFiles && <div className="text-xs text-muted-foreground px-2 py-1">Loading...</div>}
+                {loadingFiles && <div className="text-xs text-muted-foreground px-2 py-1">加载中...</div>}
                 {tagFiles.map((f, i) => (
                   <button
                     key={`${f.repo}-${f.file_path}-${i}`}

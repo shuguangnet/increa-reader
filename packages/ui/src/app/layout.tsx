@@ -17,10 +17,10 @@ function ThemeToggle() {
   const { theme, toggle } = useTheme()
 
   const themeIcon = theme === 'dark' ? <Moon className="size-4" /> : theme === 'light' ? <Sun className="size-4" /> : <Monitor className="size-4" />
-  const themeLabel = theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'
+  const themeLabel = theme === 'dark' ? '深色' : theme === 'light' ? '浅色' : '跟随系统'
 
   return (
-    <Button variant="ghost" size="icon-sm" onClick={toggle} title={`Theme: ${themeLabel} (click to switch)`}>
+    <Button variant="ghost" size="icon-sm" onClick={toggle} title={`主题: ${themeLabel}（点击切换）`}>
       {themeIcon}
     </Button>
   )
@@ -125,7 +125,7 @@ export function Layout() {
       <div className="flex h-9 items-center justify-between border-b bg-white px-2 dark:bg-gray-950 md:px-3">
         <div className="flex items-center gap-1.5">
           {isMobile && (
-            <Button variant="ghost" size="icon-sm" onClick={toggleLeftPanel} title="Toggle sidebar">
+            <Button variant="ghost" size="icon-sm" onClick={toggleLeftPanel} title="侧边栏">
               <Menu className="size-4" />
             </Button>
           )}
@@ -133,7 +133,7 @@ export function Layout() {
         </div>
         <div className="flex items-center gap-1">
           {isMobile && (
-            <Button variant="ghost" size="icon-sm" onClick={toggleRightPanel} title="AI Chat">
+            <Button variant="ghost" size="icon-sm" onClick={toggleRightPanel} title="AI 助手">
               <MessageSquare className="size-4" />
             </Button>
           )}

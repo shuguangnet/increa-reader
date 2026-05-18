@@ -1,4 +1,4 @@
-import { Clock,Trash2 } from 'lucide-react'
+import { Clock, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRecentFilesStore } from '@/stores/recent-files-store'
 import { useProgressStore } from '@/stores/progress-store'
@@ -32,8 +32,8 @@ export function RecentFilesPanel() {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <Clock className="size-8 mb-2 opacity-40" />
-        <p className="text-sm">No recent files</p>
-        <p className="text-xs mt-1 opacity-60">Open files to see them here</p>
+        <p className="text-sm">暂无近期文件</p>
+        <p className="text-xs mt-1 opacity-60">打开文件后会显示在这里</p>
       </div>
     )
   }
@@ -45,7 +45,7 @@ export function RecentFilesPanel() {
           variant="ghost"
           size="icon-sm"
           onClick={clearRecent}
-          title="Clear recent files"
+          title="清空近期文件"
           className="text-muted-foreground hover:text-destructive"
         >
           <Trash2 className="size-3.5" />

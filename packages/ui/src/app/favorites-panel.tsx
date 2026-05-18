@@ -25,8 +25,8 @@ export function FavoritesPanel() {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <Star className="size-8 mb-2 opacity-40" />
-        <p className="text-sm">No favorites yet</p>
-        <p className="text-xs mt-1 opacity-60">Star files to add them here</p>
+        <p className="text-sm">暂无收藏</p>
+        <p className="text-xs mt-1 opacity-60">点击文件旁的星标添加收藏</p>
       </div>
     )
   }
@@ -46,7 +46,7 @@ export function FavoritesPanel() {
               e.stopPropagation()
               handleRemove(item.repo, item.path)
             }}
-            title="Remove from favorites"
+            title="取消收藏"
           >
             <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
           </button>
