@@ -1,8 +1,9 @@
-import { Clock, FolderOpen, Search, Settings, Star, Tag, X } from 'lucide-react'
+import { Clock, FolderOpen, Monitor, Moon, Search, Settings, Star, Sun, Tag, X } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useTheme } from '@/hooks/use-theme'
 import { fetchRepos, type RepoInfo } from './api'
 import { FavoritesPanel } from './favorites-panel'
 import { getLeftPanelSearchStatus } from './left-panel-search-status'
@@ -15,6 +16,7 @@ import { TagsPanel } from './tags-panel'
 type LeftTab = 'files' | 'favorites' | 'recent' | 'tags'
 
 export function LeftPanel() {
+  const { theme, toggle: toggleTheme } = useTheme()
   const [repos, setRepos] = useState<RepoInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -55,6 +57,9 @@ export function LeftPanel() {
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon-sm" onClick={() => setSearchPanelOpen(true)} title="Global search">
             <Search className="size-4" />
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={toggleTheme} title={`Theme: ${theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'}`}>
+            {theme === 'dark' ? <Moon className="size-4" /> : theme === 'light' ? <Sun className="size-4" /> : <Monitor className="size-4" />}
           </Button>
           <Button variant="ghost" size="icon-sm" onClick={() => setDrawerOpen(true)}>
             <Settings className="size-4" />
