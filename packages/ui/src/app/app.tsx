@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import { VisibleContentProvider } from '../contexts/visible-content-context'
 import { BoardViewer } from './board-viewer'
+import { KnowledgeGraph } from './knowledge-graph'
 import { Layout } from './layout'
 import { TabbedViewer } from './tabs/tabbed-viewer'
 
@@ -20,6 +21,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/board" element={<BoardViewer />} />
           <Route path="/views/:repoName/*" element={<TabbedViewer />} />
+          <Route path="/graph" element={<KnowledgeGraph />} />
         </Route>
       </Routes>
     </VisibleContentProvider>
