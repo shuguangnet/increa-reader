@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { SendHorizontal, Square } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { uploadImage } from '@/lib/upload'
 
 type ChatInputProps = {
@@ -7,6 +9,7 @@ type ChatInputProps = {
   onInputChange: (value: string) => void
   onKeyDown: (e: React.KeyboardEvent) => void
   onInsertText: (text: string) => void
+  onSend: () => void
 }
 
 export const ChatInput = ({
@@ -15,8 +18,10 @@ export const ChatInput = ({
   onInputChange,
   onKeyDown,
   onInsertText,
+  onSend,
 }: ChatInputProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const isMobile = useIsMobile()
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -28,6 +33,23 @@ export const ChatInput = ({
     // Set new height based on scrollHeight
     textarea.style.height = `${textarea.scrollHeight}px`
   }, [input])
+
+  // On mobile, scroll input into view when focused (helps with virtual keyboard)
+  useEffect(() => {
+    if (!isMobile) return
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const handleFocus = () => {
+      // Small delay to let the virtual keyboard appear
+      setTimeout(() => {
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }, 300)
+    }
+
+    textarea.addEventListener('focus', handleFocus)
+    return () => textarea.removeEventListener('focus', handleFocus)
+  }, [isMobile])
 
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent) => {
@@ -53,9 +75,11 @@ export const ChatInput = ({
     [onInsertText],
   )
 
+  const canSend = input.trim().length > 0
+
   return (
-    <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-start gap-2">
-      <span className="text-blue-700 dark:text-blue-500 leading-normal">&gt;</span>
+    <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-end gap-2">
+      <span className="text-blue-700 dark:text-blue-500 leading-normal pb-0.5">&gt;</span>
       <textarea
         ref={textareaRef}
         value={input}
@@ -68,10 +92,34 @@ export const ChatInput = ({
         placeholder={
           isStreaming
             ? 'type /abort to stop generation'
-            : 'type /help for commands (Shift+Enter for new line)'
+            : isMobile
+              ? 'Type a message...'
+              : 'type /help for commands (Shift+Enter for new line)'
         }
         spellCheck={false}
       />
+      {/* Send/Abort button - always visible on mobile, visible on desktop when there's input */}
+      {(isMobile || canSend || isStreaming) && (
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={isStreaming ? false : !canSend}
+          className={`shrink-0 p-1.5 rounded-md transition-colors ${
+            isStreaming
+              ? 'text-red-500 hover:bg-red-100 dark:hover:bg-red-950/30'
+              : canSend
+                ? 'text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/30'
+                : 'text-gray-300 dark:text-gray-600'
+          }`}
+          title={isStreaming ? 'Abort' : 'Send'}
+        >
+          {isStreaming ? (
+            <Square className="size-4" />
+          ) : (
+            <SendHorizontal className="size-4" />
+          )}
+        </button>
+      )}
     </div>
   )
 }

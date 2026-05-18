@@ -94,15 +94,15 @@ function MobileLayout() {
             className="fixed inset-0 z-40 bg-black/50"
             onClick={toggleRightPanel}
           />
-          <div className="fixed inset-0 z-50 bg-white dark:bg-gray-950 animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="fixed inset-0 z-50 bg-white dark:bg-gray-950 animate-in slide-in-from-bottom duration-200 flex flex-col">
+            <div className="flex items-center justify-between border-b px-3 py-2 bg-gray-50 dark:bg-gray-900">
               <span className="text-sm font-medium">AI Chat</span>
               <Button variant="ghost" size="icon-sm" onClick={toggleRightPanel}>
                 <X className="size-4" />
               </Button>
             </div>
-            <div className="h-[calc(100%-2.75rem)]">
-              <ChatPanel />
+            <div className="flex-1 min-h-0">
+              <ChatPanel hideHeader />
             </div>
           </div>
         </>

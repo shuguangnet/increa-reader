@@ -9,7 +9,11 @@ import { HistoryPanel } from './history-panel'
 import { useChat } from './hooks/use-chat'
 import { useFrontendTools } from './hooks/use-frontend-tools'
 
-export const ChatPanel = () => {
+type ChatPanelProps = {
+  hideHeader?: boolean
+}
+
+export const ChatPanel = ({ hideHeader }: ChatPanelProps) => {
   const [isSplitView, setIsSplitView] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const getContext = useGetContext()
@@ -91,7 +95,9 @@ export const ChatPanel = () => {
 
   return (
     <div className="flex flex-col h-full font-mono">
-      <ChatHeader isSplitView={isSplitView} onToggleSplit={() => setIsSplitView(!isSplitView)} />
+      {!hideHeader && (
+        <ChatHeader isSplitView={isSplitView} onToggleSplit={() => setIsSplitView(!isSplitView)} />
+      )}
 
       {isSplitView ? (
         <ResizablePanelGroup direction="vertical" className="flex-1">
@@ -108,6 +114,7 @@ export const ChatPanel = () => {
               onInputChange={setInput}
               onKeyDown={handleKeyDown}
               onInsertText={handleInsertText}
+              onSend={sendMessage}
               context={getContext()}
               repos={repos}
               sessionId={sessionId}
@@ -126,6 +133,7 @@ export const ChatPanel = () => {
             onInputChange={setInput}
             onKeyDown={handleKeyDown}
             onInsertText={handleInsertText}
+            onSend={sendMessage}
             context={getContext()}
             repos={repos}
             sessionId={sessionId}

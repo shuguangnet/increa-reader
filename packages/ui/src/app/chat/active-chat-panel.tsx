@@ -13,6 +13,7 @@ type ActiveChatPanelProps = {
   onInputChange: (value: string) => void
   onKeyDown: (e: React.KeyboardEvent) => void
   onInsertText: (text: string) => void
+  onSend: () => void
   context: ContextData
   repos: Repo[]
   sessionId?: string
@@ -37,6 +38,7 @@ export const ActiveChatPanel = ({
   onInputChange,
   onKeyDown,
   onInsertText,
+  onSend,
   context,
   repos,
   sessionId,
@@ -53,6 +55,7 @@ export const ActiveChatPanel = ({
         onInputChange={onInputChange}
         onKeyDown={onKeyDown}
         onInsertText={onInsertText}
+        onSend={onSend}
       />
       <ChatStats
         context={context}
