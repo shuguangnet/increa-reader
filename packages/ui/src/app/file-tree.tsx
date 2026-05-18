@@ -4,16 +4,21 @@ import {
   File,
   FileCode,
   FileJson,
+  FilePlus,
   FileText,
   FileType,
   Folder,
   FolderOpen,
+  FolderPlus,
   Image,
+  Pencil,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { deleteFile } from './api'
+import { CreateFileDialog } from './create-file-dialog'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
+import { RenameDialog } from './rename-dialog'
 
 type TreeNode = {
   type: 'dir' | 'file'
@@ -22,12 +27,19 @@ type TreeNode = {
   children?: TreeNode[]
 }
 
+type ContextMenuState = {
+  x: number
+  y: number
+  node: TreeNode
+} | null
+
 type TreeItemProps = {
   node: TreeNode
   onFileClick?: (path: string) => void
   repoName: string
   selectedPath?: string | null
   onDelete?: (path: string) => void
+  onRefresh?: () => void
   searchActive?: boolean
   forcedOpenPaths?: Set<string>
 }
@@ -77,12 +89,114 @@ export function getFileIcon(filename: string) {
   return TYPE_TO_ICON[type]
 }
 
+function ContextMenu({
+  menuState,
+  onClose,
+  onOpenFile,
+  onCreateFile,
+  onCreateFolder,
+  onRename,
+  onDeleteClick,
+}: {
+  menuState: ContextMenuState
+  onClose: () => void
+  onOpenFile?: () => void
+  onCreateFile?: () => void
+  onCreateFolder?: () => void
+  onRename?: () => void
+  onDeleteClick?: () => void
+}) {
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [onClose])
+
+  const { x, y, node } = menuState
+
+  return (
+    <div
+      ref={menuRef}
+      className="absolute z-50 min-w-[160px] rounded-md border bg-white py-1 shadow-lg dark:bg-gray-900"
+      style={{ left: x, top: y }}
+      onContextMenu={e => e.preventDefault()}
+    >
+      {node.type === 'file' && (
+        <div
+          className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2"
+          onClick={() => { onOpenFile?.(); onClose() }}
+        >
+          <File className="size-4" />
+          Open
+        </div>
+      )}
+      {node.type === 'file' && (
+        <div
+          className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2"
+          onClick={() => { onRename?.(); onClose() }}
+        >
+          <Pencil className="size-4" />
+          Rename
+        </div>
+      )}
+      {node.type === 'file' && (
+        <div
+          className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 text-destructive"
+          onClick={() => { onDeleteClick?.(); onClose() }}
+        >
+          <Trash2 className="size-4" />
+          Delete
+        </div>
+      )}
+      {node.type === 'dir' && (
+        <>
+          <div
+            className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2"
+            onClick={() => { onCreateFile?.(); onClose() }}
+          >
+            <FilePlus className="size-4" />
+            New File
+          </div>
+          <div
+            className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2"
+            onClick={() => { onCreateFolder?.(); onClose() }}
+          >
+            <FolderPlus className="size-4" />
+            New Folder
+          </div>
+          <div
+            className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2"
+            onClick={() => { onRename?.(); onClose() }}
+          >
+            <Pencil className="size-4" />
+            Rename
+          </div>
+          <div
+            className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 text-destructive"
+            onClick={() => { onDeleteClick?.(); onClose() }}
+          >
+            <Trash2 className="size-4" />
+            Delete
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function TreeItem({
   node,
   onFileClick,
   repoName,
   selectedPath,
   onDelete,
+  onRefresh,
   searchActive = false,
   forcedOpenPaths = new Set<string>(),
 }: TreeItemProps) {
@@ -103,6 +217,10 @@ function TreeItem({
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createDialogType, setCreateDialogType] = useState<'file' | 'dir'>('file')
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
 
   useEffect(() => {
     if (searchActive) return
@@ -114,18 +232,33 @@ function TreeItem({
     setIsOpen(true)
   }, [searchActive, shouldAutoOpen])
 
+  const handleRefresh = useCallback(() => {
+    onRefresh?.()
+  }, [onRefresh])
+
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
       await deleteFile(repoName, node.path)
       setDeleteDialogOpen(false)
       onDelete?.(node.path)
+      onRefresh?.()
     } catch (error) {
       console.error('Failed to delete:', error)
     } finally {
       setIsDeleting(false)
     }
   }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, node })
+  }
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null)
+  }, [])
 
   if (node.type === 'file') {
     return (
@@ -137,6 +270,7 @@ function TreeItem({
               : ''
           }`}
           onClick={() => onFileClick?.(node.path)}
+          onContextMenu={handleContextMenu}
         >
           {getFileIcon(node.name)}
           <span>{node.name}</span>
@@ -151,12 +285,29 @@ function TreeItem({
             <Trash2 className="size-3.5 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
+        {contextMenu && (
+          <ContextMenu
+            menuState={contextMenu}
+            onClose={closeContextMenu}
+            onOpenFile={() => onFileClick?.(node.path)}
+            onRename={() => setRenameDialogOpen(true)}
+            onDeleteClick={() => setDeleteDialogOpen(true)}
+          />
+        )}
         <DeleteConfirmDialog
           open={deleteDialogOpen}
           onOpenChange={setDeleteDialogOpen}
           fileName={node.name}
           onConfirm={handleDelete}
           isDeleting={isDeleting}
+        />
+        <RenameDialog
+          open={renameDialogOpen}
+          onOpenChange={setRenameDialogOpen}
+          repoName={repoName}
+          path={node.path}
+          currentName={node.name}
+          onRenamed={handleRefresh}
         />
       </>
     )
@@ -170,6 +321,7 @@ function TreeItem({
           if (searchActive) return
           setIsOpen(!isOpen)
         }}
+        onContextMenu={handleContextMenu}
       >
         {effectiveIsOpen ? (
           <ChevronDown className="size-4 shrink-0" />
@@ -193,12 +345,46 @@ function TreeItem({
               repoName={repoName}
               selectedPath={selectedPath}
               onDelete={onDelete}
+              onRefresh={onRefresh}
               searchActive={searchActive}
               forcedOpenPaths={forcedOpenPaths}
             />
           ))}
         </div>
       )}
+      {contextMenu && (
+        <ContextMenu
+          menuState={contextMenu}
+          onClose={closeContextMenu}
+          onCreateFile={() => { setCreateDialogType('file'); setCreateDialogOpen(true) }}
+          onCreateFolder={() => { setCreateDialogType('dir'); setCreateDialogOpen(true) }}
+          onRename={() => setRenameDialogOpen(true)}
+          onDeleteClick={() => setDeleteDialogOpen(true)}
+        />
+      )}
+      <CreateFileDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        repoName={repoName}
+        parentPath={node.path}
+        defaultType={createDialogType}
+        onCreated={handleRefresh}
+      />
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        fileName={node.name}
+        onConfirm={handleDelete}
+        isDeleting={isDeleting}
+      />
+      <RenameDialog
+        open={renameDialogOpen}
+        onOpenChange={setRenameDialogOpen}
+        repoName={repoName}
+        path={node.path}
+        currentName={node.name}
+        onRenamed={handleRefresh}
+      />
     </div>
   )
 }
@@ -209,6 +395,7 @@ type FileTreeProps = {
   repoName: string
   selectedPath?: string | null
   onDelete?: (path: string) => void
+  onRefresh?: () => void
   searchActive?: boolean
   forcedOpenPaths?: Set<string>
 }
@@ -219,6 +406,7 @@ export function FileTree({
   repoName,
   selectedPath,
   onDelete,
+  onRefresh,
   searchActive = false,
   forcedOpenPaths = new Set<string>(),
 }: FileTreeProps) {
@@ -232,6 +420,7 @@ export function FileTree({
           repoName={repoName}
           selectedPath={selectedPath}
           onDelete={onDelete}
+          onRefresh={onRefresh}
           searchActive={searchActive}
           forcedOpenPaths={forcedOpenPaths}
         />

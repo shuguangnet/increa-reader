@@ -122,6 +122,9 @@ export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
             onDelete={() => {
               loadTree()
             }}
+            onRefresh={() => {
+              loadTree()
+            }}
           />
         ))}
     </div>

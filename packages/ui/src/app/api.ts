@@ -157,4 +157,56 @@ export async function updateApiSettings(settings: Partial<ApiSettings>): Promise
   return response.json()
 }
 
+export async function createFile(repo: string, path: string, type: 'file' | 'dir', content?: string): Promise<{ success: boolean; path: string }> {
+  const response = await fetch(`/api/files/${encodeURIComponent(repo)}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, content }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to create file')
+  }
+  return response.json()
+}
+
+export async function saveFile(repo: string, path: string, content: string): Promise<{ success: boolean }> {
+  const response = await fetch(`/api/files/${encodeURIComponent(repo)}/${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to save file')
+  }
+  return response.json()
+}
+
+export async function renameFile(repo: string, path: string, newPath: string): Promise<{ success: boolean; new_path: string }> {
+  const response = await fetch(`/api/files/${encodeURIComponent(repo)}/${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_path: newPath }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to rename file')
+  }
+  return response.json()
+}
+
+export async function copyFile(repo: string, sourcePath: string, targetPath: string): Promise<{ success: boolean }> {
+  const response = await fetch(`/api/files/${encodeURIComponent(repo)}/copy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_path: sourcePath, target_path: targetPath }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to copy file')
+  }
+  return response.json()
+}
+
 export type { RepoConfigInfo, RepoInfo, RepoTreeData, TreeNode }
