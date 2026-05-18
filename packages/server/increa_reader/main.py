@@ -25,10 +25,13 @@ from .config_routes import create_config_routes
 
 # Import local modules
 from .file_routes import create_file_routes
+from .links_routes import create_links_routes
 from .models import WorkspaceConfig
 from .notes_routes import create_notes_routes
 from .pdf_routes import create_pdf_routes
+from .search_routes import create_search_routes
 from .session_routes import create_session_routes
+from .tags_routes import create_tags_routes
 from .workspace import load_workspace_config
 from .workspace_routes import create_workspace_routes
 
@@ -95,6 +98,9 @@ def create_app() -> FastAPI:
     create_chat_routes(app, workspace_config)
     create_board_routes(app, workspace_config)
     create_session_routes(app, workspace_config)
+    create_search_routes(app, workspace_config)
+    create_tags_routes(app, workspace_config)
+    create_links_routes(app, workspace_config)
 
     @app.get("/api")
     async def root():
