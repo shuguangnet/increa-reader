@@ -1,10 +1,11 @@
-import { Clock, FolderOpen, Monitor, Moon, Search, Settings, Star, Sun, Tag, X } from 'lucide-react'
+import { Calendar, Clock, FolderOpen, Monitor, Moon, Search, Settings, Star, Tag, X } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTheme } from '@/hooks/use-theme'
-import { fetchRepos, type RepoInfo } from './api'
+import { createFile, fetchRepos, type RepoInfo } from './api'
+import { CalendarView } from './calendar_view'
 import { FavoritesPanel } from './favorites-panel'
 import { getLeftPanelSearchStatus } from './left-panel-search-status'
 import { RecentFilesPanel } from './recent-files-panel'
@@ -13,7 +14,7 @@ import { SearchPanel } from './search-panel'
 import { SettingsDrawer } from './settings-drawer'
 import { TagsPanel } from './tags-panel'
 
-type LeftTab = 'files' | 'favorites' | 'recent' | 'tags'
+type LeftTab = 'files' | 'favorites' | 'recent' | 'tags' | 'calendar'
 
 export function LeftPanel() {
   const { theme, toggle: toggleTheme } = useTheme()
@@ -47,6 +48,7 @@ export function LeftPanel() {
     { key: 'favorites', label: 'Stars', icon: <Star className="size-3.5" /> },
     { key: 'recent', label: 'Recent', icon: <Clock className="size-3.5" /> },
     { key: 'tags', label: 'Tags', icon: <Tag className="size-3.5" /> },
+    { key: 'calendar', label: 'Calendar', icon: <Calendar className="size-3.5" /> },
   ]
 
   return (
@@ -141,6 +143,35 @@ export function LeftPanel() {
       {activeTab === 'tags' && (
         <div className="flex-1 overflow-auto">
           <TagsPanel />
+        </div>
+      )}
+
+      {/* Calendar tab content */}
+      {activeTab === 'calendar' && (
+        <div className="flex-1 overflow-hidden">
+          {repos.length > 0 && (
+            <CalendarView
+              repoName={repos[0].name}
+              onFileClick={(filePath) => {
+                // Navigate to the file using the app's navigation
+                window.location.hash = `/views/${repos[0].name}/${filePath}`
+              }}
+              onCreateFile={(date) => {
+                // Create a date-named markdown file
+                const fileName = `${date}.md`
+                createFile(repos[0].name, fileName, 'file', `# ${date}\n\n`)
+                  .then(() => {
+                    window.location.hash = `/views/${repos[0].name}/${fileName}`
+                  })
+                  .catch(console.error)
+              }}
+            />
+          )}
+          {repos.length === 0 && (
+            <div className="p-4 text-sm text-muted-foreground">
+              No repositories configured. Add a repository to use the calendar view.
+            </div>
+          )}
         </div>
       )}
 

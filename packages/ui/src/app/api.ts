@@ -210,3 +210,68 @@ export async function copyFile(repo: string, sourcePath: string, targetPath: str
 }
 
 export type { RepoConfigInfo, RepoInfo, RepoTreeData, TreeNode }
+
+// --- Template API ---
+
+export type TemplateInfo = {
+  id: string
+  name: string
+  description: string
+  category: string
+}
+
+export type TemplateDetail = {
+  id: string
+  name: string
+  content: string
+}
+
+export async function fetchTemplates(): Promise<TemplateInfo[]> {
+  const response = await fetch('/api/templates')
+  const data = await response.json()
+  return data.templates
+}
+
+export async function fetchTemplateDetail(templateId: string): Promise<TemplateDetail> {
+  const response = await fetch(`/api/templates/${encodeURIComponent(templateId)}`)
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to load template')
+  }
+  return response.json()
+}
+
+export async function applyTemplate(templateId: string, repo: string, path: string): Promise<{ success: boolean }> {
+  const response = await fetch(`/api/templates/${encodeURIComponent(templateId)}/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo, path }),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to apply template')
+  }
+  return response.json()
+}
+
+// --- Calendar API ---
+
+export type CalendarDayData = {
+  files: { path: string }[]
+}
+
+export type CalendarData = {
+  year: number
+  month: number
+  days: Record<string, CalendarDayData>
+}
+
+export async function fetchCalendar(repo: string, year: number, month: number): Promise<CalendarData> {
+  const params = new URLSearchParams({ repo, year: String(year), month: String(month) })
+  const response = await fetch(`/api/calendar?${params}`)
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to load calendar')
+  }
+  return response.json()
+}

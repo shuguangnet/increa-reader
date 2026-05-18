@@ -1,8 +1,9 @@
-import { FilePlus, FolderPlus } from 'lucide-react'
+import { FilePlus, FolderPlus, LayoutTemplate } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createFile } from './api'
+import { TemplateGallery } from './template-gallery'
 
 type CreateFileDialogProps = {
   open: boolean
@@ -25,6 +26,7 @@ export function CreateFileDialog({
   const [name, setName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -93,6 +95,15 @@ export function CreateFileDialog({
             <FolderPlus className="size-4" />
             Folder
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowTemplateGallery(true)}
+          >
+            <LayoutTemplate className="size-4" />
+            从模板创建
+          </Button>
         </div>
 
         <div className="mb-2 text-sm text-muted-foreground">
@@ -120,6 +131,19 @@ export function CreateFileDialog({
           </Button>
         </div>
       </div>
+
+      {showTemplateGallery && (
+        <TemplateGallery
+          repoName={repoName}
+          parentPath={parentPath}
+          onCreated={() => {
+            setShowTemplateGallery(false)
+            onOpenChange(false)
+            onCreated()
+          }}
+          onClose={() => setShowTemplateGallery(false)}
+        />
+      )}
     </div>
   )
 }

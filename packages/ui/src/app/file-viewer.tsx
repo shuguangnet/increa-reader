@@ -1,4 +1,4 @@
-import { Download, FileQuestion, History, Pencil, Sparkles } from 'lucide-react'
+import { Download, FileQuestion, History, Pencil, Sparkles, Table } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -8,7 +8,7 @@ import { useNoteToolStore } from '@/stores/note-tool-store'
 import { useEditorStore } from '@/stores/editor-store'
 import { useRefreshKey } from '@/stores/view-context'
 import type { BoardFile } from '@/types/board'
-import { fetchPreview } from './api'
+import { fetchPreview, saveFile } from './api'
 import { AiToolsPanel } from './ai-tools-panel'
 import { BoardViewer } from './board-viewer'
 import { ExportImportPanel } from './export-import-panel'
@@ -18,6 +18,7 @@ import { MarkdownEditor } from './markdown/markdown-editor'
 import { MarkdownViewer } from './markdown/markdown-viewer'
 import { PDFViewer } from './pdf-viewer'
 import { SelectionToolbar } from './selection/selection-toolbar'
+import { TableView, parseCSV } from './table-view'
 import { VersionHistoryPanel } from './version-history-panel'
 
 type PreviewData =
@@ -28,6 +29,7 @@ type PreviewData =
   | { type: 'pdf'; path: string; metadata: PDFMetadata }
   | { type: 'board'; path: string; data: BoardFile }
   | { type: 'html'; path: string; body: string }
+  | { type: 'table'; format: string; body: string }
   | { type: 'unsupported'; path: string }
 
 type PDFMetadata = {
@@ -289,6 +291,30 @@ export function FileViewer({ repo, path }: FileViewerProps) {
       {preview.type === 'board' && (
         <BoardViewer repo={repo} filePath={preview.path} data={preview.data} />
       )}
+
+      {preview.type === 'table' && (() => {
+        const { headers, data } = preview.format === 'csv'
+          ? parseCSV(preview.body)
+          : { headers: [] as string[], data: [] as string[][] }
+        const handleTableSave = (newData: string[][]) => {
+          const csvContent = [headers.join(','), ...newData.map(row => row.join(','))].join('\n')
+          saveFile(repo, path, csvContent).catch(console.error)
+        }
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 border-b px-3 py-2 bg-muted/30">
+              <Table className="size-4 text-muted-foreground" />
+              <span className="text-sm font-medium">{path.split('/').pop()}</span>
+              <span className="text-xs text-muted-foreground">
+                {data.length} 行 × {headers.length} 列
+              </span>
+            </div>
+            <div className="flex-1 min-h-0">
+              <TableView headers={headers} data={data} onSave={handleTableSave} />
+            </div>
+          </div>
+        )
+      })()}
 
       {preview.type === 'unsupported' && (
         <div className="h-full flex flex-col items-center justify-center gap-4 text-muted-foreground">
