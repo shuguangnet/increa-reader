@@ -1,4 +1,4 @@
-import { FileQuestion, History, Pencil, Sparkles } from 'lucide-react'
+import { Download, FileQuestion, History, Pencil, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -11,6 +11,7 @@ import type { BoardFile } from '@/types/board'
 import { fetchPreview } from './api'
 import { AiToolsPanel } from './ai-tools-panel'
 import { BoardViewer } from './board-viewer'
+import { ExportImportPanel } from './export-import-panel'
 import { HtmlViewer } from './html-viewer'
 import { ImageViewer } from './image-viewer'
 import { MarkdownEditor } from './markdown/markdown-editor'
@@ -58,6 +59,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
   })
   const [showAiPanel, setShowAiPanel] = useState(false)
   const [showVersionPanel, setShowVersionPanel] = useState(false)
+  const [showExportPanel, setShowExportPanel] = useState(false)
   const refreshKey = useRefreshKey()
   const scrollBodyRef = useRef<HTMLDivElement>(null)
   const elementsRef = useVisibleContent()
@@ -181,8 +183,23 @@ export function FileViewer({ repo, path }: FileViewerProps) {
               <button
                 type="button"
                 onClick={() => {
+                  setShowExportPanel(v => !v)
+                  setShowAiPanel(false)
+                  setShowVersionPanel(false)
+                }}
+                className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
+                  showExportPanel ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="导出/导入"
+              >
+                <Download size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setShowAiPanel(v => !v)
                   setShowVersionPanel(false)
+                  setShowExportPanel(false)
                 }}
                 className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
                   showAiPanel ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground hover:text-foreground'
@@ -196,6 +213,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
                 onClick={() => {
                   setShowVersionPanel(v => !v)
                   setShowAiPanel(false)
+                  setShowExportPanel(false)
                 }}
                 className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
                   showVersionPanel ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground hover:text-foreground'
@@ -227,6 +245,9 @@ export function FileViewer({ repo, path }: FileViewerProps) {
         </div>
         {showAiPanel && (
           <AiToolsPanel repo={repo} path={path} onClose={() => setShowAiPanel(false)} />
+        )}
+        {showExportPanel && (
+          <ExportImportPanel repo={repo} path={path} onClose={() => setShowExportPanel(false)} />
         )}
         {showVersionPanel && (
           <VersionHistoryPanel repo={repo} path={path} onClose={() => setShowVersionPanel(false)} />

@@ -25,6 +25,7 @@ from .config_routes import create_config_routes
 
 # Import local modules
 from .ai_routes import create_ai_routes
+from .export_routes import create_export_routes
 from .file_routes import create_file_routes
 from .links_routes import create_links_routes
 from .models import WorkspaceConfig
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     create_tags_routes(app, workspace_config)
     create_links_routes(app, workspace_config)
     create_ai_routes(app, workspace_config)
+    create_export_routes(app, workspace_config)
     create_version_routes(app, workspace_config)
 
     @app.get("/api")
