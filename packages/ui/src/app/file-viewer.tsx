@@ -6,6 +6,7 @@ import { MermaidBlock } from '@/components/mermaid-block'
 import { useVisibleContent } from '@/contexts/visible-content-context'
 import { useNoteToolStore } from '@/stores/note-tool-store'
 import { useEditorStore } from '@/stores/editor-store'
+import { useProgressStore } from '@/stores/progress-store'
 import { useRefreshKey } from '@/stores/view-context'
 import type { BoardFile } from '@/types/board'
 import { fetchPreview, saveFile } from './api'
@@ -140,6 +141,31 @@ export function FileViewer({ repo, path }: FileViewerProps) {
   }, [state.preview, elementsRef])
 
   const { loading, error, preview } = state
+
+  // Reading progress tracking
+  const updateProgress = useProgressStore(s => s.updateProgress)
+
+  useEffect(() => {
+    if (!preview || !repo || !path) return
+    const el = scrollBodyRef.current
+    if (!el) return
+
+    let rafId = 0
+    const handleScroll = () => {
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        const scrollTop = el.scrollTop
+        const scrollHeight = el.scrollHeight - el.clientHeight
+        const percent = scrollHeight > 0 ? Math.min(1, scrollTop / scrollHeight) : 0
+        updateProgress(repo, path, percent, Math.round(scrollTop))
+      })
+    }
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', handleScroll)
+      cancelAnimationFrame(rafId)
+    }
+  }, [preview, repo, path, updateProgress])
 
   useEffect(() => {
     if (!preview || (preview.type !== 'markdown' && preview.type !== 'pdf')) {

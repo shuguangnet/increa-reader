@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, Filter } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 
 type ColumnType = 'text' | 'number' | 'date'

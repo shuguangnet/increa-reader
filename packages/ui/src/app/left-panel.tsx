@@ -1,4 +1,4 @@
-import { Calendar, Clock, FolderOpen, Monitor, Moon, Search, Settings, Star, Tag, X } from 'lucide-react'
+import { Calendar, Clock, FolderOpen, Monitor, Moon, Search, Settings, Star, Sun, Tag, X } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'

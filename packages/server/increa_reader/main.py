@@ -6,6 +6,8 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from fastapi.staticfiles import StaticFiles
+
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
@@ -32,6 +34,7 @@ from .links_routes import create_links_routes
 from .models import WorkspaceConfig
 from .notes_routes import create_notes_routes
 from .pdf_routes import create_pdf_routes
+from .progress_routes import create_progress_routes
 from .search_routes import create_search_routes
 from .session_routes import create_session_routes
 from .tags_routes import create_tags_routes
@@ -111,6 +114,7 @@ def create_app() -> FastAPI:
     create_version_routes(app, workspace_config)
     create_template_routes(app, workspace_config)
     create_calendar_routes(app, workspace_config)
+    create_progress_routes(app, workspace_config)
 
     @app.get("/api")
     async def root():
@@ -121,6 +125,11 @@ def create_app() -> FastAPI:
     async def health():
         """Health check endpoint"""
         return {"status": "healthy", "repos": len(workspace_config.repos)}
+
+    # Serve frontend static files (from built dist)
+    ui_dist = Path(__file__).parent.parent.parent / "ui" / "dist"
+    if ui_dist.is_dir():
+        app.mount("/", StaticFiles(directory=str(ui_dist), html=True), name="static")
 
     return app
 

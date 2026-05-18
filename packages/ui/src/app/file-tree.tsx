@@ -120,6 +120,7 @@ function ContextMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [onClose])
 
+  if (!menuState) return null
   const { x, y, node } = menuState
 
   return (
