@@ -4,13 +4,22 @@ File viewing and preview API routes
 
 import json
 import mimetypes
+import shutil
+import tempfile
 from pathlib import Path
 
 import aiofiles
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
-from .models import ViewResponse, WorkspaceConfig
+from .models import (
+    CopyFileRequest,
+    CreateFileRequest,
+    RenameFileRequest,
+    SaveFileRequest,
+    ViewResponse,
+    WorkspaceConfig,
+)
 from .workspace import is_text_file
 
 # Extension to language mapping for code files
@@ -241,6 +250,175 @@ def create_file_routes(app, workspace_config: WorkspaceConfig):
             return {"type": "code", "lang": "text", "body": content}
 
         return {"type": "unsupported", "path": path}
+
+    @app.post("/api/files/{repo}/{path:path}")
+    async def create_file(repo: str, path: str, body: CreateFileRequest):
+        """Create a new file or directory"""
+        repo_config = next((r for r in workspace_config.repos if r.name == repo), None)
+        if not repo_config:
+            raise HTTPException(
+                status_code=404, detail=f"Repository '{repo}' not found"
+            )
+
+        file_path = Path(repo_config.root) / path
+
+        # Security check: prevent path traversal
+        try:
+            file_path = file_path.resolve()
+            repo_root = Path(repo_config.root).resolve()
+            if not str(file_path).startswith(str(repo_root)):
+                raise HTTPException(status_code=403, detail="Access denied")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        if file_path.exists():
+            raise HTTPException(status_code=409, detail="File already exists")
+
+        try:
+            if body.type == "dir":
+                file_path.mkdir(parents=True, exist_ok=False)
+            else:
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                if body.content:
+                    async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+                        await f.write(body.content)
+                else:
+                    file_path.touch()
+
+            return {"success": True, "path": path, "type": body.type}
+        except PermissionError:
+            raise HTTPException(status_code=403, detail="Permission denied")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.put("/api/files/{repo}/{path:path}")
+    async def save_file(repo: str, path: str, body: SaveFileRequest):
+        """Save/update file content (atomic write)"""
+        repo_config = next((r for r in workspace_config.repos if r.name == repo), None)
+        if not repo_config:
+            raise HTTPException(
+                status_code=404, detail=f"Repository '{repo}' not found"
+            )
+
+        file_path = Path(repo_config.root) / path
+
+        # Security check: prevent path traversal
+        try:
+            file_path = file_path.resolve()
+            repo_root = Path(repo_config.root).resolve()
+            if not str(file_path).startswith(str(repo_root)):
+                raise HTTPException(status_code=403, detail="Access denied")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        if not file_path.exists() or not file_path.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        try:
+            # Atomic write: write to temp file then rename
+            tmp_fd, tmp_path = tempfile.mkstemp(
+                dir=file_path.parent, prefix=".increa_"
+            )
+            tmp_file = Path(tmp_path)
+            try:
+                async with aiofiles.open(tmp_fd, "w", encoding="utf-8") as f:
+                    await f.write(body.content)
+                tmp_file.replace(file_path)
+            except BaseException:
+                tmp_file.unlink(missing_ok=True)
+                raise
+
+            return {"success": True, "path": path}
+        except PermissionError:
+            raise HTTPException(status_code=403, detail="Permission denied")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.patch("/api/files/{repo}/{path:path}")
+    async def rename_file(repo: str, path: str, body: RenameFileRequest):
+        """Rename or move a file/directory"""
+        repo_config = next((r for r in workspace_config.repos if r.name == repo), None)
+        if not repo_config:
+            raise HTTPException(
+                status_code=404, detail=f"Repository '{repo}' not found"
+            )
+
+        file_path = Path(repo_config.root) / path
+        new_file_path = Path(repo_config.root) / body.new_path
+
+        # Security check: prevent path traversal for both paths
+        try:
+            file_path = file_path.resolve()
+            new_file_path = new_file_path.resolve()
+            repo_root = Path(repo_config.root).resolve()
+            if not str(file_path).startswith(str(repo_root)):
+                raise HTTPException(status_code=403, detail="Access denied")
+            if not str(new_file_path).startswith(str(repo_root)):
+                raise HTTPException(status_code=403, detail="Access denied: new path outside repo")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if new_file_path.exists():
+            raise HTTPException(status_code=409, detail="Target already exists")
+
+        try:
+            new_file_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(file_path), str(new_file_path))
+            return {"success": True, "old_path": path, "new_path": body.new_path}
+        except PermissionError:
+            raise HTTPException(status_code=403, detail="Permission denied")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/api/files/{repo}/copy")
+    async def copy_file(repo: str, body: CopyFileRequest):
+        """Copy a file"""
+        repo_config = next((r for r in workspace_config.repos if r.name == repo), None)
+        if not repo_config:
+            raise HTTPException(
+                status_code=404, detail=f"Repository '{repo}' not found"
+            )
+
+        source_path = Path(repo_config.root) / body.source_path
+        target_path = Path(repo_config.root) / body.target_path
+
+        # Security check: prevent path traversal for both paths
+        try:
+            source_path = source_path.resolve()
+            target_path = target_path.resolve()
+            repo_root = Path(repo_config.root).resolve()
+            if not str(source_path).startswith(str(repo_root)):
+                raise HTTPException(status_code=403, detail="Access denied")
+            if not str(target_path).startswith(str(repo_root)):
+                raise HTTPException(status_code=403, detail="Access denied: target path outside repo")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        if not source_path.exists() or not source_path.is_file():
+            raise HTTPException(status_code=404, detail="Source file not found")
+
+        if target_path.exists():
+            raise HTTPException(status_code=409, detail="Target already exists")
+
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(str(source_path), str(target_path))
+            return {
+                "success": True,
+                "source_path": body.source_path,
+                "target_path": body.target_path,
+            }
+        except PermissionError:
+            raise HTTPException(status_code=403, detail="Permission denied")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
     @app.delete("/api/files/{repo}/{path:path}")
     async def delete_file(repo: str, path: str):

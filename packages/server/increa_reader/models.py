@@ -54,3 +54,18 @@ class ChatSaveRequest(BaseModel):
     sessionId: str
     messages: List[dict]
     stats: Optional[dict] = None
+
+
+class CreateFileRequest(BaseModel):
+    type: str  # "file" | "dir"
+    content: Optional[str] = None
+
+class SaveFileRequest(BaseModel):
+    content: str
+
+class RenameFileRequest(BaseModel):
+    new_path: str
+
+class CopyFileRequest(BaseModel):
+    source_path: str
+    target_path: str
