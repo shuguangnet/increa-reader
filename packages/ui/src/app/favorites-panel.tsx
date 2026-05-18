@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { showToast } from '@/app/toast'
 import { useFavoritesStore } from '@/stores/favorites-store'
 import { getFileIcon } from './file-tree'
 
@@ -13,6 +14,11 @@ export function FavoritesPanel() {
   const navigateToFile = (repo: string, path: string) => {
     const clean = path.startsWith('/') ? path.slice(1) : path
     navigate(`/views/${repo}/${clean}`)
+  }
+
+  const handleRemove = (repo: string, path: string) => {
+    removeFavorite(repo, path)
+    showToast('已取消收藏', 'info')
   }
 
   if (sorted.length === 0) {
@@ -38,7 +44,7 @@ export function FavoritesPanel() {
             className="shrink-0 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
             onClick={e => {
               e.stopPropagation()
-              removeFavorite(item.repo, item.path)
+              handleRemove(item.repo, item.path)
             }}
             title="Remove from favorites"
           >

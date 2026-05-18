@@ -1,6 +1,7 @@
-import { Clock, Trash2 } from 'lucide-react'
+import { Clock,Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useRecentFilesStore } from '@/stores/recent-files-store'
+import { useProgressStore } from '@/stores/progress-store'
 import { getFileIcon } from './file-tree'
 import { Button } from '@/components/ui/button'
 
@@ -19,6 +20,7 @@ function relativeTime(timestamp: number): string {
 export function RecentFilesPanel() {
   const recentFiles = useRecentFilesStore(s => s.recentFiles)
   const clearRecent = useRecentFilesStore(s => s.clearRecent)
+  const progressMap = useProgressStore(s => s.progressMap)
   const navigate = useNavigate()
 
   const navigateToFile = (repo: string, path: string) => {
@@ -50,22 +52,39 @@ export function RecentFilesPanel() {
         </Button>
       </div>
       <div className="flex-1 overflow-auto">
-        {recentFiles.map(item => (
-          <div
-            key={`${item.repo}-${item.path}-${item.openedAt}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-accent cursor-pointer transition-colors"
-            onClick={() => navigateToFile(item.repo, item.path)}
-          >
-            <Clock className="size-3.5 shrink-0 text-muted-foreground" />
-            {getFileIcon(item.name)}
-            <span className="truncate text-xs" title={`${item.repo}/${item.path}`}>
-              {item.repo}/{item.path}
-            </span>
-            <span className="ml-auto shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
-              {relativeTime(item.openedAt)}
-            </span>
-          </div>
-        ))}
+        {recentFiles.map(item => {
+          const progress = progressMap[`${item.repo}:${item.path}`]
+          const percent = progress ? Math.round(progress.percent * 100) : undefined
+          return (
+            <div
+              key={`${item.repo}-${item.path}-${item.openedAt}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-accent cursor-pointer transition-colors"
+              onClick={() => navigateToFile(item.repo, item.path)}
+            >
+              <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+              {getFileIcon(item.name)}
+              <div className="min-w-0 flex-1">
+                <span className="truncate text-xs block" title={`${item.repo}/${item.path}`}>
+                  {item.repo}/{item.path}
+                </span>
+                {percent !== undefined && (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex-1 h-1 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-300"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{percent}%</span>
+                  </div>
+                )}
+              </div>
+              <span className="ml-auto shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
+                {relativeTime(item.openedAt)}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

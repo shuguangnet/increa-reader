@@ -11,6 +11,7 @@ import httpx
 from fastapi import HTTPException
 from pydantic import BaseModel
 
+from .ai_cache import _make_key, get_cached, set_cached, invalidate_prefix, clear_cache, cache_stats
 from .models import WorkspaceConfig
 from .workspace import build_sdk_env
 
@@ -152,6 +153,11 @@ def create_ai_routes(app, workspace_config: WorkspaceConfig):
     @app.post("/api/ai/summarize")
     async def summarize(req: SummarizeRequest):
         """Generate a summary of a document using Claude."""
+        cache_key = _make_key("summary", req.repo, req.path, str(req.max_length))
+        cached = get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         repo_config = _find_repo(workspace_config, req.repo)
         content = await _read_file_content(repo_config.root, req.path)
 
@@ -160,11 +166,18 @@ def create_ai_routes(app, workspace_config: WorkspaceConfig):
             f"只返回摘要内容，不要任何额外说明。\n\n---\n{content}"
         )
         summary = await _call_claude(prompt)
-        return {"summary": summary.strip(), "file": f"{req.repo}/{req.path}"}
+        result = {"summary": summary.strip(), "file": f"{req.repo}/{req.path}"}
+        set_cached(cache_key, result)
+        return result
 
     @app.post("/api/ai/suggest-tags")
     async def suggest_tags(req: SuggestTagsRequest):
         """Suggest classification tags for a document using Claude."""
+        cache_key = _make_key("tags", req.repo, req.path)
+        cached = get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         repo_config = _find_repo(workspace_config, req.repo)
         content = await _read_file_content(repo_config.root, req.path)
 
@@ -172,13 +185,21 @@ def create_ai_routes(app, workspace_config: WorkspaceConfig):
             "为以下文档内容建议3-5个分类标签，只返回标签列表，"
             "每行一个，不要编号\n\n---\n" + content
         )
-        result = await _call_claude(prompt)
-        tags = [t.strip().lstrip("0123456789.-) ") for t in result.strip().splitlines() if t.strip()]
-        return {"tags": tags}
+        result_text = await _call_claude(prompt)
+        tags = [t.strip().lstrip("0123456789.-) ") for t in result_text.strip().splitlines() if t.strip()]
+        result = {"tags": tags}
+        set_cached(cache_key, result)
+        return result
 
     @app.post("/api/ai/ask")
     async def ask(req: AskRequest):
         """Answer a question about a document using Claude."""
+        # Cache based on file + question hash for consistent results
+        cache_key = _make_key("ask", req.repo, req.path, req.question[:100])
+        cached = get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         repo_config = _find_repo(workspace_config, req.repo)
         content = await _read_file_content(repo_config.root, req.path)
 
@@ -186,12 +207,19 @@ def create_ai_routes(app, workspace_config: WorkspaceConfig):
             f"基于以下文档内容回答问题。如果文档中没有相关信息，可以说明。\n\n"
             f"---\n{content}\n\n---\n问题：{req.question}"
         )
-        answer = await _call_claude(prompt)
-        return {"answer": answer.strip()}
+        answer_text = await _call_claude(prompt)
+        result = {"answer": answer_text.strip()}
+        set_cached(cache_key, result)
+        return result
 
     @app.post("/api/ai/related")
     async def related(req: RelatedRequest):
         """Recommend related documents using Claude."""
+        cache_key = _make_key("related", req.repo, req.path, str(req.max_results))
+        cached = get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         repo_config = _find_repo(workspace_config, req.repo)
         content = await _read_file_content(repo_config.root, req.path)
 
@@ -237,4 +265,20 @@ def create_ai_routes(app, workspace_config: WorkspaceConfig):
         except (json.JSONDecodeError, ValueError):
             related = []
 
-        return {"related": related}
+        result_data = {"related": related}
+        set_cached(cache_key, result_data)
+        return result_data
+
+    @app.get("/api/ai/cache-stats")
+    async def get_ai_cache_stats():
+        """Get AI response cache statistics."""
+        return cache_stats()
+
+    @app.delete("/api/ai/cache")
+    async def clear_ai_cache(prefix: Optional[str] = None):
+        """Clear AI response cache. Optionally specify a prefix to clear selectively."""
+        if prefix:
+            count = invalidate_prefix(prefix)
+            return {"cleared": count}
+        clear_cache()
+        return {"cleared": "all"}

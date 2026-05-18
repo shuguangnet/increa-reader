@@ -10,6 +10,7 @@ import { ChatPanel } from './chat'
 import { CommandPalette } from './command-palette'
 import { LeftPanel } from './left-panel'
 import { ShortcutsDialog } from './shortcuts-dialog'
+import { ToastContainer } from './toast'
 
 function ThemeToggle() {
   const { theme, toggle } = useTheme()
@@ -71,6 +72,7 @@ export function Layout() {
       {/* Overlays */}
       <CommandPalette />
       <ShortcutsDialog />
+      <ToastContainer />
     </div>
   )
 }

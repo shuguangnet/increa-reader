@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, Hash, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { showToast } from '@/app/toast'
 import { useViewContext } from '@/stores/view-context'
 
 type TagInfo = { name: string; count: number }
@@ -68,10 +69,13 @@ export function TagsPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_path: path, repo, tags: [newTag.trim()] }),
       })
+      showToast(`标签 "${newTag.trim()}" 已添加`, 'success')
       setNewTag('')
       loadFileTags()
       loadTags()
-    } catch { /* ignore */ }
+    } catch {
+      showToast('添加标签失败', 'error')
+    }
   }
 
   const removeTag = async (tagName: string) => {
@@ -82,9 +86,12 @@ export function TagsPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_path: path, repo, tags: [tagName] }),
       })
+      showToast(`标签 "${tagName}" 已移除`, 'info')
       loadFileTags()
       loadTags()
-    } catch { /* ignore */ }
+    } catch {
+      showToast('移除标签失败', 'error')
+    }
   }
 
   const navigateToFile = (fRepo: string, fPath: string) => {

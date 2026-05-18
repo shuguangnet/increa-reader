@@ -6,6 +6,7 @@ import {
 import { MarkdownViewer } from './markdown-viewer'
 import { useEditorStore } from '@/stores/editor-store'
 import { saveFile } from '@/app/api'
+import { showToast } from '@/app/toast'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -88,10 +89,12 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
       await saveFile(repo, path, content)
       markSaved(repo, path)
       setSaveStatus('saved')
+      showToast('文件已保存', 'success')
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
       saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 3000)
     } catch {
       setSaveStatus('error')
+      showToast('保存失败', 'error')
       setTimeout(() => setSaveStatus('idle'), 3000)
     }
   }, [repo, path, content, markSaved])
