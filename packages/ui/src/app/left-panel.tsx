@@ -1,16 +1,18 @@
-import { FolderOpen, Search, Settings, Tag, X } from 'lucide-react'
+import { Clock, FolderOpen, Search, Settings, Star, Tag, X } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { fetchRepos, type RepoInfo } from './api'
+import { FavoritesPanel } from './favorites-panel'
 import { getLeftPanelSearchStatus } from './left-panel-search-status'
+import { RecentFilesPanel } from './recent-files-panel'
 import { RepoPanel } from './repo-panel'
 import { SearchPanel } from './search-panel'
 import { SettingsDrawer } from './settings-drawer'
 import { TagsPanel } from './tags-panel'
 
-type LeftTab = 'files' | 'tags'
+type LeftTab = 'files' | 'favorites' | 'recent' | 'tags'
 
 export function LeftPanel() {
   const [repos, setRepos] = useState<RepoInfo[]>([])
@@ -38,6 +40,13 @@ export function LeftPanel() {
     return <div className="p-4">Loading...</div>
   }
 
+  const tabs: { key: LeftTab; label: string; icon: React.ReactNode }[] = [
+    { key: 'files', label: 'Files', icon: <FolderOpen className="size-3.5" /> },
+    { key: 'favorites', label: 'Stars', icon: <Star className="size-3.5" /> },
+    { key: 'recent', label: 'Recent', icon: <Clock className="size-3.5" /> },
+    { key: 'tags', label: 'Tags', icon: <Tag className="size-3.5" /> },
+  ]
+
   return (
     <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -55,26 +64,20 @@ export function LeftPanel() {
 
       {/* Tab bar */}
       <div className="flex border-b">
-        <button
-          onClick={() => setActiveTab('files')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors ${
-            activeTab === 'files'
-              ? 'border-b-2 border-foreground text-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FolderOpen className="size-3.5" /> Files
-        </button>
-        <button
-          onClick={() => setActiveTab('tags')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors ${
-            activeTab === 'tags'
-              ? 'border-b-2 border-foreground text-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Tag className="size-3.5" /> Tags
-        </button>
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors ${
+              activeTab === tab.key
+                ? 'border-b-2 border-foreground text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab.icon}
+            <span className="hidden sm:inline">{tab.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* File tab content */}
@@ -113,6 +116,20 @@ export function LeftPanel() {
             ))}
           </div>
         </>
+      )}
+
+      {/* Favorites tab content */}
+      {activeTab === 'favorites' && (
+        <div className="flex-1 overflow-auto">
+          <FavoritesPanel />
+        </div>
+      )}
+
+      {/* Recent tab content */}
+      {activeTab === 'recent' && (
+        <div className="flex-1 overflow-auto">
+          <RecentFilesPanel />
+        </div>
       )}
 
       {/* Tags tab content */}

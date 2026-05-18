@@ -12,10 +12,12 @@ import {
   FolderPlus,
   Image,
   Pencil,
+  Star,
   Trash2,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { deleteFile } from './api'
+import { useFavoritesStore } from '@/stores/favorites-store'
 import { CreateFileDialog } from './create-file-dialog'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { RenameDialog } from './rename-dialog'
@@ -260,6 +262,22 @@ function TreeItem({
     setContextMenu(null)
   }, [])
 
+  const isFav = useFavoritesStore(s => s.isFavorite(repoName, node.path))
+  const addFavorite = useFavoritesStore(s => s.addFavorite)
+  const removeFavorite = useFavoritesStore(s => s.removeFavorite)
+
+  const toggleFavorite = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (isFav) {
+        removeFavorite(repoName, node.path)
+      } else {
+        addFavorite(repoName, node.path)
+      }
+    },
+    [isFav, repoName, node.path, addFavorite, removeFavorite],
+  )
+
   if (node.type === 'file') {
     return (
       <>
@@ -273,17 +291,35 @@ function TreeItem({
           onContextMenu={handleContextMenu}
         >
           {getFileIcon(node.name)}
-          <span>{node.name}</span>
-          <button
-            type="button"
-            className="absolute right-2 opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-            onClick={e => {
-              e.stopPropagation()
-              setDeleteDialogOpen(true)
-            }}
-          >
-            <Trash2 className="size-3.5 text-gray-600 dark:text-gray-400" />
-          </button>
+          <span className="flex-1 truncate">{node.name}</span>
+          <div className="absolute right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${isFav ? 'opacity-100' : ''}`}
+              onClick={toggleFavorite}
+              title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              {isFav ? (
+                <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
+              ) : (
+                <Star className="size-3.5 text-gray-600 dark:text-gray-400" />
+              )}
+            </button>
+            <button
+              type="button"
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+              onClick={e => {
+                e.stopPropagation()
+                setDeleteDialogOpen(true)
+              }}
+            >
+              <Trash2 className="size-3.5 text-gray-600 dark:text-gray-400" />
+            </button>
+          </div>
+          {/* Show star inline when favorited and not hovered */}
+          {isFav && (
+            <Star className="size-3.5 fill-yellow-400 text-yellow-400 shrink-0 group-hover:hidden" />
+          )}
         </div>
         {contextMenu && (
           <ContextMenu
