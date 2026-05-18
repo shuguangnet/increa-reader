@@ -131,10 +131,48 @@ html, body {
   height: 100%;
 }
 
+/* Mobile touch optimizations */
+@media (max-width: 767px) {
+  /* Larger tap targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  button.size-icon-sm, [class*="size-icon-sm"] {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  /* Prevent text selection during scroll */
+  .scroll-body {
+    -webkit-overflow-scrolling: touch;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Safe area for notched phones */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
 .scroll-body {
   height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
   contain: layout paint;
   isolation: isolate;
+}
+
+/* Thin scrollbar for tab bar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-height: thin;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: oklch(0.7 0 0 / 0.3);
+  border-radius: 2px;
 }

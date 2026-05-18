@@ -69,7 +69,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white dark:bg-gray-900 shadow-xl flex flex-col h-full border-l">
+      <div className="relative w-full max-w-md md:max-w-sm bg-white dark:bg-gray-900 shadow-xl flex flex-col h-full border-l md:border-l">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-sm font-semibold flex items-center gap-2">
             <Search className="size-4" /> Global Search

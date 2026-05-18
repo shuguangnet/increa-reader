@@ -242,12 +242,12 @@ export function CommandPalette() {
   const fileItems = filteredItems.filter((i) => i.group === 'files')
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh]">
+    <div className="fixed inset-0 z-[60] flex items-start justify-center pt-4 md:pt-[15vh] md:px-4">
       <div
         className="fixed inset-0 bg-black/50"
         onClick={() => setCommandPaletteOpen(false)}
       />
-      <div className="relative z-[61] w-full max-w-lg rounded-lg border bg-white shadow-2xl dark:bg-gray-900">
+      <div className="relative z-[61] w-[calc(100%-2rem)] max-w-lg rounded-lg border bg-white shadow-2xl dark:bg-gray-900 md:w-full">
         {/* Search input */}
         <div className="flex items-center border-b px-3">
           <Command className="size-4 shrink-0 text-muted-foreground" />
