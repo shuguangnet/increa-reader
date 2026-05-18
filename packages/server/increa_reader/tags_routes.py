@@ -66,6 +66,36 @@ async def _extract_frontmatter_tags(file_path: Path) -> List[str]:
 def create_tags_routes(app, workspace_config: WorkspaceConfig):
     """Create tag system API routes."""
 
+    @app.get("/api/tags/file")
+    async def get_file_tags(repo: str, path: str):
+        """Get all tags for a specific file."""
+        data = _load_tags()
+        file_tags: List[str] = []
+        entry_match = {"repo": repo, "file_path": path}
+        # Also try with/without leading slash
+        alt_entry = {"repo": repo, "file_path": path.lstrip("/")}
+        for tag_name, files in data.items():
+            for f in files:
+                if f == entry_match or f == alt_entry:
+                    file_tags.append(tag_name)
+                    break
+
+        # Also check frontmatter tags
+        tag_entry = {"repo": repo, "file_path": path}
+        tag_alt = {"repo": repo, "file_path": path.lstrip("/")}
+        repo_config = next(
+            (r for r in workspace_config.repos if r.name == repo), None
+        )
+        if repo_config:
+            file_path = Path(repo_config.root) / path.lstrip("/")
+            if file_path.exists():
+                fm_tags = await _extract_frontmatter_tags(file_path)
+                for t in fm_tags:
+                    if t not in file_tags:
+                        file_tags.append(t)
+
+        return {"tags": sorted(file_tags)}
+
     @app.get("/api/tags")
     async def list_tags():
         """Get all tags with file counts."""

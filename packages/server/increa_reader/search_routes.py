@@ -62,12 +62,14 @@ def create_search_routes(app, workspace_config: WorkspaceConfig):
     """Create full-text search API routes."""
 
     @app.get("/api/search")
-    async def search_get(q: str, repo: Optional[str] = None):
+    async def search_get(q: str, repo: Optional[str] = None, file_types: Optional[str] = None):
         """Simple full-text search across repositories."""
         if not q:
             raise HTTPException(status_code=400, detail="Query parameter 'q' is required")
         repos = [repo] if repo else None
-        return await _do_search(q, repos, file_types=None, max_results=50)
+        # Parse comma-separated file_types parameter
+        parsed_file_types = file_types.split(",") if file_types else None
+        return await _do_search(q, repos, file_types=parsed_file_types, max_results=50)
 
     @app.post("/api/search")
     async def search_post(body: SearchRequest):

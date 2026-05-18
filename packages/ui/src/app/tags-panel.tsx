@@ -6,7 +6,7 @@ import { showToast } from '@/app/toast'
 import { useViewContext } from '@/stores/view-context'
 
 type TagInfo = { name: string; count: number }
-type TagFile = { repo: string; path: string }
+type TagFile = { repo: string; file_path: string; path?: string }
 
 export function TagsPanel() {
   const [tags, setTags] = useState<TagInfo[]>([])
@@ -150,11 +150,11 @@ export function TagsPanel() {
                 {loadingFiles && <div className="text-xs text-muted-foreground px-2 py-1">Loading...</div>}
                 {tagFiles.map((f, i) => (
                   <button
-                    key={`${f.repo}-${f.path}-${i}`}
-                    onClick={() => navigateToFile(f.repo, f.path)}
+                    key={`${f.repo}-${f.file_path}-${i}`}
+                    onClick={() => navigateToFile(f.repo, f.file_path)}
                     className="w-full text-left text-xs truncate px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                   >
-                    {f.repo}/{f.path}
+                    {f.repo}/{f.file_path}
                   </button>
                 ))}
               </div>
