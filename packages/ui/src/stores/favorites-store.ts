@@ -47,6 +47,7 @@ export const useFavoritesStore = create<FavoritesState>()(
     {
       name: 'increa-favorites',
       storage: createJSONStorage(() => localStorage),
+      skipHydration: true,
     },
   ),
 )

@@ -59,6 +59,7 @@ export const useProgressStore = create<ProgressState>()(
     {
       name: 'increa-reading-progress',
       storage: createJSONStorage(() => localStorage),
+      skipHydration: true,
     },
   ),
 )

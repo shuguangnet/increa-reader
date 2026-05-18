@@ -1,5 +1,11 @@
+import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { VisibleContentProvider } from '../contexts/visible-content-context'
+import { useUIStore } from '../stores/ui-store'
+import { useFavoritesStore } from '../stores/favorites-store'
+import { useRecentFilesStore } from '../stores/recent-files-store'
+import { useTabsStore } from '../stores/tabs-store'
+import { useProgressStore } from '../stores/progress-store'
 import { BoardViewer } from './board-viewer'
 import { KnowledgeGraph } from './knowledge-graph'
 import { Layout } from './layout'
@@ -13,7 +19,36 @@ function HomePage() {
   )
 }
 
+/**
+ * Rehydrate all persisted Zustand stores on mount.
+ * Using skipHydration: true prevents React 19 infinite loop caused by
+ * useSyncExternalStore getSnapshot returning new object references during
+ * the synchronous hydration phase. We rehydrate manually after mount instead.
+ */
+function useRehydrateStores() {
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      useUIStore.persist.rehydrate(),
+      useFavoritesStore.persist.rehydrate(),
+      useRecentFilesStore.persist.rehydrate(),
+      useTabsStore.persist.rehydrate(),
+      useProgressStore.persist.rehydrate(),
+    ]).then(() => setHydrated(true))
+  }, [])
+
+  return hydrated
+}
+
 function App() {
+  const hydrated = useRehydrateStores()
+
+  // Don't render the app until stores are hydrated to avoid flash of default values
+  if (!hydrated) {
+    return null
+  }
+
   return (
     <VisibleContentProvider>
       <Routes>

@@ -39,6 +39,9 @@ export const useUIStore = create<UIState>()(
         leftPanelVisible: state.leftPanelVisible,
         rightPanelVisible: state.rightPanelVisible,
       }),
+      // Skip hydration to prevent React 19 StrictMode infinite loop
+      // caused by getSnapshot returning new object references on each call
+      skipHydration: true,
     },
   ),
 )

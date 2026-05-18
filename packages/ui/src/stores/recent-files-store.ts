@@ -39,6 +39,7 @@ export const useRecentFilesStore = create<RecentFilesState>()(
     {
       name: 'increa-recent-files',
       storage: createJSONStorage(() => localStorage),
+      skipHydration: true,
     },
   ),
 )

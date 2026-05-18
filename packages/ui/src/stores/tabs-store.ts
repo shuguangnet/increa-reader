@@ -99,6 +99,7 @@ export const useTabsStore = create<TabsState>()(
     {
       name: 'tabs-store',
       storage: createJSONStorage(() => localStorage),
+      skipHydration: true,
     },
   ),
 )
