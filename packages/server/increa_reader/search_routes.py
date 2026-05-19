@@ -108,9 +108,17 @@ class SearchIndex:
         repos: Optional[List[str]] = None,
         file_types: Optional[List[str]] = None,
         max_results: int = 50,
+        regex: bool = False,
+        context_lines: int = 2,
     ) -> Tuple[List["SearchMatch"], int]:
         """Search the in-memory index and return (matches, total)."""
-        pattern = re.compile(re.escape(query), re.IGNORECASE)
+        if regex:
+            try:
+                pattern = re.compile(query, re.IGNORECASE)
+            except re.error as e:
+                raise ValueError(f"Invalid regex: {e}")
+        else:
+            pattern = re.compile(re.escape(query), re.IGNORECASE)
         results: List[SearchMatch] = []
 
         for repo_name, file_entries in self._index.items():
@@ -127,14 +135,20 @@ class SearchIndex:
                     if path_suffix and path_suffix not in TEXT_EXTENSIONS:
                         continue
 
-                for line_no, line_text in lines:
+                for idx, (line_no, line_text) in enumerate(lines):
                     if pattern.search(line_text):
+                        # Extract context lines
+                        ctx_before = [lines[i][1] for i in range(max(0, idx - context_lines), idx)]
+                        ctx_after = [lines[i][1] for i in range(idx + 1, min(len(lines), idx + 1 + context_lines))]
+
                         results.append(
                             SearchMatch(
                                 repo=repo_name,
                                 file_path=rel_path,
                                 line_number=line_no,
                                 line=line_text,
+                                context_before=ctx_before,
+                                context_after=ctx_after,
                             )
                         )
                         if len(results) >= max_results:
@@ -152,6 +166,8 @@ class SearchRequest(BaseModel):
     repos: Optional[List[str]] = None
     file_types: Optional[List[str]] = None
     max_results: int = 50
+    regex: bool = False
+    context_lines: int = 2
 
 
 class SearchMatch(BaseModel):
@@ -159,6 +175,8 @@ class SearchMatch(BaseModel):
     file_path: str
     line_number: int
     line: str
+    context_before: List[str] = []
+    context_after: List[str] = []
 
 
 # ------------------------------------------------------------------
@@ -169,16 +187,19 @@ def create_search_routes(app, workspace_config: WorkspaceConfig):
     """Create full-text search API routes."""
 
     @app.get("/api/search")
-    async def search_get(q: str, repo: Optional[str] = None, file_types: Optional[str] = None):
+    async def search_get(q: str, repo: Optional[str] = None, file_types: Optional[str] = None, regex: bool = False, context_lines: int = 2):
         """Simple full-text search across repositories."""
         if not q:
             raise HTTPException(status_code=400, detail="Query parameter 'q' is required")
         repos = [repo] if repo else None
         parsed_file_types = file_types.split(",") if file_types else None
         search_index: SearchIndex = app.state.search_index
-        results, total = search_index.search(
-            q, repos=repos, file_types=parsed_file_types, max_results=50
-        )
+        try:
+            results, total = search_index.search(
+                q, repos=repos, file_types=parsed_file_types, max_results=50, regex=regex, context_lines=context_lines
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         return {"results": results, "total": total}
 
     @app.post("/api/search")
@@ -187,9 +208,12 @@ def create_search_routes(app, workspace_config: WorkspaceConfig):
         if not body.query:
             raise HTTPException(status_code=400, detail="query is required")
         search_index: SearchIndex = app.state.search_index
-        results, total = search_index.search(
-            body.query, body.repos, body.file_types, body.max_results
-        )
+        try:
+            results, total = search_index.search(
+                body.query, body.repos, body.file_types, body.max_results, body.regex, body.context_lines
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         return {"results": results, "total": total}
 
     @app.post("/api/search/rebuild")
