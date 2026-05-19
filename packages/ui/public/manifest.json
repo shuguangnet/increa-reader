@@ -4,9 +4,33 @@
   "description": "你的个人知识库，快速访问文件与笔记",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
   "background_color": "#ffffff",
   "theme_color": "#1e293b",
   "orientation": "any",
+  "screenshots": [
+    {
+      "src": "/screenshots/home.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "Increa Reader 首页"
+    },
+    {
+      "src": "/screenshots/mobile-home.svg",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "Increa Reader 移动端首页"
+    },
+    {
+      "src": "/screenshots/mobile-file.svg",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "文件查看"
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.svg",

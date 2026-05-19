@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <rect width="390" height="844" fill="#ffffff"/>
+  <rect x="0" y="0" width="390" height="44" fill="#f8fafc"/>
+  <text x="16" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="600" fill="#64748b">← 返回</text>
+  <text x="175" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="bold" fill="#1e293b">README.md</text>
+  <rect x="16" y="60" width="358" height="1" fill="#e2e8f0"/>
+  <text x="20" y="96" font-family="system-ui,monospace" font-size="14" fill="#1e293b" font-weight="bold"># Increa Reader</text>
+  <text x="20" y="122" font-family="system-ui,monospace" font-size="13" fill="#64748b">一个现代化的代码阅读器</text>
+  <text x="20" y="148" font-family="system-ui,monospace" font-size="13" fill="#64748b">和知识库管理工具。</text>
+  <rect x="20" y="176" width="350" height="1" fill="#e2e8f0"/>
+  <text x="20" y="202" font-family="system-ui,monospace" font-size="14" fill="#2563eb">## 特性</text>
+  <text x="20" y="228" font-family="system-ui,monospace" font-size="13" fill="#1e293b">- 快速文件浏览</text>
+  <text x="20" y="254" font-family="system-ui,monospace" font-size="13" fill="#1e293b">- 全文搜索</text>
+  <text x="20" y="280" font-family="system-ui,monospace" font-size="13" fill="#1e293b">- AI 智能问答</text>
+  <text x="20" y="306" font-family="system-ui,monospace" font-size="13" fill="#1e293b">- PDF 阅读</text>
+  <text x="20" y="332" font-family="system-ui,monospace" font-size="13" fill="#1e293b">- 标签管理</text>
+  <rect x="0" y="800" width="390" height="44" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="825" font-family="system-ui,sans-serif" font-size="12" fill="#3b82f6" font-weight="600">首页</text>
+  <text x="130" y="825" font-family="system-ui,sans-serif" font-size="12" fill="#64748b">搜索</text>
+  <text x="230" y="825" font-family="system-ui,sans-serif" font-size="12" fill="#64748b">文件</text>
+  <text x="320" y="825" font-family="system-ui,sans-serif" font-size="12" fill="#64748b">AI</text>
+</svg>
