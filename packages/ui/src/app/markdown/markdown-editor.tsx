@@ -222,24 +222,37 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
             type="button"
             onClick={handleSave}
             disabled={saveStatus === 'saving' || !dirty}
-            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
             title="保存 (Ctrl+S)"
           >
-            <Save size={15} />
+            <Save size={14} />
+            <span>保存</span>
           </button>
           {isMobile ? (
-            <button
-              type="button"
-              onClick={() => setMobileView(mobileView === 'edit' ? 'preview' : 'edit')}
-              className={`rounded p-1.5 transition-colors ${
-                mobileView === 'preview'
-                  ? 'text-foreground bg-accent'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              }`}
-              title={mobileView === 'edit' ? '切换到预览' : '切换到编辑'}
-            >
-              {mobileView === 'edit' ? <Eye size={15} /> : <PenLine size={15} />}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setMobileView(mobileView === 'edit' ? 'preview' : 'edit')}
+                className={`rounded p-1.5 transition-colors ${
+                  mobileView === 'preview'
+                    ? 'text-foreground bg-accent'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                }`}
+                title={mobileView === 'edit' ? '切换到预览' : '切换到编辑'}
+              >
+                {mobileView === 'edit' ? <Eye size={15} /> : <PenLine size={15} />}
+              </button>
+              <div className="mx-0.5 h-4 w-px bg-border" />
+              <button
+                type="button"
+                onClick={() => onExitEdit?.()}
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="退出编辑"
+              >
+                <Eye size={14} />
+                <span>退出编辑</span>
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -254,13 +267,15 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
               >
                 <ScrollText size={15} />
               </button>
+              <div className="mx-0.5 h-4 w-px bg-border" />
               <button
                 type="button"
                 onClick={() => onExitEdit?.()}
-                className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                title="预览模式"
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="退出编辑"
               >
-                <Eye size={15} />
+                <Eye size={14} />
+                <span>退出编辑</span>
               </button>
             </>
           )}
