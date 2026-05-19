@@ -136,7 +136,7 @@ function ContextMenu({
           onClick={() => { onOpenFile?.(); onClose() }}
         >
           <File className="size-4" />
-          Open
+          打开
         </div>
       )}
       {node.type === 'file' && (
@@ -145,7 +145,7 @@ function ContextMenu({
           onClick={() => { onRename?.(); onClose() }}
         >
           <Pencil className="size-4" />
-          Rename
+          重命名
         </div>
       )}
       {node.type === 'file' && (
@@ -154,7 +154,7 @@ function ContextMenu({
           onClick={() => { onDeleteClick?.(); onClose() }}
         >
           <Trash2 className="size-4" />
-          Delete
+          删除
         </div>
       )}
       {node.type === 'dir' && (
@@ -164,28 +164,28 @@ function ContextMenu({
             onClick={() => { onCreateFile?.(); onClose() }}
           >
             <FilePlus className="size-4" />
-            New File
+            新建文件
           </div>
           <div
             className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2"
             onClick={() => { onCreateFolder?.(); onClose() }}
           >
             <FolderPlus className="size-4" />
-            New Folder
+            新建文件夹
           </div>
           <div
             className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2"
             onClick={() => { onRename?.(); onClose() }}
           >
             <Pencil className="size-4" />
-            Rename
+            重命名
           </div>
           <div
             className="px-3 py-1.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 text-destructive"
             onClick={() => { onDeleteClick?.(); onClose() }}
           >
             <Trash2 className="size-4" />
-            Delete
+            删除
           </div>
         </>
       )}
@@ -299,7 +299,7 @@ function TreeItem({
               type="button"
               className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${isFav ? 'opacity-100' : ''}`}
               onClick={toggleFavorite}
-              title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+              title={isFav ? '取消收藏' : '添加收藏'}
             >
               {isFav ? (
                 <Star className="size-3.5 fill-yellow-400 text-yellow-400" />

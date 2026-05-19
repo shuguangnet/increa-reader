@@ -1,6 +1,6 @@
-import { Download, Menu, MessageSquare, Monitor, Moon, Sun, X } from 'lucide-react'
+import { Command, Download, Home, Menu, MessageSquare, Monitor, Moon, Search, Sun, X } from 'lucide-react'
 import { useCallback, useRef } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePWAInstall } from '@/hooks/use-pwa-install'
@@ -63,12 +63,15 @@ function DesktopLayout() {
   )
 }
 
-/** Mobile layout: drawer-based single panel navigation with swipe-to-close */
+/** Mobile layout: drawer-based single panel navigation with bottom nav bar */
 function MobileLayout() {
   const leftPanelVisible = useUIStore((s) => s.leftPanelVisible)
   const rightPanelVisible = useUIStore((s) => s.rightPanelVisible)
   const toggleLeftPanel = useUIStore((s) => s.toggleLeftPanel)
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel)
+  const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
+  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
+  const navigate = useNavigate()
 
   return (
     <div className="h-[calc(100%-2.75rem)] relative">
@@ -106,6 +109,14 @@ function MobileLayout() {
           </div>
         </SwipeableDrawer>
       )}
+
+      {/* Mobile bottom navigation bar */}
+      <MobileNavBar
+        onHome={() => navigate('/')}
+        onSearch={() => setSearchPanelOpen(true)}
+        onCommand={() => setCommandPaletteOpen(true)}
+        onChat={toggleRightPanel}
+      />
     </div>
   )
 }
@@ -209,6 +220,51 @@ function SwipeableDrawer({
   )
 }
 
+/** Mobile bottom navigation bar for quick access to core features */
+function MobileNavBar({ onHome, onSearch, onCommand, onChat }: {
+  onHome: () => void
+  onSearch: () => void
+  onCommand: () => void
+  onChat: () => void
+}) {
+  return (
+    <div className="flex items-center justify-around border-t bg-white dark:bg-gray-950 safe-area-inset-bottom">
+      <button
+        type="button"
+        onClick={onHome}
+        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Home className="size-5" />
+        <span className="text-[10px]">首页</span>
+      </button>
+      <button
+        type="button"
+        onClick={onSearch}
+        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Search className="size-5" />
+        <span className="text-[10px]">搜索</span>
+      </button>
+      <button
+        type="button"
+        onClick={onCommand}
+        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Command className="size-5" />
+        <span className="text-[10px]">命令</span>
+      </button>
+      <button
+        type="button"
+        onClick={onChat}
+        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <MessageSquare className="size-5" />
+        <span className="text-[10px]">AI</span>
+      </button>
+    </div>
+  )
+}
+
 export function Layout() {
   useKeyboardShortcuts()
   useTheme()
@@ -237,6 +293,16 @@ export function Layout() {
           <span className="text-sm font-semibold tracking-tight">Increa Reader</span>
         </div>
         <div className="flex items-center gap-1">
+          {!isMobile && (
+            <>
+              <Button variant="ghost" size="icon-sm" onClick={() => setSearchPanelOpen(true)} title="全局搜索">
+                <Search className="size-4" />
+              </Button>
+              <Button variant="ghost" size="icon-sm" onClick={toggleRightPanel} title="AI 助手">
+                <MessageSquare className="size-4" />
+              </Button>
+            </>
+          )}
           {installable && (
             <Button variant="ghost" size="icon-sm" onClick={handleInstall} title="安装应用">
               <Download className="size-4" />
