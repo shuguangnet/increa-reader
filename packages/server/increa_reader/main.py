@@ -33,6 +33,7 @@ from .file_routes import create_file_routes
 from .link_index import LinkIndex
 from .links_routes import create_links_routes
 from .models import WorkspaceConfig
+from .index_watcher import IndexWatcher
 from .notes_routes import create_notes_routes
 from .pdf_routes import create_pdf_routes
 from .progress_routes import create_progress_routes
@@ -85,10 +86,46 @@ async def lifespan(app: FastAPI):
     )
     print(f"   Link index ready: {total_links} links indexed")
 
+    # Start file watcher for incremental index updates
+    async def on_files_changed(changed_files: dict):
+        """Incrementally update search and link indexes when files change."""
+        search_idx: SearchIndex = app.state.search_index
+        link_idx: LinkIndex = app.state.link_index
+        all_keys = set()
+        for key_set in changed_files.values():
+            all_keys.update(key_set)
+        if not all_keys:
+            return
+        for key in all_keys:
+            repo_name, file_path = key.split(':', 1)
+            if key in changed_files.get('deleted', set()):
+                search_idx.remove_file(repo_name, file_path)
+                link_idx.remove_file(repo_name, file_path)
+            else:
+                # added or modified — rebuild entry for this file
+                from pathlib import Path as P
+                repo = next((r for r in workspace_config.repos if r.name == repo_name), None)
+                if repo:
+                    full_path = P(repo.root) / file_path
+                    repo_root = P(repo.root).resolve()
+                    if full_path.exists():
+                        await search_idx.update_file(repo_name, file_path, full_path, repo_root)
+                        await link_idx.update_file(repo_name, file_path, full_path)
+        if DEBUG:
+            print(f"   ✅ Indexes updated for {len(all_keys)} file changes")
+
+    watcher = IndexWatcher(workspace_config, on_file_changed=on_files_changed)
+    watcher.start()
+    app.state.index_watcher = watcher
+
     yield
 
     # Shutdown
     print("\n🛑 Shutting down Increa Reader Server...")
+    # Stop file watcher
+    watcher = getattr(app.state, 'index_watcher', None)
+    if watcher:
+        watcher.stop()
     await cleanup_active_sessions()
     print("✓ Cleanup completed\n")
 

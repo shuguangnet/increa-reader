@@ -171,3 +171,40 @@ class LinkIndex:
     def is_built(self, repo_name: str) -> bool:
         """Check if index is built for a repo."""
         return repo_name in self.outgoing_links
+
+    def remove_file(self, repo_name: str, file_path: str) -> None:
+        """Remove a file from the link index and rebuild backlinks."""
+        if repo_name not in self.outgoing_links:
+            return
+        # Remove outgoing links for this file
+        self.outgoing_links[repo_name].pop(file_path, None)
+        # Rebuild backlinks for this repo
+        self._rebuild_backlinks(repo_name)
+
+    async def update_file(self, repo_name: str, file_path: str, full_path: Path) -> None:
+        """Update link index for a single file."""
+        if file_path.endswith('.md') or file_path.endswith('.markdown'):
+            repo_config = next(
+                (r for r in self.workspace_config.repos if r.name == repo_name), None
+            )
+            if not repo_config:
+                return
+            raw_links = await _parse_links(full_path)
+            repo_root = Path(repo_config.root).resolve()
+            resolved = []
+            for link in raw_links:
+                r = _resolve_link(full_path.parent, link, repo_root)
+                if r:
+                    resolved.append(r)
+            if repo_name not in self.outgoing_links:
+                self.outgoing_links[repo_name] = {}
+            self.outgoing_links[repo_name][file_path] = resolved
+            self._rebuild_backlinks(repo_name)
+
+    def _rebuild_backlinks(self, repo_name: str) -> None:
+        """Rebuild backlinks cache for a repo."""
+        backlinks: Dict[str, List[str]] = {}
+        for src, targets in self.outgoing_links.get(repo_name, {}).items():
+            for tgt in targets:
+                backlinks.setdefault(tgt, []).append(src)
+        self.backlinks_cache[repo_name] = backlinks

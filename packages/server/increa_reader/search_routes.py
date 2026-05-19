@@ -56,6 +56,28 @@ class SearchIndex:
         self._index.clear()
         await self.build(workspace_config)
 
+    def remove_file(self, repo_name: str, file_path: str) -> None:
+        """Remove a file from the index."""
+        if repo_name in self._index:
+            self._index[repo_name] = [
+                entry for entry in self._index[repo_name]
+                if entry[0] != file_path
+            ]
+
+    async def update_file(self, repo_name: str, file_path: str, full_path: Path, repo_root: Path) -> None:
+        """Update or add a single file in the index."""
+        result = await self._index_file(full_path, repo_root)
+        if result is None:
+            return
+        # Remove old entry if exists
+        if repo_name not in self._index:
+            self._index[repo_name] = []
+        self._index[repo_name] = [
+            entry for entry in self._index[repo_name]
+            if entry[0] != file_path
+        ]
+        self._index[repo_name].append(result)
+
     async def _build_repo(
         self, repo_name: str, repo_root: Path
     ) -> List[Tuple[str, List[Tuple[int, str]]]]:
