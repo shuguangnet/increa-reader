@@ -24,6 +24,10 @@ __pycache__/
 venv/
 ENV/
 
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
 # Test fixtures
 packages/ui/fixture/
 packages/server/test_*.py

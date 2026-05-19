@@ -35,7 +35,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const key = makeKey(repo, path)
     set((state) => ({
       currentFile: { repo, path },
-      isEditMode: true,
       editedFiles: {
         ...state.editedFiles,
         [key]: state.editedFiles[key] ?? { content, originalContent: content, lastSaved: null },

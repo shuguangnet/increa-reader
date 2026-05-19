@@ -37,14 +37,13 @@ const TOOLBAR: ToolbarAction[] = [
   { icon: <Quote size={15} />, label: '引用', prefix: '> ', suffix: '' },
 ]
 
-type Props = { repo: string; path: string; initialContent: string }
+type Props = { repo: string; path: string; initialContent: string; onExitEdit?: () => void }
 
 const EMPTY_SET = new Set<HTMLElement>()
 
-export function MarkdownEditor({ repo, path, initialContent }: Props) {
+export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props) {
   const updateContent = useEditorStore(s => s.updateContent)
   const markSaved = useEditorStore(s => s.markSaved)
-  const setEditMode = useEditorStore(s => s.setEditMode)
   const editedFiles = useEditorStore(s => s.editedFiles)
   const fileKey = `${repo}:${path}`
   const fileState = editedFiles[fileKey]
@@ -257,7 +256,7 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => setEditMode(false)}
+                onClick={() => onExitEdit?.()}
                 className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                 title="预览模式"
               >

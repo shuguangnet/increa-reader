@@ -140,10 +140,8 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   const fetchedRefreshKeyRef = useRef<number | null>(null)
   const fetchIdRef = useRef(0)
 
-  // All hooks must be called before any conditional returns (Rules of Hooks)
-  // Note: React Compiler may memoize selector results; use subscribeWithSelector
-  // pattern to ensure re-renders when store state changes
-  const isEditMode = useEditorStore(s => s.isEditMode)
+  // 编辑模式用组件内 state 管理，完全绕过 React Compiler 对 Zustand selector 的缓存问题
+  const [isEditMode, setIsEditMode] = useState(false)
   const editedFiles = useEditorStore(s => s.editedFiles)
   const editedContent = editedFiles[`${repo}:${path}`]?.content
   const isMobile = useIsMobile()
@@ -164,8 +162,8 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
 
     if (isRouteChange) {
       setState({ preview: null, loading: true, error: null })
-      // 切换文件时重置编辑模式，避免残留的 isEditMode 导致新文件显示异常
-      useEditorStore.getState().setEditMode(false)
+      // 切换文件时重置编辑模式
+      setIsEditMode(false)
     }
 
     const id = ++fetchIdRef.current
@@ -377,8 +375,13 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
               <button
                 type="button"
                 onClick={() => {
-                  const body = useEditorStore.getState().editedFiles[`${repo}:${path}`]?.content ?? preview.body
-                  useEditorStore.getState().openFile(repo, path, body)
+                  // 进入编辑模式：确保 store 中有文件数据，然后切换到编辑视图
+                  const key = `${repo}:${path}`
+                  const existing = useEditorStore.getState().editedFiles[key]
+                  if (!existing) {
+                    useEditorStore.getState().openFile(repo, path, preview.body)
+                  }
+                  setIsEditMode(true)
                 }}
                 className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
                 title="编辑"
@@ -388,7 +391,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
             </div>
           )}
           {isEditMode ? (
-            <MarkdownEditor repo={repo} path={path} initialContent={displayBody} />
+            <MarkdownEditor repo={repo} path={path} initialContent={displayBody} onExitEdit={() => setIsEditMode(false)} />
           ) : (
             <MarkdownViewer
               body={displayBody}
@@ -453,7 +456,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
             <span className="text-xs text-muted-foreground">编辑模式</span>
             <button
               type="button"
-              onClick={() => useEditorStore.getState().setEditMode(false)}
+              onClick={() => setIsEditMode(false)}
               className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
               title="预览模式"
             >
@@ -496,8 +499,12 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
             <button
               type="button"
               onClick={() => {
-                const body = useEditorStore.getState().editedFiles[`${repo}:${path}`]?.content ?? preview.body
-                useEditorStore.getState().openFile(repo, path, body)
+                const key = `${repo}:${path}`
+                const existing = useEditorStore.getState().editedFiles[key]
+                if (!existing) {
+                  useEditorStore.getState().openFile(repo, path, preview.body)
+                }
+                setIsEditMode(true)
               }}
               className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
               title="编辑"
