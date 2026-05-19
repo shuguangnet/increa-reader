@@ -373,31 +373,17 @@ function HomePage() {
  * Using skipHydration: true prevents React 19 infinite loop caused by
  * useSyncExternalStore getSnapshot returning new object references during
  * the synchronous hydration phase. We rehydrate manually after mount instead.
+ *
+ * Fixed: previous callback-counter approach caused infinite re-render because
+ * onFinishHydration fires synchronously when localStorage has data, triggering
+ * setState during the effect, which caused React to re-run the effect in StrictMode.
+ * Now we simply call rehydrate() once and set hydrated after a tick.
  */
 function useRehydrateStores() {
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    let count = 0
-    const total = 6
-    const markDone = () => {
-      count++
-      if (count >= total) {
-        setHydrated(true)
-      }
-    }
-
-    // Listen for hydration completion on each store
-    const unsubs = [
-      useUIStore.persist.onFinishHydration(markDone),
-      useFavoritesStore.persist.onFinishHydration(markDone),
-      useRecentFilesStore.persist.onFinishHydration(markDone),
-      useTabsStore.persist.onFinishHydration(markDone),
-      useProgressStore.persist.onFinishHydration(markDone),
-      useSearchHistoryStore.persist.onFinishHydration(markDone),
-    ]
-
-    // Trigger rehydration (it's async, fires onFinishHydration when done)
+    // Trigger rehydration for all persisted stores
     useUIStore.persist.rehydrate()
     useFavoritesStore.persist.rehydrate()
     useRecentFilesStore.persist.rehydrate()
@@ -405,9 +391,10 @@ function useRehydrateStores() {
     useProgressStore.persist.rehydrate()
     useSearchHistoryStore.persist.rehydrate()
 
-    return () => {
-      unsubs.forEach((unsub) => unsub())
-    }
+    // Mark as hydrated after microtask so stores have settled
+    requestAnimationFrame(() => {
+      setHydrated(true)
+    })
   }, [])
 
   return hydrated
