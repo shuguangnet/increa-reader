@@ -2,6 +2,10 @@
 src-tauri/target/
 src-tauri/gen/
 
+# Sidecar binaries (keep .gitkeep, ignore actual binaries)
+src-tauri/binaries/python-server-*
+!src-tauri/binaries/.gitkeep
+
 # Vite output
 dist/
 

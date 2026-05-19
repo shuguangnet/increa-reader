@@ -5,6 +5,11 @@ __pycache__/
 *.so
 .Python
 
+# PyInstaller build artifacts
+build/
+dist/
+*.spec.bak
+
 # Testing
 .coverage
 .pytest_cache/

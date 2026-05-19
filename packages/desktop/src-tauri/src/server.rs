@@ -1,7 +1,9 @@
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
+use tauri_plugin_shell::ShellExt;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServerStatus {
@@ -10,9 +12,13 @@ pub struct ServerStatus {
     pub pid: Option<u32>,
 }
 
+/// Holds the running sidecar process handle and the auto-assigned port.
 pub struct PythonServer {
     pub port: Option<u16>,
-    pub child: Option<std::process::Child>,
+    /// The sidecar child process (holds the PID and allows kill/detach).
+    pub child: Option<tauri_plugin_shell::process::CommandChild>,
+    /// PID from direct Python launch (development fallback)
+    pub direct_pid: Option<u32>,
 }
 
 impl PythonServer {
@@ -20,60 +26,112 @@ impl PythonServer {
         Self {
             port: None,
             child: None,
+            direct_pid: None,
         }
     }
 
+    /// Start the Python backend via the Tauri sidecar mechanism.
+    ///
+    /// In development (when the sidecar binary doesn't exist at the expected
+    /// path) we fall back to running `python3 server.py` directly so that
+    /// `tauri dev` still works without a pre-built binary.
     pub async fn start(&mut self, app_handle: &tauri::AppHandle) -> Result<(), String> {
         // If already running, just return
-        if self.child.is_some() && self.is_alive() {
+        if (self.child.is_some() || self.direct_pid.is_some()) && self.is_alive() {
             return Ok(());
         }
 
-        let server_path = Self::find_server_script(app_handle)?;
-        let python_path = Self::find_python()?;
-
-        // Find available port
+        // Find available port before starting
         let port = Self::find_available_port()?;
-
         let repo_path = Self::get_default_repo_path(app_handle);
 
-        let mut cmd = std::process::Command::new(&python_path);
-        cmd.arg(&server_path)
-            .env("PORT", port.to_string())
-            .env("INCREA_REPO", &repo_path)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        // Try the sidecar path first (production / bundled app)
+        match Self::start_sidecar(app_handle, port, &repo_path).await {
+            Ok(child) => {
+                self.child = Some(child);
+                self.direct_pid = None;
+                self.port = Some(port);
 
-        let child = cmd.spawn().map_err(|e| format!("Failed to start server: {e}"))?;
-        let pid = child.id();
+                // Wait for server to be ready
+                let ready = Self::wait_for_server(port, 30).await?;
+                if !ready {
+                    self.stop();
+                    return Err("Server failed to start within timeout (sidecar)".into());
+                }
 
-        self.child = Some(child);
-        self.port = Some(port);
+                println!("Python server started on port {port} (sidecar)");
+                Ok(())
+            }
+            Err(sidecar_err) => {
+                eprintln!(
+                    "Sidecar start failed ({sidecar_err}), falling back to Python direct launch"
+                );
+                // Development fallback: launch python directly
+                match Self::start_python_direct(port, &repo_path) {
+                    Ok(pid) => {
+                        self.child = None;
+                        self.direct_pid = Some(pid);
+                        self.port = Some(port);
 
-        // Wait for server to be ready
-        let ready = Self::wait_for_server(port, 30).await?;
-        if !ready {
-            self.stop();
-            return Err("Server failed to start within timeout".into());
+                        let ready = Self::wait_for_server(port, 30).await?;
+                        if !ready {
+                            self.port = None;
+                            self.direct_pid = None;
+                            return Err("Server failed to start within timeout (python direct)".into());
+                        }
+
+                        println!("Python server started on port {port} (direct, PID {pid})");
+                        Ok(())
+                    }
+                    Err(direct_err) => Err(format!(
+                        "Failed to start server: sidecar error: {sidecar_err}, direct error: {direct_err}"
+                    )),
+                }
+            }
         }
-
-        println!("Python server started on port {port} (PID {pid})");
-        Ok(())
     }
 
+    /// Stop the running server process.
     pub fn stop(&mut self) {
         if let Some(ref mut child) = self.child {
             let _ = child.kill();
-            let _ = child.wait();
+        }
+        // For direct Python process, try to kill by PID
+        if let Some(pid) = self.direct_pid {
+            #[cfg(unix)]
+            {
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGTERM);
+                }
+            }
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/PID", &pid.to_string(), "/F"])
+                    .output();
+            }
         }
         self.child = None;
+        self.direct_pid = None;
         self.port = None;
     }
 
     pub fn is_alive(&mut self) -> bool {
-        if let Some(ref mut child) = self.child {
-            matches!(child.try_wait(), Ok(Some(std::process::ExitStatus::default())) | Err(_))
-                || matches!(child.try_wait(), Ok(None))
+        if self.child.is_some() {
+            // We have a sidecar handle; treat as alive while held
+            true
+        } else if let Some(pid) = self.direct_pid {
+            // For direct Python process, check if PID is running
+            #[cfg(unix)]
+            {
+                // Send signal 0 to check if process exists
+                unsafe { libc::kill(pid as i32, 0) == 0 }
+            }
+            #[cfg(windows)]
+            {
+                // On Windows, check if we can still connect to the port
+                self.port.map_or(false, |p| !Self::is_port_available(p))
+            }
         } else {
             false
         }
@@ -81,30 +139,90 @@ impl PythonServer {
 
     pub fn status(&mut self) -> ServerStatus {
         let alive = self.is_alive();
+        let pid = self
+            .direct_pid
+            .or_else(|| self.child.as_ref().map(|_| 0));
         ServerStatus {
             running: alive,
             port: self.port,
-            pid: self.child.as_ref().map(|c| c.id()),
+            pid,
         }
     }
 
-    fn find_server_script(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
-        // Try sidecar path first (when bundled)
-        let sidecar_path = app_handle
-            .path()
-            .resource_dir()
-            .map(|p| p.join("sidecar").join("server"))
-            .ok();
+    // ── Sidecar launch (Tauri plugin-shell) ─────────────────────────────────
 
-        if let Some(ref p) = sidecar_path {
-            // Try with .py extension
-            let py_path = p.with_extension("py");
-            if py_path.exists() {
-                return Ok(py_path);
+    async fn start_sidecar(
+        app_handle: &tauri::AppHandle,
+        port: u16,
+        repo_path: &str,
+    ) -> Result<tauri_plugin_shell::process::CommandChild, String> {
+        let sidecar_command = app_handle
+            .shell()
+            .sidecar("python-server")
+            .map_err(|e| format!("Failed to create sidecar command: {e}"))?;
+
+        let (rx, child) = sidecar_command
+            .args([
+                "--port",
+                &port.to_string(),
+                "--repo",
+                repo_path,
+            ])
+            .spawn()
+            .map_err(|e| format!("Failed to spawn sidecar: {e}"))?;
+
+        // Spawn a background task to log sidecar output
+        let port_log = port;
+        tauri::async_runtime::spawn(async move {
+            use tauri_plugin_shell::process::CommandEvent;
+            let mut stream = rx;
+
+            while let Some(event) = stream.next().await {
+                match event {
+                    CommandEvent::Stdout(line) => {
+                        println!("[sidecar:{}] {}", port_log, String::from_utf8_lossy(&line));
+                    }
+                    CommandEvent::Stderr(line) => {
+                        eprintln!("[sidecar:{}] {}", port_log, String::from_utf8_lossy(&line));
+                    }
+                    CommandEvent::Terminated(status) => {
+                        println!("[sidecar:{}] exited: {:?}", port_log, status);
+                        break;
+                    }
+                    CommandEvent::Error(err) => {
+                        eprintln!("[sidecar:{}] error: {}", port_log, err);
+                        break;
+                    }
+                    _ => {}
+                }
             }
-        }
+        });
 
-        // Try development path
+        Ok(child)
+    }
+
+    // ── Direct Python launch (development fallback) ──────────────────────────
+
+    fn start_python_direct(port: u16, repo_path: &str) -> Result<u32, String> {
+        let server_path = Self::find_server_script_dev()?;
+        let python_path = Self::find_python()?;
+
+        let mut cmd = std::process::Command::new(&python_path);
+        cmd.arg(&server_path)
+            .env("PORT", port.to_string())
+            .env("INCREA_REPO", repo_path)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        let child = cmd.spawn().map_err(|e| format!("Failed to start server: {e}"))?;
+        let pid = child.id();
+
+        // Detach — we rely on port polling for health checks.
+        // The child will be cleaned up when the Tauri app exits or via stop().
+        Ok(pid)
+    }
+
+    fn find_server_script_dev() -> Result<PathBuf, String> {
         let dev_paths = vec![
             PathBuf::from("packages/server/server.py"),
             PathBuf::from("../server/server.py"),
@@ -116,11 +234,10 @@ impl PythonServer {
             }
         }
 
-        Err("Could not find server script".into())
+        Err("Could not find server script for direct launch".into())
     }
 
     fn find_python() -> Result<String, String> {
-        // Try Python 3 first
         for cmd in &["python3", "python"] {
             if which::which(cmd).is_ok() {
                 return Ok(cmd.to_string());
@@ -129,8 +246,9 @@ impl PythonServer {
         Err("Could not find Python installation".into())
     }
 
+    // ── Utilities ───────────────────────────────────────────────────────────
+
     fn find_available_port() -> Result<u16, String> {
-        // Try the configured port first, then find available
         let start_port: u16 = std::env::var("PORT")
             .ok()
             .and_then(|p| p.parse().ok())
@@ -149,7 +267,6 @@ impl PythonServer {
     }
 
     fn get_default_repo_path(app_handle: &tauri::AppHandle) -> String {
-        // Use user data directory as default workspace
         app_handle
             .path()
             .app_data_dir()

@@ -1,0 +1,17 @@
+# Tauri sidecar binaries directory
+#
+# Place the Python server sidecar binaries here with the naming convention:
+#   python-server-x86_64-unknown-linux-gnu       (Linux x86_64)
+#   python-server-aarch64-unknown-linux-gnu        (Linux ARM64)
+#   python-server-x86_64-apple-darwin              (macOS Intel)
+#   python-server-aarch64-apple-darwin             (macOS Apple Silicon)
+#   python-server-x86_64-pc-windows-msvc.exe       (Windows x86_64)
+#
+# The binary name prefix "python-server" must match the "name" field
+# in tauri.conf.json under plugins.shell.scope.
+#
+# Build the sidecar with:
+#   cd packages/server && ./build_sidecar.sh
+#
+# Or use the unified build script:
+#   cd packages/scripts && ./build_sidecar.sh
