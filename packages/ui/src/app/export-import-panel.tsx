@@ -1,5 +1,7 @@
 import { Download, Loader2, Upload, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { showToast } from '@/app/toast'
 
 type ExportImportPanelProps = {
   repo: string
@@ -11,6 +13,7 @@ type ExportFormat = 'html' | 'pdf' | 'plain'
 type ZipFormat = 'markdown' | 'html'
 
 export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProps) {
+  const isMobile = useIsMobile()
   // Export states
   const [exportFormat, setExportFormat] = useState<ExportFormat>('html')
   const [exporting, setExporting] = useState(false)
@@ -72,13 +75,15 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
           if (!pdfRes.ok) throw new Error('PDF 下载失败')
           const pdfBuffer = await pdfRes.arrayBuffer()
           downloadArrayBuffer(pdfBuffer, data.filename, 'application/pdf')
+          showToast('PDF 已导出', 'success')
         }
       } else {
         const mimeType = exportFormat === 'html' ? 'text/html' : 'text/plain'
         downloadBlob(data.content, data.filename, mimeType)
+        showToast('文件已导出', 'success')
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : '导出失败')
+      showToast(e instanceof Error ? e.message : '导出失败', 'error')
     } finally {
       setExporting(false)
     }
@@ -87,7 +92,7 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
   // Export directory as ZIP
   const handleZipExport = useCallback(async () => {
     if (!zipDirectory) {
-      alert('请输入目录路径')
+      showToast('请输入目录路径', 'error')
       return
     }
     setZipping(true)
@@ -116,8 +121,9 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      showToast('ZIP 已导出', 'success')
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'ZIP 导出失败')
+      showToast(e instanceof Error ? e.message : 'ZIP 导出失败', 'error')
     } finally {
       setZipping(false)
     }
@@ -146,9 +152,10 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
       const data = await res.json()
       setImportResults(data.imported)
       setImportProgress(null)
+      showToast('文件导入成功', 'success')
     } catch (e) {
       setImportProgress(null)
-      alert(e instanceof Error ? e.message : '导入失败')
+      showToast(e instanceof Error ? e.message : '导入失败', 'error')
     }
   }, [repo])
 
@@ -184,8 +191,9 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
       const data = await res.json()
       setImportResults([data])
       setImportUrl('')
+      showToast('URL 导入成功', 'success')
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'URL 导入失败')
+      showToast(e instanceof Error ? e.message : 'URL 导入失败', 'error')
     } finally {
       setImportingUrl(false)
     }
@@ -198,7 +206,7 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
   }
 
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border w-80 min-w-[320px]">
+    <div className={`flex flex-col h-full bg-background ${isMobile ? 'w-full' : 'border-l border-border w-80 min-w-[320px]'}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1.5 text-sm font-medium">
