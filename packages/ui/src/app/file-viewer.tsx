@@ -1,4 +1,4 @@
-import { Code, Download, Eye, FileQuestion, History, Pencil, Sparkles, Table } from 'lucide-react'
+import { ArrowLeftRight, Code, Download, Eye, FileQuestion, History, Pencil, Sparkles, Table } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -12,6 +12,7 @@ import { useRefreshKey } from '@/stores/view-context'
 import type { BoardFile } from '@/types/board'
 import { fetchPreview, saveFile } from './api'
 import { AiToolsPanel } from './ai-tools-panel'
+import { BacklinksPanel } from './backlinks-panel'
 import { BoardViewer } from './board-viewer'
 import { ExportImportPanel } from './export-import-panel'
 import { HtmlViewer } from './html-viewer'
@@ -129,6 +130,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   const [showAiPanel, setShowAiPanel] = useState(false)
   const [showVersionPanel, setShowVersionPanel] = useState(false)
   const [showExportPanel, setShowExportPanel] = useState(false)
+  const [showBacklinksPanel, setShowBacklinksPanel] = useState(false)
   const refreshKey = useRefreshKey()
   const scrollBodyRef = useRef<HTMLDivElement>(null)
   const elementsRef = useVisibleContent()
@@ -300,7 +302,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
     const displayBody = editedContent ?? preview.body
 
     // On mobile, side panels display as fullscreen overlays
-    const panelOverlay = isMobile && (showAiPanel || showExportPanel || showVersionPanel)
+    const panelOverlay = isMobile && (showAiPanel || showExportPanel || showVersionPanel || showBacklinksPanel)
 
     return (
       <div className="h-full flex">
@@ -310,9 +312,25 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
               <button
                 type="button"
                 onClick={() => {
+                  setShowBacklinksPanel(v => !v)
+                  setShowAiPanel(false)
+                  setShowVersionPanel(false)
+                  setShowExportPanel(false)
+                }}
+                className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
+                  showBacklinksPanel ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="链接关系"
+              >
+                <ArrowLeftRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setShowExportPanel(v => !v)
                   setShowAiPanel(false)
                   setShowVersionPanel(false)
+                  setShowBacklinksPanel(false)
                 }}
                 className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
                   showExportPanel ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground hover:text-foreground'
@@ -327,6 +345,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
                   setShowAiPanel(v => !v)
                   setShowVersionPanel(false)
                   setShowExportPanel(false)
+                  setShowBacklinksPanel(false)
                 }}
                 className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
                   showAiPanel ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground hover:text-foreground'
@@ -341,6 +360,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
                   setShowVersionPanel(v => !v)
                   setShowAiPanel(false)
                   setShowExportPanel(false)
+                  setShowBacklinksPanel(false)
                 }}
                 className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
                   showVersionPanel ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground hover:text-foreground'
@@ -399,6 +419,15 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
             <VersionHistoryPanel repo={repo} path={path} onClose={() => setShowVersionPanel(false)} />
           )
         )}
+        {showBacklinksPanel && (
+          isMobile ? (
+            <MobilePanelOverlay>
+              <BacklinksPanel repo={repo} path={path} onClose={() => setShowBacklinksPanel(false)} />
+            </MobilePanelOverlay>
+          ) : (
+            <BacklinksPanel repo={repo} path={path} onClose={() => setShowBacklinksPanel(false)} />
+          )
+        )}
       </div>
     )
   }
@@ -437,22 +466,35 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   }
 
   return (
-    <div ref={scrollBodyRef} className="h-full overflow-auto scroll-body">
-      <SelectionToolbar containerRef={scrollBodyRef} />
+    <div className="h-full flex">
+      <div ref={scrollBodyRef} className={`flex-1 overflow-auto scroll-body ${showBacklinksPanel && !isMobile ? 'min-w-0' : ''}`}>
+        <SelectionToolbar containerRef={scrollBodyRef} />
 
-      {/* Edit button for code files */}
-      {preview.type === 'code' && (
-        <div className="absolute top-2 right-2 z-10">
-          <button
-            type="button"
-            onClick={() => openFile(repo, path, preview.body)}
-            className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
-            title="编辑"
-          >
-            <Pencil size={16} />
-          </button>
-        </div>
-      )}
+        {/* Edit button for code files */}
+        {preview.type === 'code' && (
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setShowBacklinksPanel(v => !v)
+              }}
+              className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
+                showBacklinksPanel ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title="链接关系"
+            >
+              <ArrowLeftRight size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => openFile(repo, path, preview.body)}
+              className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
+              title="编辑"
+            >
+              <Pencil size={16} />
+            </button>
+          </div>
+        )}
 
       {preview.type === 'code' && !isEditMode && (
         <CodeViewerWithLines language={preview.lang} code={preview.body} scrollToLine={scrollToLine} />
@@ -506,6 +548,16 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
           <p>不支持的文件类型</p>
           <p className="text-sm font-mono">{preview.path}</p>
         </div>
+      )}
+      </div>
+      {showBacklinksPanel && (
+        isMobile ? (
+          <MobilePanelOverlay>
+            <BacklinksPanel repo={repo} path={path} onClose={() => setShowBacklinksPanel(false)} />
+          </MobilePanelOverlay>
+        ) : (
+          <BacklinksPanel repo={repo} path={path} onClose={() => setShowBacklinksPanel(false)} />
+        )
       )}
     </div>
   )
