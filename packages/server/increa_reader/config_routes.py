@@ -23,6 +23,10 @@ class ApiSettingsRequest(BaseModel):
     base_url: str | None = None
     api_key: str | None = None
     default_model: str | None = None
+    ai_provider: str | None = None
+    openai_api_key: str | None = None
+    openai_base_url: str | None = None
+    openai_model: str | None = None
 
 
 def _mask_api_key(key: str | None) -> str | None:
@@ -76,18 +80,22 @@ def create_config_routes(app: FastAPI, workspace_config: WorkspaceConfig):
 
     @app.get("/api/config/api-settings")
     async def get_api_settings():
-        """Get API settings with masked API key"""
+        """Get API settings with masked API keys"""
         settings = load_api_settings()
         return {
             "base_url": settings.get("base_url"),
             "api_key": _mask_api_key(settings.get("api_key")),
             "default_model": settings.get("default_model"),
+            "ai_provider": settings.get("ai_provider"),
+            "openai_api_key": _mask_api_key(settings.get("openai_api_key")),
+            "openai_base_url": settings.get("openai_base_url"),
+            "openai_model": settings.get("openai_model"),
         }
 
     @app.put("/api/config/api-settings")
     async def update_api_settings(request: ApiSettingsRequest):
         """Update API settings.
-
+        
         api_key handling:
         - None  → not sent, keep existing key
         - ""    → explicitly clear the key
@@ -97,7 +105,11 @@ def create_config_routes(app: FastAPI, workspace_config: WorkspaceConfig):
         updated = {
             "base_url": request.base_url,
             "default_model": request.default_model,
+            "ai_provider": request.ai_provider,
+            "openai_base_url": request.openai_base_url,
+            "openai_model": request.openai_model,
         }
+        # Anthropic API key
         if request.api_key is None:
             updated["api_key"] = current.get("api_key")
         elif request.api_key == "":
@@ -106,9 +118,22 @@ def create_config_routes(app: FastAPI, workspace_config: WorkspaceConfig):
             updated["api_key"] = request.api_key
         else:
             updated["api_key"] = current.get("api_key")
+        # OpenAI API key
+        if request.openai_api_key is None:
+            updated["openai_api_key"] = current.get("openai_api_key")
+        elif request.openai_api_key == "":
+            updated["openai_api_key"] = None
+        elif "..." not in request.openai_api_key:
+            updated["openai_api_key"] = request.openai_api_key
+        else:
+            updated["openai_api_key"] = current.get("openai_api_key")
         save_api_settings(updated)
         return {
             "base_url": updated["base_url"],
             "api_key": _mask_api_key(updated.get("api_key")),
             "default_model": updated["default_model"],
+            "ai_provider": updated.get("ai_provider"),
+            "openai_api_key": _mask_api_key(updated.get("openai_api_key")),
+            "openai_base_url": updated.get("openai_base_url"),
+            "openai_model": updated.get("openai_model"),
         }

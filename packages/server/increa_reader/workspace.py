@@ -51,14 +51,20 @@ def get_ai_provider() -> str:
 
     优先级:
     1. 环境变量 AI_PROVIDER
-    2. 如果有 ANTHROPIC_API_KEY 则默认 anthropic
-    3. 否则默认 openai
+    2. config.json 中的 api_settings.ai_provider
+    3. 如果有 ANTHROPIC_API_KEY 则默认 anthropic
+    4. 否则默认 openai
     """
     explicit = os.getenv("AI_PROVIDER", "").lower()
     if explicit in ("anthropic", "openai"):
         return explicit
+    # 检查 config.json 中的设置
+    api_settings = load_api_settings()
+    config_provider = api_settings.get("ai_provider", "").lower()
+    if config_provider in ("anthropic", "openai"):
+        return config_provider
     # 自动检测：有 Anthropic key 则用 anthropic，否则 openai
-    if os.getenv("ANTHROPIC_API_KEY"):
+    if os.getenv("ANTHROPIC_API_KEY") or api_settings.get("api_key"):
         return "anthropic"
     return "openai"
 

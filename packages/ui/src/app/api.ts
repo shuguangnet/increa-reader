@@ -141,6 +141,10 @@ export type ApiSettings = {
   base_url: string | null
   api_key: string | null
   default_model: string | null
+  ai_provider: string | null
+  openai_api_key: string | null
+  openai_base_url: string | null
+  openai_model: string | null
 }
 
 export async function fetchApiSettings(): Promise<ApiSettings> {
