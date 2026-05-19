@@ -1,18 +1,18 @@
 import type { ComponentPropsWithoutRef, RefObject } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
 import { ListTree } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { MarkdownNotesLayer } from '@/app/notes/markdown-notes-layer'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { useExternalLinks } from '@/hooks/use-external-links'
 import { usePref } from '@/hooks/use-pref'
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { ArticleOutline } from './article-outline'
 import { parseHeadings } from './heading-utils'
 import { useHeadingObserver } from './use-heading-observer'
@@ -155,16 +155,11 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
         }
         if (match) {
           return (
-            <SyntaxHighlighter
+            <CodeBlockWithCopy
               language={match[1]}
-              /* @ts-expect-error SyntaxHighlighter style type mismatch */
+              code={String(children).replace(/\n$/, '')}
               style={oneLight}
-              PreTag="div"
-              customStyle={{ margin: 0, borderRadius: '0.375rem', fontSize: '0.875rem' }}
-              {...props}
-            >
-              {String(children).replace(/\n$/, '')}
-            </SyntaxHighlighter>
+            />
           )
         }
         return (
