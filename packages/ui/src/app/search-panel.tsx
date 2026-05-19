@@ -1,5 +1,5 @@
 import { apiFetch } from '@/app/api'
-import { Clock, RefreshCw, Search, Trash2, X } from 'lucide-react'
+import { Clock, RefreshCw, RegexIcon, Search, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -16,6 +16,8 @@ type SearchResult = {
   file_path: string
   line_number: number
   line: string
+  context_before: string[]
+  context_after: string[]
 }
 
 type SearchPanelProps = {
@@ -25,16 +27,21 @@ type SearchPanelProps = {
 
 const FILE_TYPE_FILTERS = ['md', 'py', 'ts', 'tsx', 'js', 'json', 'yaml', 'txt'] as const
 
-function highlightMatch(text: string, query: string) {
+function highlightMatch(text: string, query: string, useRegex = false) {
   if (!query) return text
-  const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'))
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">{part}</mark>
-    ) : (
-      part
-    ),
-  )
+  const pattern = useRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  try {
+    const parts = text.split(new RegExp(`(${pattern})`, 'gi'))
+    return parts.map((part, i) =>
+      i % 2 === 1 ? (
+        <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">{part}</mark>
+      ) : (
+        part
+      ),
+    )
+  } catch {
+    return text
+  }
 }
 
 export function SearchPanel({ open, onClose }: SearchPanelProps) {
@@ -43,6 +50,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   const [loading, setLoading] = useState(false)
   const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const [repoFilter, setRepoFilter] = useState<string | null>(null)
+  const [useRegex, setUseRegex] = useState(false)
   const [repos, setRepos] = useState<RepoInfo[]>([])
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [rebuilding, setRebuilding] = useState(false)
@@ -115,6 +123,8 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
       const params = new URLSearchParams({ q: searchQuery })
       if (typeFilter) params.set('file_types', typeFilter)
       if (repoFilter) params.set('repo', repoFilter)
+      if (useRegex) params.set('regex', 'true')
+      params.set('context_lines', '2')
       const res = await apiFetch(`/api/search?${params}`)
       const data = await res.json()
       setResults(data.results ?? [])
@@ -127,7 +137,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
     } finally {
       setLoading(false)
     }
-  }, [typeFilter, repoFilter, addSearch])
+  }, [typeFilter, repoFilter, useRegex, addSearch])
 
   // Keep ref in sync so rebuild can call it
   doSearchRef.current = doSearch
@@ -146,7 +156,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   useEffect(() => {
     if (!open || !query.trim()) return
     doSearch(query)
-  }, [typeFilter, repoFilter, open]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typeFilter, repoFilter, useRegex, open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const navigateToFile = useCallback((repo: string, filePath: string, lineNumber?: number) => {
     const clean = filePath.startsWith('/') ? filePath.slice(1) : filePath
@@ -286,9 +296,21 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="搜索内容..."
-                className="pl-8"
+                className="pl-8 pr-9"
                 autoFocus
               />
+              <button
+                type="button"
+                onClick={() => setUseRegex(!useRegex)}
+                className={`absolute top-1/2 right-2.5 -translate-y-1/2 p-0.5 rounded transition-colors ${
+                  useRegex
+                    ? 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/40'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title={useRegex ? '关闭正则搜索' : '开启正则搜索'}
+              >
+                <RegexIcon className="size-4" />
+              </button>
             </div>
             {/* Repo filter chips */}
             {repos.length > 1 && (
@@ -357,7 +379,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                     <button
                       key={searchTerm}
                       type="button"
-                      onClick={() => setQuery(searchTerm)}
+                      onClick={() => { setQuery(searchTerm); doSearch(searchTerm) }}
                       className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left border-b"
                     >
                       <Clock className="size-3.5 text-muted-foreground shrink-0" />
@@ -412,8 +434,20 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                         )}
                       </div>
                       {r.line && (
-                        <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 font-mono mt-0.5">
-                          {highlightMatch(r.line.trim(), query)}
+                        <div className="text-xs font-mono mt-0.5 space-y-0">
+                          {r.context_before?.map((ctxLine, ci) => (
+                            <div key={`before-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
+                              {ctxLine.trim()}
+                            </div>
+                          ))}
+                          <div className="text-gray-600 dark:text-gray-400 line-clamp-1">
+                            {highlightMatch(r.line.trim(), query, useRegex)}
+                          </div>
+                          {r.context_after?.map((ctxLine, ci) => (
+                            <div key={`after-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
+                              {ctxLine.trim()}
+                            </div>
+                          ))}
                         </div>
                       )}
                     </button>
@@ -464,9 +498,21 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="搜索所有仓库内容..."
-              className="pl-8"
+              className="pl-8 pr-9"
               autoFocus
             />
+            <button
+              type="button"
+              onClick={() => setUseRegex(!useRegex)}
+              className={`absolute top-1/2 right-2.5 -translate-y-1/2 p-0.5 rounded transition-colors ${
+                useRegex
+                  ? 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/40'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title={useRegex ? '关闭正则搜索' : '开启正则搜索'}
+            >
+              <RegexIcon className="size-4" />
+            </button>
           </div>
           {/* Repo filter chips */}
           {repos.length > 1 && (
@@ -539,7 +585,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                   <button
                     key={searchTerm}
                     type="button"
-                    onClick={() => setQuery(searchTerm)}
+                    onClick={() => { setQuery(searchTerm); doSearch(searchTerm) }}
                     className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left border-b"
                   >
                     <Clock className="size-3.5 text-muted-foreground shrink-0" />
@@ -592,8 +638,20 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                       )}
                     </div>
                     {r.line && (
-                      <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 font-mono mt-0.5">
-                        {highlightMatch(r.line.trim(), query)}
+                      <div className="text-xs font-mono mt-0.5 space-y-0">
+                        {r.context_before?.map((ctxLine, ci) => (
+                          <div key={`before-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
+                            {ctxLine.trim()}
+                          </div>
+                        ))}
+                        <div className="text-gray-600 dark:text-gray-400 line-clamp-1">
+                          {highlightMatch(r.line.trim(), query, useRegex)}
+                        </div>
+                        {r.context_after?.map((ctxLine, ci) => (
+                          <div key={`after-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
+                            {ctxLine.trim()}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </button>
