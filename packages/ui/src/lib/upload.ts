@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 export async function uploadImage(blob: Blob): Promise<{ absolutePath: string; filename: string }> {
   const reader = new FileReader()
   const base64 = await new Promise<string>(resolve => {
@@ -5,7 +6,7 @@ export async function uploadImage(blob: Blob): Promise<{ absolutePath: string; f
     reader.readAsDataURL(blob)
   })
 
-  const res = await fetch('/api/upload/image', {
+  const res = await apiFetch('/api/upload/image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data: base64 }),

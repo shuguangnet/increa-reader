@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // useMemo is used below for viewContext stabilization
 import { useNavigate } from 'react-router-dom'
@@ -71,7 +72,7 @@ export function CommandPalette() {
     setQuery('')
     setSelectedIndex(0)
 
-    fetch('/api/workspace/tree')
+    apiFetch('/api/workspace/tree')
       .then((res) => res.json())
       .then((data) => {
         const repoList: { name: string; files: TreeNode[] }[] = data.data || []

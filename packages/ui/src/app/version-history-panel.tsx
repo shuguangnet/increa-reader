@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { GitCommit, History, Loader2, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -37,7 +38,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
     setError(null)
     setNoGit(false)
     try {
-      const res = await fetch(`/api/versions/${encodeURIComponent(repo)}/${encodeURIComponent(path)}`)
+      const res = await apiFetch(`/api/versions/${encodeURIComponent(repo)}/${encodeURIComponent(path)}`)
       if (!res.ok) {
         if (res.status === 404) {
           setNoGit(true)
@@ -94,7 +95,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
     setDiffContent(null)
     try {
       const params = new URLSearchParams({ path, from: diffFrom, to: diffTo })
-      const res = await fetch(`/api/versions/${encodeURIComponent(repo)}/diff?${params}`)
+      const res = await apiFetch(`/api/versions/${encodeURIComponent(repo)}/diff?${params}`)
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.detail || '加载 diff 失败')

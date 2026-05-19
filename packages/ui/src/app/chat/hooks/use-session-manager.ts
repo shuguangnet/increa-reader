@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { useCallback, useState } from 'react'
 import type { Session, SessionMetadata } from '@/types/chat'
 
@@ -10,14 +11,14 @@ export const useSessionManager = () => {
   const [sessions, setSessions] = useState<SessionMetadata[]>([])
 
   const loadSessions = useCallback(async (): Promise<SessionsData> => {
-    const response = await fetch('/api/sessions')
+    const response = await apiFetch('/api/sessions')
     const data: SessionsData = await response.json()
     setSessions(data.sessions)
     return data
   }, [])
 
   const loadSession = useCallback(async (sessionId: string): Promise<Session> => {
-    const response = await fetch(`/api/sessions/${sessionId}`)
+    const response = await apiFetch(`/api/sessions/${sessionId}`)
     if (!response.ok) {
       throw new Error('Failed to load session')
     }
@@ -25,7 +26,7 @@ export const useSessionManager = () => {
   }, [])
 
   const saveSession = useCallback(async (session: Session): Promise<void> => {
-    await fetch(`/api/sessions/${session.id}`, {
+    await apiFetch(`/api/sessions/${session.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(session),
@@ -48,7 +49,7 @@ export const useSessionManager = () => {
   }, [])
 
   const deleteSession = useCallback(async (sessionId: string): Promise<void> => {
-    await fetch(`/api/sessions/${sessionId}`, {
+    await apiFetch(`/api/sessions/${sessionId}`, {
       method: 'DELETE',
     })
 

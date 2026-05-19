@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useEventCallback } from '@/hooks/use-event-callback'
 import type { ContextData } from '@/stores/view-context'
@@ -109,7 +110,7 @@ export const useChat = (getContext: () => ContextData) => {
       try {
         const context = getContextEvent()
 
-        const response = await fetch('/api/chat/query', {
+        const response = await apiFetch('/api/chat/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

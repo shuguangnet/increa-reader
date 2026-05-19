@@ -1,10 +1,12 @@
-import { RefreshCw, Search, X } from 'lucide-react'
+import { apiFetch } from '@/app/api'
+import { Clock, RefreshCw, Search, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useSearchHistoryStore } from '@/stores/search-history-store'
 import { showToast } from '@/app/toast'
 import { fetchRepos, type RepoInfo } from './api'
 import { getFileIcon } from './file-tree'
@@ -50,13 +52,17 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   const debounceRef = useRef<number>(0)
   const resultsRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const recentSearches = useSearchHistoryStore(s => s.recentSearches)
+  const addSearch = useSearchHistoryStore(s => s.addSearch)
+  const clearSearches = useSearchHistoryStore(s => s.clearSearches)
+  const removeSearch = useSearchHistoryStore(s => s.removeSearch)
 
   // Rebuild search index
   const doSearchRef = useRef<((q: string) => Promise<void>) | null>(null)
   const handleRebuild = useCallback(async () => {
     setRebuilding(true)
     try {
-      const res = await fetch('/api/search/rebuild', { method: 'POST' })
+      const res = await apiFetch('/api/search/rebuild', { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
         showToast(`搜索索引已重建（${data.total_files ?? 0} 个文件）`, 'success')
@@ -109,15 +115,19 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
       const params = new URLSearchParams({ q: searchQuery })
       if (typeFilter) params.set('file_types', typeFilter)
       if (repoFilter) params.set('repo', repoFilter)
-      const res = await fetch(`/api/search?${params}`)
+      const res = await apiFetch(`/api/search?${params}`)
       const data = await res.json()
       setResults(data.results ?? [])
+      // Save to search history when we get results
+      if ((data.results ?? []).length > 0) {
+        addSearch(searchQuery.trim())
+      }
     } catch {
       setResults([])
     } finally {
       setLoading(false)
     }
-  }, [typeFilter, repoFilter])
+  }, [typeFilter, repoFilter, addSearch])
 
   // Keep ref in sync so rebuild can call it
   doSearchRef.current = doSearch
@@ -331,10 +341,43 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
               <div className="p-4 text-sm text-muted-foreground">未找到结果</div>
             )}
             {!loading && results.length === 0 && !query && (
-              <div className="p-4 text-sm text-muted-foreground text-center">
-                <Search className="size-8 mx-auto mb-2 opacity-30" />
-                <p>输入关键词搜索所有仓库内容</p>
-              </div>
+              recentSearches.length > 0 ? (
+                <div>
+                  <div className="flex items-center justify-between px-4 py-2">
+                    <span className="text-xs font-medium text-muted-foreground">最近搜索</span>
+                    <button
+                      type="button"
+                      onClick={clearSearches}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      清除全部
+                    </button>
+                  </div>
+                  {recentSearches.map(searchTerm => (
+                    <button
+                      key={searchTerm}
+                      type="button"
+                      onClick={() => setQuery(searchTerm)}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left border-b"
+                    >
+                      <Clock className="size-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-sm truncate flex-1">{searchTerm}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeSearch(searchTerm) }}
+                        className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-sm text-muted-foreground text-center">
+                  <Search className="size-8 mx-auto mb-2 opacity-30" />
+                  <p>输入关键词搜索所有仓库内容</p>
+                </div>
+              )
             )}
             {Object.entries(groupedResults).map(([repo, repoResults]) => (
               <div key={repo}>
@@ -476,7 +519,44 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
             <div className="p-4 text-sm text-muted-foreground">未找到结果</div>
           )}
           {!loading && results.length === 0 && !query && (
-            <div className="p-4 text-sm text-muted-foreground">输入关键词开始搜索</div>
+            recentSearches.length > 0 ? (
+              <div>
+                <div className="flex items-center justify-between px-4 py-2 border-b">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="size-3.5" />
+                    最近搜索
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearSearches}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="size-3" />
+                    清除全部
+                  </button>
+                </div>
+                {recentSearches.map(searchTerm => (
+                  <button
+                    key={searchTerm}
+                    type="button"
+                    onClick={() => setQuery(searchTerm)}
+                    className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left border-b"
+                  >
+                    <Clock className="size-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate flex-1">{searchTerm}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeSearch(searchTerm) }}
+                      className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-muted-foreground hover:text-foreground transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-sm text-muted-foreground">输入关键词开始搜索</div>
+            )
           )}
           {Object.entries(groupedResults).map(([repo, repoResults]) => (
             <div key={repo}>

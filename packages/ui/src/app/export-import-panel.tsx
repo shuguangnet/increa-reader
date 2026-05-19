@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { Download, Loader2, Upload, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -57,7 +58,7 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
   const handleExport = useCallback(async () => {
     setExporting(true)
     try {
-      const res = await fetch('/api/export/convert', {
+      const res = await apiFetch('/api/export/convert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo, path, format: exportFormat }),
@@ -71,7 +72,7 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
       if (exportFormat === 'pdf') {
         // Download PDF from temp path
         if (data.temp_path) {
-          const pdfRes = await fetch(`/api/export/pdf-download?temp_path=${encodeURIComponent(data.temp_path)}`)
+          const pdfRes = await apiFetch(`/api/export/pdf-download?temp_path=${encodeURIComponent(data.temp_path)}`)
           if (!pdfRes.ok) throw new Error('PDF 下载失败')
           const pdfBuffer = await pdfRes.arrayBuffer()
           downloadArrayBuffer(pdfBuffer, data.filename, 'application/pdf')
@@ -97,7 +98,7 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
     }
     setZipping(true)
     try {
-      const res = await fetch('/api/export/zip', {
+      const res = await apiFetch('/api/export/zip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo, directory: zipDirectory, format: zipFormat }),
@@ -141,7 +142,7 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
     }
 
     try {
-      const res = await fetch('/api/import/upload', {
+      const res = await apiFetch('/api/import/upload', {
         method: 'POST',
         body: formData,
       })
@@ -179,7 +180,7 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
     setImportingUrl(true)
     setImportResults(null)
     try {
-      const res = await fetch('/api/import/url', {
+      const res = await apiFetch('/api/import/url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo, target_path: 'imported/', url: importUrl }),

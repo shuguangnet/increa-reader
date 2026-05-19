@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchApiSettings } from '@/app/api'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
@@ -63,7 +64,7 @@ export const ChatPanel = ({ hideHeader }: ChatPanelProps) => {
   }, [])
 
   useEffect(() => {
-    fetch('/api/workspace/tree')
+    apiFetch('/api/workspace/tree')
       .then(res => res.json())
       .then(data => {
         const repoList = data.data || []

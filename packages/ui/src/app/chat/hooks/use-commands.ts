@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import type { Dispatch, SetStateAction } from 'react'
 import { useEventCallback } from '@/hooks/use-event-callback'
 import type { Session } from '@/types/chat'
@@ -31,7 +32,7 @@ export const useCommands = (ctx: CommandContext) => {
     }
 
     try {
-      const response = await fetch('/api/chat/save', {
+      const response = await apiFetch('/api/chat/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -83,7 +84,7 @@ export const useCommands = (ctx: CommandContext) => {
     }
 
     try {
-      const response = await fetch('/api/chat/abort', {
+      const response = await apiFetch('/api/chat/abort', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: claudeSessionId }),

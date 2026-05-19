@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { FileSearch, Loader2, MessageSquare, Sparkles, Tag, X } from 'lucide-react'
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
@@ -83,7 +84,7 @@ function SummaryTab({ repo, path }: { repo: string; path: string }) {
     setError(null)
     setSummary(null)
     try {
-      const res = await fetch('/api/ai/summarize', {
+      const res = await apiFetch('/api/ai/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo, path }),
@@ -146,7 +147,7 @@ function TagsTab({ repo, path }: { repo: string; path: string }) {
     setError(null)
     setTags([])
     try {
-      const res = await fetch('/api/ai/suggest-tags', {
+      const res = await apiFetch('/api/ai/suggest-tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo, path }),
@@ -167,7 +168,7 @@ function TagsTab({ repo, path }: { repo: string; path: string }) {
   const addTag = async (tag: string) => {
     setAdding(tag)
     try {
-      await fetch('/api/tags', {
+      await apiFetch('/api/tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_path: path, repo, tags: [tag] }),
@@ -235,7 +236,7 @@ function AskTab({ repo, path }: { repo: string; path: string }) {
     setError(null)
     setAnswer(null)
     try {
-      const res = await fetch('/api/ai/ask', {
+      const res = await apiFetch('/api/ai/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo, path, question: question.trim() }),
@@ -308,7 +309,7 @@ function RelatedTab({ repo, path }: { repo: string; path: string }) {
     setError(null)
     setRelated([])
     try {
-      const res = await fetch('/api/ai/related', {
+      const res = await apiFetch('/api/ai/related', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo, path }),

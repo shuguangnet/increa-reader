@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { useEffect, useRef } from 'react'
 import { useSelectionQueue } from '@/contexts/selection-context'
 import { getTab, setAnimation, setRenderer, useBoardStore } from '@/stores/board-store'
@@ -71,7 +72,7 @@ export const useFrontendTools = () => {
             const toolResult = await executeFrontendTool(ctx, name, args)
             console.log(`[Frontend Tool] Executing ${name}, args: %o, result: %o`, args, toolResult)
 
-            await fetch('/api/chat/tool-result', {
+            await apiFetch('/api/chat/tool-result', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { ChevronDown, ChevronRight, Hash, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -25,7 +26,7 @@ export function TagsPanel() {
 
   const loadTags = useCallback(async () => {
     try {
-      const res = await fetch('/api/tags')
+      const res = await apiFetch('/api/tags')
       const data = await res.json()
       setTags(data.tags ?? data.data ?? [])
     } catch {
@@ -39,7 +40,7 @@ export function TagsPanel() {
     if (!repo || !path) { setFileTags([]); return }
     try {
       const params = new URLSearchParams({ repo, path })
-      const res = await fetch(`/api/tags/file?${params}`)
+      const res = await apiFetch(`/api/tags/file?${params}`)
       const data = await res.json()
       setFileTags(data.tags ?? [])
     } catch {
@@ -67,7 +68,7 @@ export function TagsPanel() {
     setExpanded(tagName)
     setLoadingFiles(true)
     try {
-      const res = await fetch(`/api/tags/${encodeURIComponent(tagName)}`)
+      const res = await apiFetch(`/api/tags/${encodeURIComponent(tagName)}`)
       const data = await res.json()
       setTagFiles(data.files ?? data.data ?? [])
     } catch {
@@ -81,7 +82,7 @@ export function TagsPanel() {
     const tagToAdd = (tagValue ?? newTag).trim()
     if (!tagToAdd || !repo || !path) return
     try {
-      await fetch('/api/tags', {
+      await apiFetch('/api/tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_path: path, repo, tags: [tagToAdd] }),
@@ -100,7 +101,7 @@ export function TagsPanel() {
   const removeTag = async (tagName: string) => {
     if (!repo || !path) return
     try {
-      await fetch('/api/tags', {
+      await apiFetch('/api/tags', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_path: path, repo, tags: [tagName] }),

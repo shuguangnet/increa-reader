@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { ArrowLeftRight, ExternalLink, Loader2, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -30,9 +31,9 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
     setError(null)
 
     Promise.all([
-      fetch(`/api/links/backlinks?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`)
+      apiFetch(`/api/links/backlinks?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`)
         .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch backlinks'))),
-      fetch(`/api/links/outgoing?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`)
+      apiFetch(`/api/links/outgoing?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`)
         .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch outgoing links'))),
     ])
       .then(([backlinksData, outgoingData]) => {

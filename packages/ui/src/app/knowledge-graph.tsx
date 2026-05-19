@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, X, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
@@ -50,7 +51,7 @@ export function KnowledgeGraph({ onClose }: { onClose?: () => void }) {
   const panRef = useRef<{ active: boolean; lastX: number; lastY: number }>({ active: false, lastX: 0, lastY: 0 })
 
   useEffect(() => {
-    fetch('/api/links/graph')
+    apiFetch('/api/links/graph')
       .then(r => r.json())
       .then(data => setGraphData(data))
       .catch(() => setGraphData(null))

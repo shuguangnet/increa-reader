@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import { Clock, FolderOpen, Hash, Keyboard, Network, Search, Star } from 'lucide-react'
@@ -6,6 +7,7 @@ import { useFavoritesStore } from '../stores/favorites-store'
 import { useRecentFilesStore } from '../stores/recent-files-store'
 import { useProgressStore } from '../stores/progress-store'
 import { useTabsStore } from '../stores/tabs-store'
+import { useSearchHistoryStore } from '../stores/search-history-store'
 import { useUIStore } from '../stores/ui-store'
 import { useIsMobile } from '../hooks/use-mobile'
 import { getFileIcon } from './file-tree'
@@ -37,7 +39,7 @@ function HomePage() {
 
   const loadTags = useCallback(async () => {
     try {
-      const res = await fetch('/api/tags')
+      const res = await apiFetch('/api/tags')
       const data = await res.json()
       setTags(data.tags ?? data.data ?? [])
     } catch {
@@ -54,7 +56,7 @@ function HomePage() {
     setExpandedTag(tagName)
     setTagFilesLoading(true)
     try {
-      const res = await fetch(`/api/tags/${encodeURIComponent(tagName)}`)
+      const res = await apiFetch(`/api/tags/${encodeURIComponent(tagName)}`)
       const data = await res.json()
       setTagFiles(data.files ?? data.data ?? [])
     } catch {
@@ -275,7 +277,7 @@ function useRehydrateStores() {
 
   useEffect(() => {
     let count = 0
-    const total = 5
+    const total = 6
     const markDone = () => {
       count++
       if (count >= total) {
@@ -290,6 +292,7 @@ function useRehydrateStores() {
       useRecentFilesStore.persist.onFinishHydration(markDone),
       useTabsStore.persist.onFinishHydration(markDone),
       useProgressStore.persist.onFinishHydration(markDone),
+      useSearchHistoryStore.persist.onFinishHydration(markDone),
     ]
 
     // Trigger rehydration (it's async, fires onFinishHydration when done)
@@ -298,6 +301,7 @@ function useRehydrateStores() {
     useRecentFilesStore.persist.rehydrate()
     useTabsStore.persist.rehydrate()
     useProgressStore.persist.rehydrate()
+    useSearchHistoryStore.persist.rehydrate()
 
     return () => {
       unsubs.forEach((unsub) => unsub())

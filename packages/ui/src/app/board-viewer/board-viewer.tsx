@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { Pause, Play, RotateCcw, Save, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -99,7 +100,7 @@ export function BoardViewer({ repo, filePath, data }: BoardViewerProps) {
     }
 
     if (repo && filePath) {
-      const res = await fetch(`/api/board/save`, {
+      const res = await apiFetch(`/api/board/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo, path: filePath, data: boardData }),

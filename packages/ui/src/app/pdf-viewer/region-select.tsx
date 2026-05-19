@@ -1,3 +1,4 @@
+import { apiFetch } from '@/app/api'
 import { Copy, MessageSquare, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSelectionQueue } from '@/contexts/selection-context'
@@ -35,7 +36,7 @@ async function extractRegionText(
     x1: String(x1),
     y1: String(y1),
   })
-  const res = await fetch(`/api/pdf/extract-region?${params}`)
+  const res = await apiFetch(`/api/pdf/extract-region?${params}`)
   if (!res.ok) throw new Error('Failed to extract text')
   return res.json()
 }
