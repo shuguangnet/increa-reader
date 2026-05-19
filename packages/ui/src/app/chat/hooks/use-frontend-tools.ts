@@ -20,11 +20,9 @@ export const useFrontendTools = () => {
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
     const connect = () => {
-      console.log('[Frontend Tools] Connecting to SSE...')
       eventSource = new EventSource('/api/chat/frontend-events')
 
       eventSource.onopen = () => {
-        console.log('[Frontend Tools] SSE connected')
       }
 
       eventSource.onmessage = async event => {
@@ -70,7 +68,6 @@ export const useFrontendTools = () => {
             }
 
             const toolResult = await executeFrontendTool(ctx, name, args)
-            console.log(`[Frontend Tool] Executing ${name}, args: %o, result: %o`, args, toolResult)
 
             await apiFetch('/api/chat/tool-result', {
               method: 'POST',
@@ -87,7 +84,6 @@ export const useFrontendTools = () => {
       }
 
       eventSource.onerror = () => {
-        console.log('[Frontend Tools] SSE disconnected, reconnecting in 2s...')
         eventSource?.close()
         reconnectTimer = setTimeout(connect, 2000)
       }
@@ -96,7 +92,6 @@ export const useFrontendTools = () => {
     connect()
 
     return () => {
-      console.log('[Frontend Tools] Cleaning up SSE connection')
       eventSource?.close()
       if (reconnectTimer) clearTimeout(reconnectTimer)
     }

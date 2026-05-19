@@ -84,7 +84,7 @@ async function loadTauriWindow(): Promise<any> {
 // ---------------------------------------------------------------------------
 
 const _hasWindow = typeof window !== 'undefined'
-const _hasTauri = _hasWindow && !!(window as any).__TAURI_INTERNALS__
+const _hasTauri = _hasWindow && !!(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
 const _hasNavigator = typeof navigator !== 'undefined'
 
 /** True when running inside the Tauri desktop shell */
@@ -98,7 +98,7 @@ export const isMobile = (): boolean =>
 export const isPWA = (): boolean =>
   _hasWindow &&
   (window.matchMedia?.('(display-mode: standalone)').matches ||
-    (navigator as any).standalone === true)
+    (navigator as Navigator & { standalone?: boolean }).standalone === true)
 
 /** True when running as a desktop application (Tauri) */
 export const isDesktop = (): boolean => _hasTauri
@@ -157,7 +157,7 @@ export function getCapabilities(): PlatformCapabilities {
     supportsWindowControls: tauri,
     supportsServerControl: tauri,
     supportsPWA: _hasWindow && 'serviceWorker' in navigator,
-    supportsClipboard: _hasNavigator && !!(navigator as any).clipboard,
+    supportsClipboard: _hasNavigator && !!navigator.clipboard,
   }
   return _caps
 }
@@ -402,7 +402,6 @@ export async function initPlatform(): Promise<void> {
     const status = await startServer()
     if (status.running && status.port) {
       setServerPort(status.port)
-      console.log(`[platform] Tauri backend started on port ${status.port}`)
     }
   } catch (e) {
     console.error('[platform] Failed to start Tauri backend:', e)

@@ -442,9 +442,8 @@ export function Layout() {
   const searchPanelOpen = useUIStore((s) => s.searchPanelOpen)
   const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
-  // File drop handler — creates a visual highlight and logs dropped files
-  const { isOver, dropHandler } = useFileDrop(useCallback((files) => {
-    console.log('[Layout] Dropped files:', files)
+  // File drop handler — creates a visual highlight for dropped files
+  const { isOver, dropHandler } = useFileDrop(useCallback((_files) => {
     // TODO: integrate with file import API when available
   }, []))
 
@@ -461,17 +460,15 @@ export function Layout() {
       switch (action) {
         case 'open-repo':
           // For now, open folder dialog — could be wired to a store action
-          platform.openFolderDialog().then((path) => {
-            if (path) console.log('[Layout] Open repo:', path)
+          platform.openFolderDialog().then((_path) => {
+            // path will be handled by UI
           })
           break
         case 'new-file':
           // Could open a new file creation dialog
-          console.log('[Layout] Menu action: new-file')
           break
         case 'save':
           // Trigger save in editor if available
-          console.log('[Layout] Menu action: save')
           break
         case 'quit':
           platform.closeWindow()
@@ -489,10 +486,9 @@ export function Layout() {
           setSearchPanelOpen(true)
           break
         case 'about':
-          console.log('[Layout] Menu action: about')
           break
         default:
-          console.log('[Layout] Unknown menu action:', action)
+          break
       }
     })
 

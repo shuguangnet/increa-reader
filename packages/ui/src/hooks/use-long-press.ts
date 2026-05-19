@@ -31,7 +31,7 @@ export function useLongPress(
 ): LongPressHandlers {
   const { duration = 500, tolerance = 10, vibrate = true } = options ?? {}
 
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null as any)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const triggeredRef = useRef(false)
   const posRef = useRef({ x: 0, y: 0 })
 

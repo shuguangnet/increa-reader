@@ -34,7 +34,6 @@ export function useServiceWorkerUpdate() {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((reg) => {
-          console.log('[PWA] Service Worker registered, scope:', reg.scope)
           registrationRef.current = reg
 
           // Check for updates on load
@@ -44,7 +43,6 @@ export function useServiceWorkerUpdate() {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New version available!
-                console.log('[PWA] New version available')
                 setUpdateStatus('update-available')
               }
             })
@@ -113,17 +111,10 @@ export function registerServiceWorker() {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
       .then((reg) => {
-        console.log('[PWA] Service Worker registered, scope:', reg.scope)
 
         // Handle updates
         reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing
-          if (!newWorker) return
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated') {
-              console.log('[PWA] New service worker activated, refresh for updates')
-            }
-          })
+          // no-op
         })
       })
       .catch((err) => {

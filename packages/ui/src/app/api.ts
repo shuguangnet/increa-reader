@@ -2,7 +2,7 @@ import type { DocumentNote, NotePosition } from '@/types/notes'
 
 /** Get the API base URL — uses Tauri local server in desktop mode */
 export function getApiBase(): string {
-  if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+  if (typeof window !== 'undefined' && (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
     const port = localStorage.getItem('increa-server-port') || '3002'
     return `http://127.0.0.1:${port}`
   }
