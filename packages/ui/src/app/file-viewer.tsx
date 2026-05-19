@@ -136,6 +136,15 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   const fetchedRefreshKeyRef = useRef<number | null>(null)
   const fetchIdRef = useRef(0)
 
+  // All hooks must be called before any conditional returns (Rules of Hooks)
+  const isEditMode = useEditorStore(s => s.isEditMode)
+  const editedFiles = useEditorStore(s => s.editedFiles)
+  const editedContent = editedFiles[`${repo}:${path}`]?.content
+  const openFile = useEditorStore(s => s.openFile)
+  const isMobile = useIsMobile()
+  const updateProgress = useProgressStore(s => s.updateProgress)
+  const getProgress = useProgressStore(s => s.getProgress)
+
   useEffect(() => {
     if (!repo || !path) return
 
@@ -207,10 +216,6 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   }, [state.preview, elementsRef])
 
   const { loading, error, preview } = state
-
-  // Reading progress tracking
-  const updateProgress = useProgressStore(s => s.updateProgress)
-  const getProgress = useProgressStore(s => s.getProgress)
   useEffect(() => {
     if (!preview || !repo || !path) return
     const el = scrollBodyRef.current
@@ -290,12 +295,6 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   if (preview.type === 'html') {
     return <HtmlViewer body={preview.body} />
   }
-
-  const isEditMode = useEditorStore(s => s.isEditMode)
-  const editedFiles = useEditorStore(s => s.editedFiles)
-  const editedContent = editedFiles[`${repo}:${path}`]?.content
-  const openFile = useEditorStore(s => s.openFile)
-  const isMobile = useIsMobile()
 
   if (preview.type === 'markdown') {
     const displayBody = editedContent ?? preview.body
