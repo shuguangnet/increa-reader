@@ -446,6 +446,9 @@ type FileTreeProps = {
 const ITEM_HEIGHT = 30 // approximate row height
 const MOBILE_ITEM_HEIGHT = 44 // larger touch target on mobile
 
+// Stable empty set constant to avoid creating new Set() on every render
+const EMPTY_SET = new Set<string>()
+
 export function FileTree({
   nodes,
   onFileClick,
@@ -454,22 +457,24 @@ export function FileTree({
   onDelete,
   onRefresh,
   searchActive = false,
-  forcedOpenPaths = new Set<string>(),
+  forcedOpenPaths,
 }: FileTreeProps) {
   const isMobile = useIsMobile()
   const parentRef = useRef<HTMLDivElement>(null)
 
   // ── Expanded state from store ──
-  const expandedDirs = useFileTreeStore(s => s.expandedDirs[repoName] ?? new Set<string>())
+  // Use stable EMPTY_SET constant to avoid creating new Set() on every render
+  const expandedDirs = useFileTreeStore(s => s.expandedDirs[repoName] ?? EMPTY_SET)
   const toggleDir = useFileTreeStore(s => s.toggle)
   const openDir = useFileTreeStore(s => s.open)
   const ensurePathOpen = useFileTreeStore(s => s.ensurePathOpen)
 
   // During search, merge store expanded + forcedOpenPaths
   const effectiveExpanded = useMemo(() => {
-    if (!searchActive) return expandedDirs
+    const forced = forcedOpenPaths ?? EMPTY_SET
+    if (!searchActive && forced === EMPTY_SET) return expandedDirs
     const merged = new Set(expandedDirs)
-    for (const p of forcedOpenPaths) merged.add(p)
+    for (const p of forced) merged.add(p)
     return merged
   }, [searchActive, expandedDirs, forcedOpenPaths])
 

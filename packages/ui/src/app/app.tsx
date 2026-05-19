@@ -10,6 +10,7 @@ import { useProgressStore } from '../stores/progress-store'
 import { useTabsStore } from '../stores/tabs-store'
 import { useSearchHistoryStore } from '../stores/search-history-store'
 import { useUIStore } from '../stores/ui-store'
+import { useFileTreeStore } from '../stores/file-tree-store'
 import { useIsMobile } from '../hooks/use-mobile'
 import { getFileIcon } from './file-tree'
 import { BoardViewer } from './board-viewer'
@@ -390,6 +391,7 @@ function useRehydrateStores() {
     useTabsStore.persist.rehydrate()
     useProgressStore.persist.rehydrate()
     useSearchHistoryStore.persist.rehydrate()
+    useFileTreeStore.persist.rehydrate()
 
     // Mark as hydrated after microtask so stores have settled
     requestAnimationFrame(() => {

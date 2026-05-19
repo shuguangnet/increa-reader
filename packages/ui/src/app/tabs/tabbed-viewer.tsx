@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
 import { useRecentFilesStore } from '@/stores/recent-files-store'
@@ -24,8 +24,14 @@ export function TabbedViewer() {
   const setContext = useSetContext()
   const addRecent = useRecentFilesStore(s => s.addRecent)
 
+  // Track last opened key to avoid repeated openTab/addRecent calls causing infinite loop
+  const lastOpenedRef = useRef('')
+
   useEffect(() => {
     if (!repoName || !filePath) return
+    const key = `${repoName}/${filePath}`
+    if (lastOpenedRef.current === key) return
+    lastOpenedRef.current = key
     openTab(repoName, filePath)
     addRecent(repoName, filePath)
   }, [repoName, filePath, openTab, addRecent])
