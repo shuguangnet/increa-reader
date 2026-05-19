@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
-import { useCallback, useEffect, useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { fetchRepoTree, type TreeNode } from './api'
@@ -47,6 +47,15 @@ export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
   useEffect(() => {
     loadTree()
   }, [loadTree])
+
+  // Listen for pull-to-refresh signal from Layout
+  const loadTreeRef = useRef(loadTree)
+  loadTreeRef.current = loadTree
+  useEffect(() => {
+    const handler = () => loadTreeRef.current()
+    window.addEventListener('increa:refresh-tree', handler)
+    return () => window.removeEventListener('increa:refresh-tree', handler)
+  }, [])
 
   useEffect(() => {
     localStorage.setItem(storageKey(repoName), String(isCollapsed))

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { ChatPanel } from './chat'
 import { CommandPalette } from './command-palette'
 import { LeftPanel } from './left-panel'
+import { PullToRefresh } from './pull-to-refresh'
 import { SearchPanel } from './search-panel'
 import { ShortcutsDialog } from './shortcuts-dialog'
 import { ToastContainer } from './toast'
@@ -447,6 +448,11 @@ export function Layout() {
     // TODO: integrate with file import API when available
   }, []))
 
+  // Pull-to-refresh: dispatch custom event so RepoPanel can reload the tree
+  const handleRefreshTree = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('increa:refresh-tree'))
+  }, [])
+
   // Listen for native menu actions from Tauri (menu bar / tray)
   useEffect(() => {
     if (!platform.isDesktop()) return
@@ -496,9 +502,10 @@ export function Layout() {
   }, [toggleLeftPanel, toggleRightPanel, setCommandPaletteOpen, setSearchPanelOpen])
 
   return (
-    <div
-      className={`h-full${isOver ? ' ring-2 ring-blue-500 ring-offset-2' : ''}`}
-      onDrop={dropHandler as unknown as React.ReactEventHandler<HTMLDivElement>}
+    <PullToRefresh onRefresh={handleRefreshTree}>
+      <div
+        className={`h-full${isOver ? ' ring-2 ring-blue-500 ring-offset-2' : ''}`}
+        onDrop={dropHandler as unknown as React.ReactEventHandler<HTMLDivElement>}
     >
       {/* Drag overlay */}
       {isOver && (
@@ -554,5 +561,6 @@ export function Layout() {
       <SearchPanel open={searchPanelOpen} onClose={() => setSearchPanelOpen(false)} />
       <ToastContainer />
     </div>
+    </PullToRefresh>
   )
 }
