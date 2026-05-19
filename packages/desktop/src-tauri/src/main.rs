@@ -1,5 +1,7 @@
 mod server;
 mod commands;
+mod tray;
+mod menu;
 
 use server::PythonServer;
 use std::sync::Mutex;
@@ -16,6 +18,19 @@ fn main() {
             commands::open_folder_dialog,
         ])
         .setup(|app| {
+            // Setup system tray
+            tray::setup_tray(app).expect("Failed to setup system tray");
+
+            // Setup native menu bar
+            menu::setup_menu(app).expect("Failed to setup menu");
+
+            // Setup menu event handler to forward events to frontend
+            let handle = app.handle().clone();
+            app.on_menu_event(move |_app, event| {
+                let _ = handle.emit("menu-action", event.id().as_ref());
+            });
+
+            // Start the Python backend server
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let state = handle.state::<Mutex<PythonServer>>();
@@ -24,6 +39,7 @@ fn main() {
                     eprintln!("Failed to start Python server: {e}");
                 }
             });
+
             Ok(())
         })
         .run(tauri::generate_context!())

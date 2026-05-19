@@ -250,6 +250,136 @@ export async function setWindowTitle(title: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// File drop events (Tauri desktop only)
+// ---------------------------------------------------------------------------
+
+type FileDropCallback = (paths: string[]) => void
+type UnlistenFn = () => void
+
+/**
+ * Listen for Tauri native file-drop events.
+ * The callback receives an array of file paths when files are dropped onto the window.
+ * Returns an unsubscribe function. No-op on Web.
+ */
+export async function onFileDrop(callback: FileDropCallback): Promise<UnlistenFn> {
+  if (!_hasTauri) return () => {}
+  try {
+    // @ts-expect-error — optional peer dependency, not present in web builds
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const win = getCurrentWindow()
+    const unlisten = await win.listen('tauri://drag-drop', (event: { payload: { paths: string[] } }) => {
+      callback(event.payload.paths)
+    })
+    return unlisten
+  } catch {
+    return () => {}
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Native menu events (Tauri desktop only)
+// ---------------------------------------------------------------------------
+
+type MenuActionCallback = (action: string) => void
+
+/**
+ * Listen for native menu action events from the Tauri menu bar or tray.
+ * The callback receives the menu item id (e.g. "open-repo", "toggle-sidebar").
+ * Returns an unsubscribe function. No-op on Web.
+ */
+export async function onMenuAction(callback: MenuActionCallback): Promise<UnlistenFn> {
+  if (!_hasTauri) return () => {}
+  try {
+    // @ts-expect-error — optional peer dependency, not present in web builds
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const win = getCurrentWindow()
+    const unlisten = await win.listen('menu-action', (event: { payload: string }) => {
+      callback(event.payload)
+    })
+    return unlisten
+  } catch {
+    return () => {}
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Window bounds persistence
+// ---------------------------------------------------------------------------
+
+const WINDOW_BOUNDS_KEY = 'increa-window-bounds'
+
+interface WindowBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+  maximized: boolean
+}
+
+/**
+ * Save the current window position and size to localStorage.
+ * Only functional in Tauri desktop mode. No-op on Web.
+ */
+export async function saveWindowBounds(): Promise<void> {
+  if (!_hasTauri) return
+  try {
+    // @ts-expect-error — optional peer dependency, not present in web builds
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const win = getCurrentWindow()
+    const position = await win.outerPosition()
+    const size = await win.innerSize()
+    const maximized = await win.isMaximized()
+    const bounds: WindowBounds = {
+      x: position.x,
+      y: position.y,
+      width: size.width,
+      height: size.height,
+      maximized,
+    }
+    if (_hasWindow) {
+      localStorage.setItem(WINDOW_BOUNDS_KEY, JSON.stringify(bounds))
+    }
+  } catch (e) {
+    console.warn('[platform] Failed to save window bounds:', e)
+  }
+}
+
+/**
+ * Restore the saved window position and size from localStorage.
+ * Only functional in Tauri desktop mode. No-op on Web.
+ */
+export async function restoreWindowBounds(): Promise<void> {
+  if (!_hasTauri) return
+  try {
+    if (!_hasWindow) return
+    const raw = localStorage.getItem(WINDOW_BOUNDS_KEY)
+    if (!raw) return
+    const bounds: WindowBounds = JSON.parse(raw)
+    if (
+      typeof bounds.x !== 'number' ||
+      typeof bounds.y !== 'number' ||
+      typeof bounds.width !== 'number' ||
+      typeof bounds.height !== 'number'
+    ) {
+      return
+    }
+    // @ts-expect-error — optional peer dependency, not present in web builds
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    // @ts-expect-error — optional peer dependency, not present in web builds
+    const { LogicalPosition, LogicalSize } = await import('@tauri-apps/api/dpi')
+    const win = getCurrentWindow()
+    if (bounds.maximized) {
+      await win.maximize()
+    } else {
+      await win.setPosition(new LogicalPosition(bounds.x, bounds.y))
+      await win.setSize(new LogicalSize(bounds.width, bounds.height))
+    }
+  } catch (e) {
+    console.warn('[platform] Failed to restore window bounds:', e)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Initialisation
 // ---------------------------------------------------------------------------
 
@@ -280,6 +410,9 @@ export async function initPlatform(): Promise<void> {
     console.error('[platform] Failed to start Tauri backend:', e)
   }
 
+  // Restore window position and size
+  restoreWindowBounds().catch(() => {})
+
   // Graceful shutdown
   if (_hasWindow) {
     window.addEventListener('beforeunload', async () => {
@@ -288,6 +421,12 @@ export async function initPlatform(): Promise<void> {
       } catch {
         // Ignore errors during shutdown
       }
+    })
+
+    // Save window bounds on close
+    window.addEventListener('beforeunload', () => {
+      // Synchronous attempt to trigger async save
+      saveWindowBounds().catch(() => {})
     })
   }
 }
@@ -329,6 +468,14 @@ export const platform = {
   toggleMaximizeWindow,
   closeWindow,
   setWindowTitle,
+
+  // Window bounds persistence
+  saveWindowBounds,
+  restoreWindowBounds,
+
+  // Native events
+  onFileDrop,
+  onMenuAction,
 
   // Init
   init: initPlatform,

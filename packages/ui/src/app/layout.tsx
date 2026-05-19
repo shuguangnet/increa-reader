@@ -1,11 +1,12 @@
 import { Command, Download, Home, Menu, MessageSquare, Monitor, Moon, RefreshCw, Search, Sun, X } from 'lucide-react'
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePWAInstall } from '@/hooks/use-pwa-install'
 import { useTheme } from '@/hooks/use-theme'
 import { useServiceWorkerUpdate } from '@/hooks/use-pwa'
+import { useFileDrop } from '@/hooks/use-file-drop'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useUIStore } from '@/stores/ui-store'
@@ -16,6 +17,7 @@ import { LeftPanel } from './left-panel'
 import { SearchPanel } from './search-panel'
 import { ShortcutsDialog } from './shortcuts-dialog'
 import { ToastContainer } from './toast'
+import { platform } from '@/lib/platform'
 
 /** PWA update notification banner */
 function PWAUpdateBanner() {
@@ -303,14 +305,81 @@ export function Layout() {
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel)
   const searchPanelOpen = useUIStore((s) => s.searchPanelOpen)
   const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
+  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
   const { installable, install } = usePWAInstall()
+
+  // File drop handler — creates a visual highlight and logs dropped files
+  const { isOver, dropHandler } = useFileDrop(useCallback((files) => {
+    console.log('[Layout] Dropped files:', files)
+    // TODO: integrate with file import API when available
+  }, []))
+
+  // Listen for native menu actions from Tauri (menu bar / tray)
+  useEffect(() => {
+    if (!platform.isDesktop()) return
+
+    const unlisten = platform.onMenuAction((action) => {
+      switch (action) {
+        case 'open-repo':
+          // For now, open folder dialog — could be wired to a store action
+          platform.openFolderDialog().then((path) => {
+            if (path) console.log('[Layout] Open repo:', path)
+          })
+          break
+        case 'new-file':
+          // Could open a new file creation dialog
+          console.log('[Layout] Menu action: new-file')
+          break
+        case 'save':
+          // Trigger save in editor if available
+          console.log('[Layout] Menu action: save')
+          break
+        case 'quit':
+          platform.closeWindow()
+          break
+        case 'toggle-sidebar':
+          toggleLeftPanel()
+          break
+        case 'toggle-ai-panel':
+          toggleRightPanel()
+          break
+        case 'command-palette':
+          setCommandPaletteOpen(true)
+          break
+        case 'global-search':
+          setSearchPanelOpen(true)
+          break
+        case 'about':
+          console.log('[Layout] Menu action: about')
+          break
+        default:
+          console.log('[Layout] Unknown menu action:', action)
+      }
+    })
+
+    return () => {
+      unlisten.then((fn) => fn()).catch(() => {})
+    }
+  }, [toggleLeftPanel, toggleRightPanel, setCommandPaletteOpen, setSearchPanelOpen])
 
   const handleInstall = useCallback(() => {
     install().catch(console.error)
   }, [install])
 
   return (
-    <div className="h-full">
+    <div
+      className={`h-full${isOver ? ' ring-2 ring-blue-500 ring-offset-2' : ''}`}
+      onDrop={dropHandler as unknown as React.ReactEventHandler<HTMLDivElement>}
+    >
+      {/* Drag overlay */}
+      {isOver && (
+        <div className="fixed inset-0 z-[9999] bg-blue-500/10 border-4 border-dashed border-blue-500 pointer-events-none flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-900 px-6 py-4 rounded-xl shadow-xl">
+            <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">释放文件以导入</p>
+            <p className="text-sm text-muted-foreground mt-1">支持 .md, .txt, .pdf, .html, .json 等格式</p>
+          </div>
+        </div>
+      )}
       {/* PWA update banner */}
       <PWAUpdateBanner />
 
