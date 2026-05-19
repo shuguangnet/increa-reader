@@ -2,6 +2,7 @@ import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import { BookOpen, BarChart3, Clock, FolderOpen, Hash, Keyboard, MessageSquare, Network, Search, Star } from 'lucide-react'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { VisibleContentProvider } from '../contexts/visible-content-context'
 import { useFavoritesStore } from '../stores/favorites-store'
 import { useRecentFilesStore } from '../stores/recent-files-store'
@@ -421,16 +422,18 @@ function App() {
   }
 
   return (
-    <VisibleContentProvider>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/board" element={<BoardViewer />} />
-          <Route path="/views/:repoName/*" element={<TabbedViewer />} />
-          <Route path="/graph" element={<KnowledgeGraph />} />
-        </Route>
-      </Routes>
-    </VisibleContentProvider>
+    <ErrorBoundary>
+      <VisibleContentProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/board" element={<BoardViewer />} />
+            <Route path="/views/:repoName/*" element={<TabbedViewer />} />
+            <Route path="/graph" element={<KnowledgeGraph />} />
+          </Route>
+        </Routes>
+      </VisibleContentProvider>
+    </ErrorBoundary>
   )
 }
 

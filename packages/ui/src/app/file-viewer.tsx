@@ -1,9 +1,10 @@
 "use no memo"
 
-import { ArrowLeftRight, Code, Download, Eye, FileQuestion, History, Pencil, Sparkles, Table } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, Code, Download, Eye, FileQuestion, History, Pencil, RefreshCw, Sparkles, Table } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useTheme } from '@/hooks/use-theme'
@@ -11,7 +12,7 @@ import { useVisibleContent } from '@/contexts/visible-content-context'
 import { useNoteToolStore } from '@/stores/note-tool-store'
 import { useEditorStore } from '@/stores/editor-store'
 import { useProgressStore } from '@/stores/progress-store'
-import { useRefreshKey } from '@/stores/view-context'
+import { useRefreshKey, useViewContext } from '@/stores/view-context'
 import type { BoardFile } from '@/types/board'
 import { fetchPreview, saveFile } from './api'
 import { AiToolsPanel } from './ai-tools-panel'
@@ -20,6 +21,7 @@ import { BoardViewer } from './board-viewer'
 import { ExportImportPanel } from './export-import-panel'
 import { HtmlViewer } from './html-viewer'
 import { ImageViewer } from './image-viewer'
+import { InlineTagsEditor } from './inline-tags-editor'
 import { MarkdownEditor } from './markdown/markdown-editor'
 import { MarkdownViewer } from './markdown/markdown-viewer'
 import { PDFViewer } from './pdf-viewer'
@@ -135,6 +137,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   const [showExportPanel, setShowExportPanel] = useState(false)
   const [showBacklinksPanel, setShowBacklinksPanel] = useState(false)
   const refreshKey = useRefreshKey()
+  const requestRefresh = useViewContext(s => s.requestRefresh)
   const scrollBodyRef = useRef<HTMLDivElement>(null)
   const elementsRef = useVisibleContent()
   const fetchedFileRef = useRef<string | null>(null)
@@ -288,8 +291,20 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <p className="text-red-500">{error}</p>
+      <div className="h-full flex flex-col items-center justify-center gap-3 p-6">
+        <div className="rounded-full bg-red-100 p-3 dark:bg-red-900/40">
+          <AlertTriangle className="size-6 text-red-600 dark:text-red-400" />
+        </div>
+        <p className="text-sm text-red-600 dark:text-red-400 text-center max-w-md">文件加载失败</p>
+        <p className="text-xs text-muted-foreground text-center max-w-md">{error}</p>
+        <button
+          type="button"
+          onClick={() => requestRefresh()}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          <RefreshCw className="size-3.5" />
+          重试
+        </button>
       </div>
     )
   }
@@ -315,6 +330,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
           {!isEditMode && (
             <div className="flex shrink-0 items-center gap-1 border-b bg-muted/30 px-3 py-1">
               <span className="text-sm font-medium truncate max-w-48">{path.split('/').pop()}</span>
+              <InlineTagsEditor repo={repo} path={path} />
               <div className="ml-auto flex items-center gap-1">
                 <button
                   type="button"
@@ -402,16 +418,18 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
               <MarkdownEditor repo={repo} path={path} initialContent={displayBody} onExitEdit={() => setIsEditMode(false)} />
             </div>
           ) : (
-            <div ref={scrollBodyRef} className="flex-1 min-h-0 overflow-auto scroll-body">
-              <MarkdownViewer
-              body={displayBody}
-              repoName={repo}
-              filePath={path}
-              elementsRef={elementsRef}
-              scrollY={getProgress(repo, path)?.scrollY}
-              scrollToLine={scrollToLine}
-            />
-            </div>
+            <ErrorBoundary>
+              <div ref={scrollBodyRef} className="flex-1 min-h-0 overflow-auto scroll-body">
+                <MarkdownViewer
+                  body={displayBody}
+                  repoName={repo}
+                  filePath={path}
+                  elementsRef={elementsRef}
+                  scrollY={getProgress(repo, path)?.scrollY}
+                  scrollToLine={scrollToLine}
+                />
+              </div>
+            </ErrorBoundary>
           )}
         </div>
         {showAiPanel && (

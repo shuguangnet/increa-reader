@@ -1,11 +1,11 @@
 import type { ComponentPropsWithoutRef, RefObject } from 'react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
-import { ListTree } from 'lucide-react'
+import { AlertTriangle, ListTree, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { MarkdownNotesLayer } from '@/app/notes/markdown-notes-layer'
@@ -25,6 +25,33 @@ type MarkdownViewerProps = {
   elementsRef: RefObject<Set<HTMLElement>>
   scrollY?: number
   scrollToLine?: number
+}
+
+/** Local error boundary for markdown rendering errors */
+class MarkdownRenderErrorBoundary extends Component<
+  { children: ReactNode; onError: (error: Error) => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; onError: (error: Error) => void }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(_error: Error) {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[MarkdownViewer] Rendering error:', error, info.componentStack)
+    this.props.onError(error)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null // Parent handles display
+    }
+    return this.props.children
+  }
 }
 
 function resolveImageSrc(
@@ -47,6 +74,7 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
   const contentRef = useRef<HTMLDivElement>(null)
   const { isDark } = useTheme()
   const codeStyle = isDark ? vscDarkPlus : oneLight
+  const [markdownError, setMarkdownError] = useState<Error | null>(null)
 
   const headings = useMemo(() => parseHeadings(body), [body])
   const activeId = useHeadingObserver(scrollRef, headings)
@@ -183,22 +211,53 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
 
   const outlineVisible = showOutline && headings.length > 0
 
+  // Show error fallback when markdown rendering fails
+  if (markdownError) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-3 max-w-md text-center">
+          <div className="rounded-full bg-red-100 p-3 dark:bg-red-900/40">
+            <AlertTriangle className="size-6 text-red-600 dark:text-red-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">Markdown 渲染失败</h3>
+          <p className="text-xs text-muted-foreground">{markdownError.message}</p>
+          <button
+            type="button"
+            onClick={() => setMarkdownError(null)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <RefreshCw className="size-3.5" />
+            重试
+          </button>
+          <details className="w-full text-left">
+            <summary className="text-xs text-muted-foreground cursor-pointer">查看原始内容</summary>
+            <pre className="mt-2 max-h-60 overflow-auto rounded border bg-muted/50 p-2 text-[10px] font-mono whitespace-pre-wrap break-words">
+              {body}
+            </pre>
+          </details>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full">
       <div ref={scrollRef} className="relative flex-1 min-w-0 overflow-auto scroll-body">
         <div ref={contentRef} className="relative min-h-full">
-          <div
-            ref={markdownRef}
-            className="prose prose-slate dark:prose-invert max-w-none p-4 prose-headings:text-lg prose-headings:my-2 prose-h1:text-2xl prose-h1:my-3 prose-h2:text-xl prose-h2:my-2.5 prose-h3:text-lg prose-h3:my-2 prose-h4:text-base prose-h4:my-1.5 prose-h5:text-sm prose-h5:my-1 prose-h6:text-xs prose-h6:my-1 prose-p:my-2.5 prose-p:leading-relaxed prose-pre:bg-transparent prose-pre:p-0 prose-pre:border-0"
-          >
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={components}
+          <MarkdownRenderErrorBoundary onError={(err: Error) => setMarkdownError(err)}>
+            <div
+              ref={markdownRef}
+              className="prose prose-slate dark:prose-invert max-w-none p-4 prose-headings:text-lg prose-headings:my-2 prose-h1:text-2xl prose-h1:my-3 prose-h2:text-xl prose-h2:my-2.5 prose-h3:text-lg prose-h3:my-2 prose-h4:text-base prose-h4:my-1.5 prose-h5:text-sm prose-h5:my-1 prose-h6:text-xs prose-h6:my-1 prose-p:my-2.5 prose-p:leading-relaxed prose-pre:bg-transparent prose-pre:p-0 prose-pre:border-0"
             >
-              {body}
-            </ReactMarkdown>
-          </div>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={components}
+              >
+                {body}
+              </ReactMarkdown>
+            </div>
+          </MarkdownRenderErrorBoundary>
 
           <MarkdownNotesLayer
             repoName={repoName}

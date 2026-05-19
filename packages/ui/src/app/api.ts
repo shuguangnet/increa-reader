@@ -9,9 +9,34 @@ export function getApiBase(): string {
   return '' // Web mode: relative URL (proxied by Vite)
 }
 
-/** Fetch wrapper that auto-prefixes the API base URL */
+/** Async toast helper — lazy-loads toast module */
+function showToastAsync(message: string, type: 'success' | 'error' | 'info') {
+  import('@/app/toast').then(({ showToast }) => {
+    showToast(message, type)
+  })
+}
+
+/** Fetch wrapper that auto-prefixes the API base URL with enhanced error handling */
 export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
-  return fetch(getApiBase() + url, init)
+  return fetch(getApiBase() + url, init).then(response => {
+    if (response.status === 401) {
+      // Redirect to settings page for API configuration
+      window.location.hash = '#/settings'
+      window.dispatchEvent(new CustomEvent('increa:navigate-settings'))
+      showToastAsync('API 认证失败，请检查 API 配置', 'error')
+      throw response
+    }
+    if (!response.ok && response.status >= 500) {
+      showToastAsync(`服务器错误 (${response.status})`, 'error')
+    }
+    return response
+  }).catch(err => {
+    // Network error (no response at all) — TypeError from failed fetch
+    if (err instanceof TypeError) {
+      showToastAsync('网络连接失败，请检查网络或 API 配置', 'error')
+    }
+    throw err
+  })
 }
 
 type TreeNode = {

@@ -65,6 +65,7 @@ export function CommandPalette() {
 
   const [query, setQuery] = useState('')
   const [files, setFiles] = useState<FlatFile[]>([])
+  const [filesError, setFilesError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [selectedIndex, setSelectedIndex] = useState(0)
 
@@ -73,6 +74,7 @@ export function CommandPalette() {
     if (!open) return
     setQuery('')
     setSelectedIndex(0)
+    setFilesError(null)
 
     apiFetch('/api/workspace/tree')
       .then((res) => res.json())
@@ -83,8 +85,13 @@ export function CommandPalette() {
           allFiles.push(...flattenTree(repo.name, repo.files || []))
         }
         setFiles(allFiles)
+        setFilesError(null)
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err)
+        setFilesError('加载文件列表失败')
+        setFiles([])
+      })
   }, [open])
 
   // Auto-focus input on open
@@ -413,9 +420,13 @@ function matchScore(query: string, path: string, name: string): number {
               </>
             )}
 
-            {filteredItems.length === 0 && (
+            {(filteredItems.length === 0 || filesError) && (
               <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                未找到结果
+                {filesError ? (
+                  <span className="text-red-500">{filesError}</span>
+                ) : (
+                  '未找到结果'
+                )}
               </div>
             )}
           </div>
@@ -509,9 +520,13 @@ function matchScore(query: string, path: string, name: string): number {
             </>
           )}
 
-          {filteredItems.length === 0 && (
+          {(filteredItems.length === 0 || filesError) && (
             <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-              未找到结果
+              {filesError ? (
+                <span className="text-red-500">{filesError}</span>
+              ) : (
+                '未找到结果'
+              )}
             </div>
           )}
         </div>
