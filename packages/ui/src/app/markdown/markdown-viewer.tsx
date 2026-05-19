@@ -5,12 +5,13 @@ import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
-import { AlertTriangle, ListTree, RefreshCw } from 'lucide-react'
+import { AlertTriangle, ListTree, RefreshCw, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { MarkdownNotesLayer } from '@/app/notes/markdown-notes-layer'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { useExternalLinks } from '@/hooks/use-external-links'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { usePref } from '@/hooks/use-pref'
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useTheme } from '@/hooks/use-theme'
@@ -68,7 +69,9 @@ function resolveImageSrc(
 
 export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY, scrollToLine }: MarkdownViewerProps) {
   const pref = usePref('outline')
-  const [showOutline, setShowOutline] = useState(() => pref.get('visible', true))
+  const isMobile = useIsMobile()
+  // On mobile, outline is hidden by default and shown as overlay; on desktop, visible by default as sidebar
+  const [showOutline, setShowOutline] = useState(() => isMobile ? false : pref.get('visible', true))
   const markdownRef = useExternalLinks()
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -120,8 +123,19 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
   const toggleOutline = useCallback(() => {
     const next = !showOutline
     setShowOutline(next)
-    pref.set('visible', next)
-  }, [showOutline, pref])
+    if (!isMobile) {
+      pref.set('visible', next)
+    }
+  }, [showOutline, pref, isMobile])
+
+  const handleNavigateAndCloseMobile = useCallback((id: string) => {
+    const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // On mobile, close the outline drawer after navigation
+    if (isMobile) {
+      setShowOutline(false)
+    }
+  }, [isMobile])
 
   // Restore scroll position after content renders
   useEffect(() => {
@@ -268,19 +282,64 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
           />
         </div>
       </div>
-      {outlineVisible && (
+
+      {/* Desktop: sidebar outline */}
+      {outlineVisible && !isMobile && (
         <aside className="shrink-0 h-full max-w-72 border-l border-border overflow-auto">
           <ArticleOutline headings={headings} activeId={activeId} onNavigate={handleNavigate} />
         </aside>
       )}
+
+      {/* Mobile: bottom sheet outline drawer */}
+      {outlineVisible && isMobile && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50"
+            onClick={() => setShowOutline(false)}
+          />
+          <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col bg-white dark:bg-gray-900 rounded-t-xl shadow-2xl animate-in slide-in-from-bottom duration-200 safe-top"
+            style={{ maxHeight: '60dvh' }}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+            </div>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pb-2">
+              <span className="text-sm font-semibold flex items-center gap-1.5">
+                <ListTree className="size-4" />
+                文章大纲
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowOutline(false)}
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            {/* Outline content */}
+            <div className="flex-1 overflow-auto overscroll-contain px-2 pb-4 safe-bottom">
+              <ArticleOutline headings={headings} activeId={activeId} onNavigate={handleNavigateAndCloseMobile} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Outline toggle button */}
       {headings.length > 0 && (
         <button
           type="button"
           onClick={toggleOutline}
-          className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
+          className={cn(
+            'absolute z-10 p-1.5 rounded-md transition-colors',
+            isMobile
+              ? 'bottom-3 right-3 bg-primary text-primary-foreground shadow-lg touch-target'
+              : 'top-2 right-2 bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm'
+          )}
           title={showOutline ? '隐藏大纲' : '显示大纲'}
         >
-          <ListTree size={16} />
+          <ListTree size={isMobile ? 18 : 16} />
         </button>
       )}
     </div>
