@@ -1,5 +1,6 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useFavoritesStore } from '@/stores/favorites-store'
 
 type BreadcrumbProps = {
   repo: string
@@ -9,6 +10,18 @@ type BreadcrumbProps = {
 export function Breadcrumb({ repo, path }: BreadcrumbProps) {
   const navigate = useNavigate()
   const segments = path.split('/').filter(Boolean)
+  const addFavorite = useFavoritesStore(s => s.addFavorite)
+  const removeFavorite = useFavoritesStore(s => s.removeFavorite)
+  const isFavorite = useFavoritesStore(s => s.isFavorite)
+  const starred = isFavorite(repo, path)
+
+  const toggleFavorite = () => {
+    if (starred) {
+      removeFavorite(repo, path)
+    } else {
+      addFavorite(repo, path)
+    }
+  }
 
   if (segments.length === 0) {
     return (
@@ -62,6 +75,18 @@ export function Breadcrumb({ repo, path }: BreadcrumbProps) {
           </span>
         )
       })}
+      <button
+        type="button"
+        onClick={toggleFavorite}
+        className={`ml-auto shrink-0 p-0.5 rounded transition-colors hover:bg-accent ${
+          starred
+            ? 'text-yellow-500 hover:text-yellow-600'
+            : 'text-muted-foreground hover:text-yellow-500'
+        }`}
+        title={starred ? '取消收藏' : '加入收藏'}
+      >
+        <Star className={`size-3.5 ${starred ? 'fill-current' : ''}`} />
+      </button>
     </div>
   )
 }
