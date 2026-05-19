@@ -1,8 +1,12 @@
 # Tauri
 src-tauri/target/
 src-tauri/gen/
-node_modules/
+
+# Vite output
 dist/
+
+# Node
+node_modules/
 
 # OS
 .DS_Store

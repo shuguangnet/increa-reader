@@ -2,15 +2,31 @@
   "name": "@increa-reader/desktop",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "tauri dev",
-    "build:desktop": "tauri build",
-    "tauri": "tauri"
+    "dev:vite": "vite",
+    "build": "tauri build",
+    "build:debug": "tauri build --debug",
+    "build:vite": "vite build",
+    "tauri": "tauri",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2"
+    "@tauri-apps/api": "^2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.4"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tailwindcss/vite": "^4.1.14",
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
+    "babel-plugin-react-compiler": "19.1.0-rc.3",
+    "tailwindcss": "^4.1.14",
+    "typescript": "~5.9.3",
+    "vite": "npm:rolldown-vite@7.1.15"
   }
 }

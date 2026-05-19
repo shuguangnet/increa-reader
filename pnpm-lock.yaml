@@ -20,10 +20,43 @@ importers:
       '@tauri-apps/api':
         specifier: ^2
         version: 2.11.0
+      react:
+        specifier: ^19.2.0
+        version: 19.2.0
+      react-dom:
+        specifier: ^19.2.0
+        version: 19.2.0(react@19.2.0)
+      react-router-dom:
+        specifier: ^7.9.4
+        version: 7.9.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
     devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.1.14
+        version: 4.1.14(rolldown-vite@7.1.15(@types/node@24.7.2)(jiti@2.6.1)(yaml@2.8.1))
       '@tauri-apps/cli':
         specifier: ^2
         version: 2.11.2
+      '@types/react':
+        specifier: ^19.2.2
+        version: 19.2.2
+      '@types/react-dom':
+        specifier: ^19.2.2
+        version: 19.2.3(@types/react@19.2.2)
+      '@vitejs/plugin-react':
+        specifier: ^5.0.4
+        version: 5.0.4(rolldown-vite@7.1.15(@types/node@24.7.2)(jiti@2.6.1)(yaml@2.8.1))
+      babel-plugin-react-compiler:
+        specifier: 19.1.0-rc.3
+        version: 19.1.0-rc.3
+      tailwindcss:
+        specifier: ^4.1.14
+        version: 4.1.14
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: npm:rolldown-vite@7.1.15
+        version: rolldown-vite@7.1.15(@types/node@24.7.2)(jiti@2.6.1)(yaml@2.8.1)
 
   packages/pdf-reader-mcp: {}
 
@@ -2133,6 +2166,11 @@ packages:
 
   '@types/react-dom@19.2.1':
     resolution: {integrity: sha512-/EEvYBdT3BflCWvTMO7YkYBHVE9Ci6XdqZciZANQgKpaiDRGOLIlRo91jbTNRQjgPFWVaRxcYc0luVNFitz57A==}
+    peerDependencies:
+      '@types/react': ^19.2.0
+
+  '@types/react-dom@19.2.3':
+    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
       '@types/react': ^19.2.0
 
@@ -6645,6 +6683,10 @@ snapshots:
   '@types/p5@1.7.7': {}
 
   '@types/react-dom@19.2.1(@types/react@19.2.2)':
+    dependencies:
+      '@types/react': 19.2.2
+
+  '@types/react-dom@19.2.3(@types/react@19.2.2)':
     dependencies:
       '@types/react': 19.2.2
 

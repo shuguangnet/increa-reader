@@ -3,15 +3,15 @@
   "version": "1.0.0",
   "identifier": "com.increa.reader",
   "build": {
-    "beforeDevCommand": "pnpm --filter @increa-reader/ui dev",
+    "beforeDevCommand": "pnpm --filter @increa-reader/desktop dev:vite",
     "devUrl": "http://localhost:5177",
-    "beforeBuildCommand": "pnpm --filter @increa-reader/ui build",
-    "frontendDist": "../ui/dist"
+    "beforeBuildCommand": "pnpm --filter @increa-reader/desktop build:vite",
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:*"
+      "csp": "default-src 'self'; img-src 'self' asset: https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
     },
     "windows": [
       {
