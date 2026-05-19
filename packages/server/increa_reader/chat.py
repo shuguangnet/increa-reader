@@ -385,12 +385,24 @@ User Question:
                     base_url=base_url,
                 )
 
+                # 构建 messages 列表（支持多轮上下文）
+                messages = [{"role": "system", "content": system_prompt}]
+
+                # 添加历史对话消息（最多保留最近 20 轮 = 40 条消息）
+                if request.messages:
+                    history = request.messages[-40:]
+                    for msg in history:
+                        role = msg.get("role", "")
+                        content = msg.get("content", "")
+                        if role in ("user", "assistant") and content:
+                            messages.append({"role": role, "content": content})
+
+                # 添加当前用户消息
+                messages.append({"role": "user", "content": user_content})
+
                 stream_kwargs = {
                     "model": config["model"],
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_content},
-                    ],
+                    "messages": messages,
                     "stream": True,
                 }
                 # stream_options 不是所有兼容 API 都支持，仅在 OpenAI 官方时加上

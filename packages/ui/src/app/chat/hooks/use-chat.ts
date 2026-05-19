@@ -110,6 +110,12 @@ export const useChat = (getContext: () => ContextData) => {
       try {
         const context = getContextEvent()
 
+        // 构建历史消息列表（用于多轮上下文）
+        const historyMessages = workingSession.messages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .filter(m => !m.isStreaming)
+          .map(m => ({ role: m.role, content: m.content }))
+
         const response = await apiFetch('/api/chat/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -118,6 +124,7 @@ export const useChat = (getContext: () => ContextData) => {
             sessionId: workingSession.stats?.sessionId,
             context,
             options: workingSession.model ? { model: workingSession.model } : undefined,
+            messages: historyMessages,
           }),
         })
 

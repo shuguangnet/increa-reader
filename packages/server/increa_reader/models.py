@@ -48,6 +48,7 @@ class ChatRequest(BaseModel):
     sessionId: Optional[str] = None
     context: Optional[ChatContext] = None
     options: Optional[dict] = None
+    messages: Optional[List[dict]] = None  # 历史对话消息，用于多轮上下文
 
 
 class ChatSaveRequest(BaseModel):
