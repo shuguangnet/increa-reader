@@ -158,8 +158,9 @@ function ContextMenu({
   const menuHeight = node.type === 'dir' ? 180 : 160
   const vw = window.innerWidth
   const vh = window.innerHeight
-  const clampedX = Math.min(x, vw - menuWidth - 8)
-  const clampedY = Math.min(y, vh - menuHeight - 8)
+  const safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('padding-bottom') || '0')
+  const clampedX = Math.max(8, Math.min(x, vw - menuWidth - 8))
+  const clampedY = Math.max(8, Math.min(y, vh - menuHeight - 8 - safeBottom))
 
   return (
     <div
@@ -170,7 +171,7 @@ function ContextMenu({
     >
       {node.type === 'file' && (
         <div
-          className="px-3 py-2 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
+          className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
           onClick={() => { onOpenFile?.(); onClose() }}
         >
           <File className="size-4" />
@@ -179,7 +180,7 @@ function ContextMenu({
       )}
       {node.type === 'file' && onToggleFavorite && (
         <div
-          className="px-3 py-2 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
+          className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
           onClick={() => { onToggleFavorite?.(); onClose() }}
         >
           <Star className="size-4" />
@@ -187,7 +188,7 @@ function ContextMenu({
         </div>
       )}
       <div
-        className="px-3 py-2 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
+        className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
         onClick={() => { onRename?.(); onClose() }}
       >
         <Pencil className="size-4" />
@@ -196,14 +197,14 @@ function ContextMenu({
       {node.type === 'dir' && (
         <>
           <div
-            className="px-3 py-2 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
+            className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
             onClick={() => { onCreateFile?.(); onClose() }}
           >
             <FilePlus className="size-4" />
             新建文件
           </div>
           <div
-            className="px-3 py-2 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
+            className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
             onClick={() => { onCreateFolder?.(); onClose() }}
           >
             <FolderPlus className="size-4" />
@@ -213,7 +214,7 @@ function ContextMenu({
       )}
       <div className="my-1 border-t border-border" />
       <div
-        className="px-3 py-2 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 text-destructive active:bg-accent/80"
+        className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 text-destructive active:bg-accent/80"
         onClick={() => { onDeleteClick?.(); onClose() }}
       >
         <Trash2 className="size-4" />
@@ -315,7 +316,9 @@ const VirtualRow = memo(function VirtualRow({
   if (node.type === 'file') {
     return (
       <div
-        className={`group relative py-1 px-2 hover:bg-accent cursor-pointer text-sm flex items-center gap-2 ${
+        className={`group relative px-2 hover:bg-accent cursor-pointer text-sm flex items-center gap-2 ${
+          isMobile ? 'py-2.5' : 'py-1'
+        } ${
           isSelected
             ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium'
             : ''
@@ -338,14 +341,14 @@ const VirtualRow = memo(function VirtualRow({
         {isMobile && (
           <button
             type="button"
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 shrink-0"
+            className="p-2 -mr-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 shrink-0 touch-target"
             onClick={e => {
               e.stopPropagation()
               onShowMobileMenu()
             }}
             title="更多操作"
           >
-            <MoreHorizontal className="size-3.5 text-muted-foreground" />
+            <MoreHorizontal className="size-4 text-muted-foreground" />
           </button>
         )}
         {!isMobile && (
@@ -384,7 +387,7 @@ const VirtualRow = memo(function VirtualRow({
   // Directory row
   return (
     <div
-      className="py-1 px-2 hover:bg-accent cursor-pointer text-sm flex items-center gap-1"
+      className={`px-2 hover:bg-accent cursor-pointer text-sm flex items-center gap-1 ${isMobile ? 'py-2.5' : 'py-1'}`}
       style={{ paddingLeft: `${8 + node.depth * 16}px` }}
       onClick={() => {
         if (wasLongPress.current) {
@@ -413,14 +416,14 @@ const VirtualRow = memo(function VirtualRow({
       {isMobile && (
         <button
           type="button"
-          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 shrink-0"
+          className="p-2 -mr-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 shrink-0 touch-target"
           onClick={e => {
             e.stopPropagation()
             onShowMobileMenu()
           }}
           title="更多操作"
         >
-          <MoreHorizontal className="size-3.5 text-muted-foreground" />
+          <MoreHorizontal className="size-4 text-muted-foreground" />
         </button>
       )}
     </div>
@@ -441,6 +444,7 @@ type FileTreeProps = {
 }
 
 const ITEM_HEIGHT = 30 // approximate row height
+const MOBILE_ITEM_HEIGHT = 44 // larger touch target on mobile
 
 export function FileTree({
   nodes,
@@ -499,7 +503,7 @@ export function FileTree({
   const virtualizer = useVirtualizer({
     count: flatNodes.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => ITEM_HEIGHT,
+    estimateSize: () => isMobile ? MOBILE_ITEM_HEIGHT : ITEM_HEIGHT,
     overscan: 20,
   })
 

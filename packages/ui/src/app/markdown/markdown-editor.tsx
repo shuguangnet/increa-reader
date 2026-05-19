@@ -212,7 +212,28 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
     const words = text ? text.split(/\s+/).length : 0
     setEditorStats({ lineCount: lines, wordCount: words })
 
+    // Mobile: scroll cursor into view when virtual keyboard appears
+    let mobileFocusCleanup: (() => void) | undefined
+    if (isMobile) {
+      const handleFocus = () => {
+        // Delay to let the virtual keyboard animate in
+        setTimeout(() => {
+          if (editorViewRef.current === view) {
+            view.dispatch({
+              effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: 'center' }),
+            })
+          }
+        }, 300)
+      }
+      const editorDom = view.dom
+      editorDom.addEventListener('focus', handleFocus)
+      mobileFocusCleanup = () => {
+        editorDom.removeEventListener('focus', handleFocus)
+      }
+    }
+
     return () => {
+      mobileFocusCleanup?.()
       view.destroy()
       editorViewRef.current = null
     }
@@ -353,7 +374,7 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
             type="button"
             title={a.label}
             onClick={() => handleInsert(a)}
-            className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className={`shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground ${isMobile ? 'p-2' : 'p-1.5'}`}
           >
             {a.icon}
           </button>
@@ -364,7 +385,7 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
             type="button"
             onClick={handleSave}
             disabled={saveStatus === 'saving' || !dirty}
-            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 ${isMobile ? 'touch-target' : ''}`}
             title="保存 (Ctrl+S)"
           >
             <Save size={14} />
@@ -433,7 +454,7 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
             <button
               type="button"
               onClick={() => setMobileView('edit')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors touch-target ${
                 mobileView === 'edit'
                   ? 'border-b-2 border-foreground text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -445,7 +466,7 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
             <button
               type="button"
               onClick={() => setMobileView('preview')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors touch-target ${
                 mobileView === 'preview'
                   ? 'border-b-2 border-foreground text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -492,7 +513,7 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
       )}
 
       {/* Status bar */}
-      <div className="flex shrink-0 items-center gap-3 border-t bg-muted/30 px-3 py-0.5 text-xs text-muted-foreground">
+      <div className={`flex shrink-0 items-center gap-3 border-t bg-muted/30 px-3 py-0.5 text-xs text-muted-foreground ${isMobile ? 'safe-bottom' : ''}`}>
         <span>行 {editorStats.lineCount}</span>
         <span>词 {editorStats.wordCount}</span>
         {!isMobile && (

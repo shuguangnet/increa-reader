@@ -264,7 +264,8 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
         <div className="absolute inset-0 bg-black/50" onClick={onClose} />
         <div
           ref={panelRef}
-          className="relative flex flex-col h-[95vh] bg-white dark:bg-gray-900 rounded-t-xl shadow-2xl animate-in slide-in-from-bottom duration-200 touch-none"
+          className="relative flex flex-col bg-white dark:bg-gray-900 rounded-t-xl shadow-2xl animate-in slide-in-from-bottom duration-200 touch-none safe-top"
+          style={{ height: '95dvh' }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -314,10 +315,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
             </div>
             {/* Repo filter chips */}
             {repos.length > 1 && (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={() => setRepoFilter(null)}
-                  className={`px-2 py-0.5 rounded text-xs border transition-colors ${
+                  className={`px-3 py-1 rounded-full text-xs border transition-colors touch-target ${
                     repoFilter === null
                       ? 'bg-blue-600 text-white border-transparent'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
@@ -329,7 +330,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                   <button
                     key={r.name}
                     onClick={() => setRepoFilter(repoFilter === r.name ? null : r.name)}
-                    className={`px-2 py-0.5 rounded text-xs border transition-colors ${
+                    className={`px-3 py-1 rounded-full text-xs border transition-colors touch-target ${
                       repoFilter === r.name
                         ? 'bg-blue-600 text-white border-transparent'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
@@ -340,12 +341,12 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                 ))}
               </div>
             )}
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {FILE_TYPE_FILTERS.map(ft => (
                 <button
                   key={ft}
                   onClick={() => setTypeFilter(typeFilter === ft ? null : ft)}
-                  className={`px-2 py-0.5 rounded text-xs border transition-colors ${
+                  className={`px-3 py-1 rounded-full text-xs border transition-colors touch-target ${
                     typeFilter === ft
                       ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900 border-transparent'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
@@ -457,7 +458,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
             ))}
           </div>
 
-          <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center justify-between safe-area-inset-bottom">
+          <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center justify-between safe-bottom">
             <span>
               <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↑↓</kbd> 导航{' '}
               <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↵</kbd> 打开

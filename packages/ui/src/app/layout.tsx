@@ -103,7 +103,7 @@ function MobileLayout() {
   const navigate = useNavigate()
 
   return (
-    <div className="h-[calc(100%-2.75rem)] relative">
+    <div className="h-[calc(100%-2.75rem)] relative safe-top">
       {/* Main content - full width */}
       <div className="h-full bg-white dark:bg-gray-950">
         <Outlet />
@@ -257,11 +257,11 @@ function MobileNavBar({ onHome, onSearch, onCommand, onChat }: {
   onChat: () => void
 }) {
   return (
-    <div className="flex items-center justify-around border-t bg-white dark:bg-gray-950 safe-area-inset-bottom">
+    <div className="flex items-center justify-around border-t bg-white dark:bg-gray-950 safe-bottom">
       <button
         type="button"
         onClick={onHome}
-        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
       >
         <Home className="size-5" />
         <span className="text-[10px]">首页</span>
@@ -269,7 +269,7 @@ function MobileNavBar({ onHome, onSearch, onCommand, onChat }: {
       <button
         type="button"
         onClick={onSearch}
-        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
       >
         <Search className="size-5" />
         <span className="text-[10px]">搜索</span>
@@ -277,7 +277,7 @@ function MobileNavBar({ onHome, onSearch, onCommand, onChat }: {
       <button
         type="button"
         onClick={onCommand}
-        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
       >
         <Command className="size-5" />
         <span className="text-[10px]">命令</span>
@@ -285,7 +285,7 @@ function MobileNavBar({ onHome, onSearch, onCommand, onChat }: {
       <button
         type="button"
         onClick={onChat}
-        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
       >
         <MessageSquare className="size-5" />
         <span className="text-[10px]">AI</span>
@@ -315,7 +315,7 @@ export function Layout() {
       <PWAUpdateBanner />
 
       {/* Top bar */}
-      <div className="flex h-9 items-center justify-between border-b bg-white px-2 dark:bg-gray-950 md:px-3">
+      <div className="flex h-9 items-center justify-between border-b bg-white px-2 dark:bg-gray-950 md:px-3 safe-top">
         <div className="flex items-center gap-1.5">
           {isMobile && (
             <Button variant="ghost" size="icon-sm" onClick={toggleLeftPanel} title="侧边栏">

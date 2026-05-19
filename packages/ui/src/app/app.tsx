@@ -152,12 +152,12 @@ function HomePage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-3 mb-8">
+        <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-3 mb-8`}>
           {quickActions.map(action => (
             <button
               key={action.label}
               onClick={action.onClick}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:bg-accent/50 transition-colors"
+              className={`flex items-center ${isMobile ? 'justify-start' : 'flex-col items-center'} gap-3 ${isMobile ? 'p-3' : 'p-4'} rounded-xl border bg-card hover:bg-accent/50 transition-colors touch-target`}
             >
               <div className={`p-2.5 rounded-lg ${action.color}`}>
                 {action.icon}
@@ -358,7 +358,7 @@ function HomePage() {
         )}
 
         {/* Keyboard shortcut hint */}
-        <div className={`flex items-center justify-center gap-4 text-xs text-muted-foreground ${isMobile ? 'mt-6' : 'mt-10'}`}>
+        <div className={`flex items-center justify-center gap-4 text-xs text-muted-foreground ${isMobile ? 'mt-6 safe-bottom pb-4' : 'mt-10'}`}>
           <span><kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Ctrl+K</kbd> 快速导航</span>
           <span><kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Ctrl+Shift+F</kbd> 全局搜索</span>
         </div>

@@ -18,6 +18,7 @@ import { useTheme } from '@/hooks/use-theme'
 import { useFavoritesStore } from '@/stores/favorites-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useViewContext } from '@/stores/view-context'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { type TreeNode } from './api'
 
 type PaletteItem = {
@@ -60,6 +61,7 @@ export function CommandPalette() {
   const viewRepo = useViewContext((s) => s.repo)
   const viewPath = useViewContext((s) => s.path)
   const viewContext = useMemo(() => ({ repo: viewRepo, path: viewPath }), [viewRepo, viewPath])
+  const isMobile = useIsMobile()
 
   const [query, setQuery] = useState('')
   const [files, setFiles] = useState<FlatFile[]>([])
@@ -322,6 +324,113 @@ function matchScore(query: string, path: string, name: string): number {
   const commandItems = filteredItems.filter((i) => i.group === 'commands')
   const fileItems = filteredItems.filter((i) => i.group === 'files')
 
+  // Mobile: bottom sheet
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-[60]">
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={() => setCommandPaletteOpen(false)}
+        />
+        <div className="relative flex flex-col bg-white dark:bg-gray-900 rounded-t-xl shadow-2xl animate-in slide-in-from-bottom duration-200 safe-top"
+          style={{ height: '90dvh' }}
+        >
+          {/* Drag handle */}
+          <div className="flex justify-center pt-2 pb-1">
+            <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+          </div>
+
+          {/* Search input */}
+          <div className="flex items-center border-b px-3">
+            <Command className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="输入命令或搜索文件..."
+              className="flex-1 bg-transparent px-3 py-3 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="button"
+              onClick={() => setCommandPaletteOpen(false)}
+              className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent touch-target"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Results */}
+          <div className="flex-1 overflow-auto overscroll-contain">
+            {commandItems.length > 0 && (
+              <>
+                <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">命令</div>
+                {commandItems.map((item, i) => {
+                  const globalIndex = i
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={item.action}
+                      className={`flex w-full items-center gap-3 px-3 py-3 text-sm transition-colors touch-target ${
+                        selectedIndex === globalIndex
+                          ? 'bg-accent text-accent-foreground'
+                          : 'hover:bg-accent/50'
+                      }`}
+                    >
+                      <span className="shrink-0 text-muted-foreground">{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  )
+                })}
+              </>
+            )}
+
+            {fileItems.length > 0 && (
+              <>
+                <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                  文件{fileItems.length > 50 ? ` (显示前 50 / 共 ${files.length})` : ''}
+                </div>
+                {fileItems.map((item, i) => {
+                  const globalIndex = commandItems.length + i
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={item.action}
+                      className={`flex w-full items-center gap-3 px-3 py-3 text-sm transition-colors touch-target ${
+                        selectedIndex === globalIndex
+                          ? 'bg-accent text-accent-foreground'
+                          : 'hover:bg-accent/50'
+                      }`}
+                    >
+                      <span className="shrink-0 text-muted-foreground">{item.icon}</span>
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {item.sublabel && (
+                        <span className="shrink-0 text-xs text-muted-foreground">{item.sublabel}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </>
+            )}
+
+            {filteredItems.length === 0 && (
+              <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                未找到结果
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t px-3 py-2 text-xs text-muted-foreground safe-bottom">
+            <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↑↓</kbd> 导航{' '}
+            <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↵</kbd> 选择
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Desktop: centered dialog
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center pt-4 md:pt-[15vh] md:px-4">
       <div
