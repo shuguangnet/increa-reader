@@ -1,5 +1,5 @@
-import { Activity, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
 import { useRecentFilesStore } from '@/stores/recent-files-store'
 import { useTabsStore } from '@/stores/tabs-store'
@@ -10,6 +10,8 @@ import { TabBar } from './tab-bar'
 
 export function TabbedViewer() {
   const { repoName, '*': filePath } = useParams<{ repoName: string; '*': string }>()
+  const [searchParams] = useSearchParams()
+  const scrollToLine = searchParams.get('line') ? Number(searchParams.get('line')) : undefined
   const openTab = useTabsStore(s => s.openTab)
   const tabs = useTabsStore(s => s.tabs)
   const activeId = useTabsStore(s => s.activeId)
@@ -39,11 +41,9 @@ export function TabbedViewer() {
       {activeView && <Breadcrumb repo={activeView.repo} path={activeView.path} />}
       <div className="relative min-h-0 flex-1">
         {tabs.map(tab => (
-          <Activity key={tab.id} mode={tab.id === activeId ? 'visible' : 'hidden'}>
-            <div className="absolute inset-0">
-              <FileViewer repo={tab.repo} path={tab.path} />
-            </div>
-          </Activity>
+          <div key={tab.id} className="absolute inset-0" style={{ visibility: tab.id === activeId ? 'visible' : 'hidden' }}>
+            <FileViewer repo={tab.repo} path={tab.path} scrollToLine={tab.id === activeId ? scrollToLine : undefined} />
+          </div>
         ))}
       </div>
     </div>

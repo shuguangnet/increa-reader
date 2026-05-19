@@ -179,6 +179,79 @@ export function CommandPalette() {
     [toggleTheme, navigate, viewContext, addFavorite, setCommandPaletteOpen, setShortcutsOpen, setSearchPanelOpen],
   )
 
+/**
+ * Fuzzy path matching: split query into segments and match each segment
+ * against path parts. Supports:
+ * - Pure substring: "readme" → matches "docs/readme.md"
+ * - Path-based: "docs/read" → matches "docs/README.md"
+ * - CamelCase/PascalCase initials: "mv" → matches "MarkdownViewer"
+ * - Split by separators: "d/r" → matches segments starting with d then r
+ */
+function fuzzyMatchPath(query: string, path: string, name: string): boolean {
+  const q = query.toLowerCase()
+  const lowerPath = path.toLowerCase()
+  const lowerName = name.toLowerCase()
+
+  // 1. Direct substring match (fastest)
+  if (lowerName.includes(q) || lowerPath.includes(q)) return true
+
+  // 2. Path segment matching: "docs/read" → ["docs", "read"]
+  //    Each query segment must match the start of a path segment in order
+  const queryParts = q.split(/[/\\]+/).filter(Boolean)
+  if (queryParts.length > 1) {
+    const pathParts = lowerPath.split(/[/\\]+/)
+    let pi = 0
+    for (const qp of queryParts) {
+      while (pi < pathParts.length) {
+        if (pathParts[pi].startsWith(qp)) break
+        pi++
+      }
+      if (pi >= pathParts.length) return false
+      pi++
+    }
+    return true
+  }
+
+  // 3. CamelCase / PascalCase initial matching: "mv" → "MarkdownViewer"
+  if (q.length <= 5 && q.length >= 1) {
+    const initials = name
+      .replace(/([a-z])([A-Z])/g, '$1 $2')  // camelCase split
+      .replace(/[-_.]/g, ' ')                  // separator split
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(s => s[0].toLowerCase())
+      .join('')
+    if (initials.includes(q)) return true
+  }
+
+  // 4. Character-by-character fuzzy match
+  //    Each query char must appear in order within the path
+  let qi = 0
+  for (let i = 0; i < lowerPath.length && qi < q.length; i++) {
+    if (lowerPath[i] === q[qi]) qi++
+  }
+  return qi === q.length
+}
+
+function matchScore(query: string, path: string, name: string): number {
+  const q = query.toLowerCase()
+  const lowerName = name.toLowerCase()
+  const lowerPath = path.toLowerCase()
+
+  // Exact name match → highest
+  if (lowerName === q) return 1000
+  // Name starts with query → very high
+  if (lowerName.startsWith(q)) return 800
+  // Path starts with query → high
+  if (lowerPath.startsWith(q)) return 600
+  // Name contains query → medium
+  if (lowerName.includes(q)) return 400
+  // Path contains query → lower
+  if (lowerPath.includes(q)) return 200
+  // Fuzzy match → lowest
+  return 100
+}
+
   const filteredItems: PaletteItem[] = useMemo(() => {
     const q = query.toLowerCase().trim()
 
@@ -186,9 +259,15 @@ export function CommandPalette() {
       ? commands.filter((c) => c.label.toLowerCase().includes(q))
       : commands
 
-    const matchedFiles = q
-      ? files.filter((f) => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q))
-      : files.slice(0, 50)
+    let matchedFiles: FlatFile[]
+    if (q) {
+      matchedFiles = files
+        .filter((f) => fuzzyMatchPath(q, f.path, f.name))
+        .sort((a, b) => matchScore(q, b.path, b.name) - matchScore(q, a.path, a.name))
+        .slice(0, 50)
+    } else {
+      matchedFiles = files.slice(0, 50)
+    }
 
     const fileItems: PaletteItem[] = matchedFiles.map((f) => ({
       id: `file:${f.repo}:${f.path}`,

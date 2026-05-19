@@ -35,7 +35,7 @@ from .models import WorkspaceConfig
 from .notes_routes import create_notes_routes
 from .pdf_routes import create_pdf_routes
 from .progress_routes import create_progress_routes
-from .search_routes import create_search_routes
+from .search_routes import SearchIndex, create_search_routes
 from .session_routes import create_session_routes
 from .tags_routes import create_tags_routes
 from .template_routes import create_template_routes
@@ -64,6 +64,14 @@ async def lifespan(app: FastAPI):
     for repo in workspace_config.repos:
         print(f"   - {repo.name}: {repo.root}")
     _print_startup_warnings(workspace_config)
+
+    # Build search index
+    search_index = SearchIndex()
+    print("🔍 Building search index...")
+    await search_index.build(workspace_config)
+    total_files = sum(len(entries) for entries in search_index._index.values())
+    print(f"   Search index ready: {total_files} files indexed")
+    app.state.search_index = search_index
 
     yield
 

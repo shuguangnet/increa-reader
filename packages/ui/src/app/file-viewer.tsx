@@ -49,6 +49,7 @@ type PDFMetadata = {
 type FileViewerProps = {
   repo: string
   path: string
+  scrollToLine?: number
 }
 
 /** Full-screen overlay wrapper for side panels on mobile */
@@ -64,7 +65,58 @@ function MobilePanelOverlay({ children }: {
   )
 }
 
-export function FileViewer({ repo, path }: FileViewerProps) {
+/** Code viewer with line numbers that supports scrolling to a specific line */
+function CodeViewerWithLines({ language, code, scrollToLine }: { language: string; code: string; scrollToLine?: number }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!scrollToLine || !containerRef.current) return
+    const timer = setTimeout(() => {
+      // react-syntax-highlighter with showLineNumbers renders lines as <span> inside the code block
+      // We try to find the line by searching the line number cells
+      const codeBlock = containerRef.current?.querySelector('pre code')
+      if (!codeBlock) return
+      // Each line in SyntaxHighlighter is a <div> or a flat structure
+      // With showLineNumbers, line numbers are in spans with class "linenumber"
+      // A more reliable approach: find the line with the matching line number text
+      const lineElements = codeBlock.querySelectorAll('.react-syntax-highlighter-line-number')
+      for (const el of lineElements) {
+        if (el.textContent?.trim() === String(scrollToLine)) {
+          const row = el.parentElement
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            row.classList.add('ring-2', 'ring-yellow-400', 'rounded')
+            setTimeout(() => {
+              row.classList.remove('ring-2', 'ring-yellow-400', 'rounded')
+            }, 3000)
+          }
+          return
+        }
+      }
+      // Fallback: approximate scroll position based on line height
+      containerRef.current?.scrollTo({
+        top: Math.max(0, (scrollToLine - 5) * 24),
+        behavior: 'smooth',
+      })
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [scrollToLine])
+
+  return (
+    <div ref={containerRef}>
+      <SyntaxHighlighter
+        language={language}
+        style={vscDarkPlus}
+        showLineNumbers
+        lineNumberStyle={{ opacity: 0.5, userSelect: 'none', minWidth: '3.5em' }}
+        customStyle={{ margin: 0 }}
+      >
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  )
+}
+export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   const [state, setState] = useState<{
     preview: PreviewData | null
     loading: boolean
@@ -212,6 +264,9 @@ export function FileViewer({ repo, path }: FileViewerProps) {
     }
   }, [preview])
 
+  // Scroll to a specific line number (from search results) - handled by child viewers
+  // (MarkdownViewer and CodeViewerWithLines each have their own scrollToLine logic)
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -314,6 +369,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
               filePath={path}
               elementsRef={elementsRef}
               scrollY={getProgress(repo, path)?.scrollY}
+              scrollToLine={scrollToLine}
             />
           )}
         </div>
@@ -353,15 +409,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
       <SelectionToolbar containerRef={scrollBodyRef} />
 
       {preview.type === 'code' && (
-        <div>
-          <SyntaxHighlighter
-            language={preview.lang}
-            style={vscDarkPlus}
-            customStyle={{ margin: 0, height: '100%' }}
-          >
-            {preview.body}
-          </SyntaxHighlighter>
-        </div>
+        <CodeViewerWithLines language={preview.lang} code={preview.body} scrollToLine={scrollToLine} />
       )}
 
       {preview.type === 'mermaid' && (

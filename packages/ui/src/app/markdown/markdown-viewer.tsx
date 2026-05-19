@@ -23,6 +23,7 @@ type MarkdownViewerProps = {
   filePath: string
   elementsRef: RefObject<Set<HTMLElement>>
   scrollY?: number
+  scrollToLine?: number
 }
 
 function resolveImageSrc(
@@ -37,7 +38,7 @@ function resolveImageSrc(
   return `/api/raw/${repo}/${resolved}`
 }
 
-export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY }: MarkdownViewerProps) {
+export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY, scrollToLine }: MarkdownViewerProps) {
   const pref = usePref('outline')
   const [showOutline, setShowOutline] = useState(() => pref.get('visible', true))
   const markdownRef = useExternalLinks()
@@ -104,6 +105,38 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY 
     }, 300)
     return () => clearTimeout(timer)
   }, [body, scrollY])
+
+  // Scroll to a specific source line number (from search results)
+  useEffect(() => {
+    if (!scrollToLine || !scrollRef.current) return
+    const container = scrollRef.current
+    const lines = body.split('\n')
+    if (scrollToLine > lines.length) return
+    // Find the content at that line to locate it in the rendered output
+    const targetLineContent = lines[scrollToLine - 1]?.trim()
+    if (!targetLineContent) return
+    const timer = setTimeout(() => {
+      // Search for elements containing text that matches the line
+      const allElements = container.querySelectorAll('.prose > *')
+      for (const el of allElements) {
+        if (el.textContent?.trim().includes(targetLineContent) || targetLineContent.includes(el.textContent?.trim() || '')) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          el.classList.add('ring-2', 'ring-yellow-400', 'rounded', 'transition-all')
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-yellow-400', 'rounded', 'transition-all')
+          }, 3000)
+          return
+        }
+      }
+      // Fallback: approximate scroll based on line position within total lines
+      const ratio = (scrollToLine - 1) / lines.length
+      const maxScroll = container.scrollHeight - container.clientHeight
+      if (maxScroll > 0) {
+        container.scrollTo({ top: ratio * maxScroll, behavior: 'smooth' })
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [scrollToLine, body])
 
   const handleNavigate = useCallback((id: string) => {
     const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`)

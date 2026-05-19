@@ -1,17 +1,17 @@
 """
-Full-text search API routes
+Full-text search API routes with indexing support
 """
 
+import asyncio
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import aiofiles
 from fastapi import HTTPException
 from pydantic import BaseModel
 
 from .models import WorkspaceConfig
-from .workspace import is_text_file
 
 # Text file extensions worth searching
 TEXT_EXTENSIONS = {
@@ -21,6 +21,131 @@ TEXT_EXTENSIONS = {
     ".sql", ".xml", ".svg", ".vue", ".svelte",
 }
 
+# Type alias for the index structure:
+# repo_name -> list of (relative_file_path, [(line_number, line_text)])
+SearchIndexData = Dict[str, List[Tuple[str, List[Tuple[int, str]]]]]
+
+
+class SearchIndex:
+    """Full-text search index built at startup and queried on search requests.
+
+    Stores a mapping of repo_name -> [(file_path, [(line_number, line_text)])]
+    so that searches can run against the in-memory index instead of walking
+    the file system on every request.
+    """
+
+    def __init__(self) -> None:
+        self._index: SearchIndexData = {}
+
+    # ------------------------------------------------------------------
+    # Building
+    # ------------------------------------------------------------------
+
+    async def build(self, workspace_config: WorkspaceConfig) -> None:
+        """Build the index concurrently for all configured repos."""
+        tasks = [
+            self._build_repo(repo_config.name, Path(repo_config.root))
+            for repo_config in workspace_config.repos
+        ]
+        results = await asyncio.gather(*tasks)
+        for repo_config, repo_index in zip(workspace_config.repos, results):
+            self._index[repo_config.name] = repo_index
+
+    async def rebuild(self, workspace_config: WorkspaceConfig) -> None:
+        """Re-build the entire index from scratch (v1: full rebuild)."""
+        self._index.clear()
+        await self.build(workspace_config)
+
+    async def _build_repo(
+        self, repo_name: str, repo_root: Path
+    ) -> List[Tuple[str, List[Tuple[int, str]]]]:
+        """Index all text files under *repo_root* and return the repo index."""
+        if not repo_root.exists():
+            return []
+
+        file_paths: List[Path] = []
+        for fp in repo_root.rglob("*"):
+            if fp.is_dir():
+                continue
+            if any(part.startswith(".") for part in fp.relative_to(repo_root).parts):
+                continue
+            if "node_modules" in fp.parts:
+                continue
+            if fp.suffix.lower() not in TEXT_EXTENSIONS and fp.suffix:
+                continue
+            file_paths.append(fp)
+
+        tasks = [self._index_file(fp, repo_root) for fp in file_paths]
+        results = await asyncio.gather(*tasks)
+        # Filter out empty results (unreadable / binary files)
+        return [r for r in results if r is not None]
+
+    @staticmethod
+    async def _index_file(
+        file_path: Path, repo_root: Path
+    ) -> Optional[Tuple[str, List[Tuple[int, str]]]]:
+        """Read a single file and return (rel_path, [(line_no, line_text)]) or None."""
+        try:
+            async with aiofiles.open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                lines = await f.readlines()
+        except (OSError, UnicodeDecodeError):
+            return None
+
+        rel_path = str(file_path.relative_to(repo_root))
+        indexed_lines: List[Tuple[int, str]] = []
+        for line_no, line in enumerate(lines, start=1):
+            indexed_lines.append((line_no, line.rstrip("\n\r")))
+
+        return (rel_path, indexed_lines)
+
+    # ------------------------------------------------------------------
+    # Searching
+    # ------------------------------------------------------------------
+
+    def search(
+        self,
+        query: str,
+        repos: Optional[List[str]] = None,
+        file_types: Optional[List[str]] = None,
+        max_results: int = 50,
+    ) -> Tuple[List["SearchMatch"], int]:
+        """Search the in-memory index and return (matches, total)."""
+        pattern = re.compile(re.escape(query), re.IGNORECASE)
+        results: List[SearchMatch] = []
+
+        for repo_name, file_entries in self._index.items():
+            if repos and repo_name not in repos:
+                continue
+
+            for rel_path, lines in file_entries:
+                # Apply file-type filter
+                path_suffix = Path(rel_path).suffix.lower()
+                if file_types:
+                    if path_suffix.lstrip(".") not in file_types:
+                        continue
+                else:
+                    if path_suffix and path_suffix not in TEXT_EXTENSIONS:
+                        continue
+
+                for line_no, line_text in lines:
+                    if pattern.search(line_text):
+                        results.append(
+                            SearchMatch(
+                                repo=repo_name,
+                                file_path=rel_path,
+                                line_number=line_no,
+                                line=line_text,
+                            )
+                        )
+                        if len(results) >= max_results:
+                            return results, len(results)
+
+        return results, len(results)
+
+
+# ------------------------------------------------------------------
+# Request / Response models
+# ------------------------------------------------------------------
 
 class SearchRequest(BaseModel):
     query: str
@@ -36,27 +161,9 @@ class SearchMatch(BaseModel):
     line: str
 
 
-def _matches_extension(path: Path, file_types: Optional[List[str]]) -> bool:
-    if not file_types:
-        return path.suffix.lower() in TEXT_EXTENSIONS or not path.suffix
-    return path.suffix.lower().lstrip(".") in file_types
-
-
-async def _search_file(file_path: Path, pattern: re.Pattern) -> List[dict]:
-    """Search a single file and return matching lines."""
-    matches = []
-    try:
-        async with aiofiles.open(file_path, "r", encoding="utf-8", errors="replace") as f:
-            for line_no, line in enumerate(await f.readlines(), start=1):
-                if pattern.search(line):
-                    matches.append({
-                        "line_number": line_no,
-                        "line": line.rstrip("\n\r"),
-                    })
-    except (OSError, UnicodeDecodeError):
-        pass
-    return matches
-
+# ------------------------------------------------------------------
+# Route creation
+# ------------------------------------------------------------------
 
 def create_search_routes(app, workspace_config: WorkspaceConfig):
     """Create full-text search API routes."""
@@ -67,55 +174,20 @@ def create_search_routes(app, workspace_config: WorkspaceConfig):
         if not q:
             raise HTTPException(status_code=400, detail="Query parameter 'q' is required")
         repos = [repo] if repo else None
-        # Parse comma-separated file_types parameter
         parsed_file_types = file_types.split(",") if file_types else None
-        return await _do_search(q, repos, file_types=parsed_file_types, max_results=50)
+        search_index: SearchIndex = app.state.search_index
+        results, total = search_index.search(
+            q, repos=repos, file_types=parsed_file_types, max_results=50
+        )
+        return {"results": results, "total": total}
 
     @app.post("/api/search")
     async def search_post(body: SearchRequest):
         """Advanced full-text search with filters."""
         if not body.query:
             raise HTTPException(status_code=400, detail="query is required")
-        return await _do_search(
+        search_index: SearchIndex = app.state.search_index
+        results, total = search_index.search(
             body.query, body.repos, body.file_types, body.max_results
         )
-
-    async def _do_search(
-        query: str,
-        repos: Optional[List[str]],
-        file_types: Optional[List[str]],
-        max_results: int,
-    ):
-        pattern = re.compile(re.escape(query), re.IGNORECASE)
-        results: List[SearchMatch] = []
-
-        for repo_config in workspace_config.repos:
-            if repos and repo_config.name not in repos:
-                continue
-            repo_root = Path(repo_config.root)
-            if not repo_root.exists():
-                continue
-
-            for file_path in repo_root.rglob("*"):
-                if file_path.is_dir():
-                    continue
-                # Skip hidden / node_modules
-                if any(part.startswith(".") for part in file_path.relative_to(repo_root).parts):
-                    continue
-                if "node_modules" in file_path.parts:
-                    continue
-                if not _matches_extension(file_path, file_types):
-                    continue
-
-                for match in await _search_file(file_path, pattern):
-                    rel_path = str(file_path.relative_to(repo_root))
-                    results.append(SearchMatch(
-                        repo=repo_config.name,
-                        file_path=rel_path,
-                        line_number=match["line_number"],
-                        line=match["line"],
-                    ))
-                    if len(results) >= max_results:
-                        return {"results": results, "total": len(results)}
-
-        return {"results": results, "total": len(results)}
+        return {"results": results, "total": total}
