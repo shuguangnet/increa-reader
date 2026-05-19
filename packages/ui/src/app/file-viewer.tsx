@@ -298,7 +298,8 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   }
 
   if (preview.type === 'html') {
-    return <HtmlViewer body={preview.body} />
+    const displayBody = editedContent ?? preview.body
+    return <HtmlViewer body={displayBody} repo={repo} path={path} />
   }
 
   if (preview.type === 'markdown') {

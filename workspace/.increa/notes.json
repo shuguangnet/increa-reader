@@ -1,23 +1,6 @@
 {
   "version": 1,
   "documents": {
-    "docs/meeting-notes1.md": [
-      {
-        "id": "note_e23ced5a97da",
-        "color": "pink",
-        "content": "111",
-        "createdAt": "2026-05-19T05:17:19.102526Z",
-        "updatedAt": "2026-05-19T09:51:48.759323Z",
-        "position": {
-          "headingPath": [
-            "项目周会"
-          ],
-          "blockText": "日期: 2024-05-18 参会人: 张三、李四、王五",
-          "blockIndex": 1,
-          "xRatio": 0.3223653472283589,
-          "yRatio": -1.4884615384615385
-        }
-      }
-    ]
+    "docs/meeting-notes1.md": []
   }
 }
