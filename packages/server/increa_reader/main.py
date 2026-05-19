@@ -30,6 +30,7 @@ from .ai_routes import create_ai_routes
 from .calendar_routes import create_calendar_routes
 from .export_routes import create_export_routes
 from .file_routes import create_file_routes
+from .link_index import LinkIndex
 from .links_routes import create_links_routes
 from .models import WorkspaceConfig
 from .notes_routes import create_notes_routes
@@ -73,6 +74,17 @@ async def lifespan(app: FastAPI):
     print(f"   Search index ready: {total_files} files indexed")
     app.state.search_index = search_index
 
+    # Build link index
+    link_index = app.state.link_index
+    print("🔗 Building link index...")
+    await link_index.build()
+    total_links = sum(
+        len(targets)
+        for repo_links in link_index.outgoing_links.values()
+        for targets in repo_links.values()
+    )
+    print(f"   Link index ready: {total_links} links indexed")
+
     yield
 
     # Shutdown
@@ -105,6 +117,10 @@ def create_app() -> FastAPI:
     workspace_config = load_workspace_config()
     app.state.workspace_config = workspace_config
 
+    # Create link index (built during lifespan startup)
+    link_index = LinkIndex(workspace_config)
+    app.state.link_index = link_index
+
     # Register all route modules
     create_config_routes(app, workspace_config)
     create_workspace_routes(app, workspace_config)
@@ -116,7 +132,7 @@ def create_app() -> FastAPI:
     create_session_routes(app, workspace_config)
     create_search_routes(app, workspace_config)
     create_tags_routes(app, workspace_config)
-    create_links_routes(app, workspace_config)
+    create_links_routes(app, workspace_config, link_index)
     create_ai_routes(app, workspace_config)
     create_export_routes(app, workspace_config)
     create_version_routes(app, workspace_config)
