@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Bold, Italic, Heading1, Heading2, Heading3,
-  Link, Code, List, Quote, Eye, Save,
+  Link, Code, List, Quote, Eye, Save, PenLine,
 } from 'lucide-react'
 import { MarkdownViewer } from './markdown-viewer'
 import { useEditorStore } from '@/stores/editor-store'
 import { saveFile } from '@/app/api'
 import { showToast } from '@/app/toast'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -46,11 +47,13 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
   const editedFiles = useEditorStore(s => s.editedFiles)
   const fileState = editedFiles[`${repo}:${path}`]
   const content = fileState?.content ?? initialContent
+  const isMobile = useIsMobile()
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const previewElementsRef = useRef(EMPTY_SET)
+  const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit')
 
   useEffect(() => {
     if (!fileState) openFile(repo, path, initialContent)
@@ -123,14 +126,14 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="flex shrink-0 items-center gap-0.5 border-b px-2 py-1 bg-muted/30">
+      <div className={`flex shrink-0 items-center gap-0.5 border-b px-2 py-1 bg-muted/30 ${isMobile ? 'overflow-x-auto scrollbar-thin' : ''}`}>
         {TOOLBAR.map(a => (
           <button
             key={a.label}
             type="button"
             title={a.label}
             onClick={() => handleInsert(a)}
-            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             {a.icon}
           </button>
@@ -146,48 +149,126 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
           >
             <Save size={15} />
           </button>
-          <button
-            type="button"
-            onClick={() => setEditMode(false)}
-            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            title="预览模式"
-          >
-            <Eye size={15} />
-          </button>
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={() => setMobileView(mobileView === 'edit' ? 'preview' : 'edit')}
+              className={`rounded p-1.5 transition-colors ${
+                mobileView === 'preview'
+                  ? 'text-foreground bg-accent'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+              title={mobileView === 'edit' ? '切换到预览' : '切换到编辑'}
+            >
+              {mobileView === 'edit' ? <Eye size={15} /> : <PenLine size={15} />}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditMode(false)}
+              className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="预览模式"
+            >
+              <Eye size={15} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Editor area */}
-      <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel defaultSize={50} minSize={25}>
-          <div className="flex h-full">
-            {/* Line numbers */}
-            <div className="shrink-0 select-none overflow-hidden border-r bg-muted/20 px-2 py-2 text-right font-mono text-xs leading-[1.5] text-muted-foreground">
-              {lines.map((_, i) => (
-                <div key={i}>{i + 1}</div>
-              ))}
+      {isMobile ? (
+        /* Mobile: tabbed view switching between edit and preview */
+        <div className="flex-1 min-h-0 flex flex-col">
+          {/* Mobile view toggle */}
+          <div className="flex shrink-0 border-b">
+            <button
+              type="button"
+              onClick={() => setMobileView('edit')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+                mobileView === 'edit'
+                  ? 'border-b-2 border-foreground text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <PenLine size={14} />
+              编辑
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileView('preview')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+                mobileView === 'preview'
+                  ? 'border-b-2 border-foreground text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Eye size={14} />
+              预览
+            </button>
+          </div>
+
+          <div className="flex-1 min-h-0">
+            {mobileView === 'edit' ? (
+              <div className="flex h-full">
+                {/* Line numbers */}
+                <div className="shrink-0 select-none overflow-hidden border-r bg-muted/20 px-2 py-2 text-right font-mono text-xs leading-[1.5] text-muted-foreground">
+                  {lines.map((_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={content}
+                  onChange={handleChange}
+                  className="flex-1 resize-none bg-background p-2 font-mono text-sm leading-[1.5] outline-none"
+                  spellCheck={false}
+                />
+              </div>
+            ) : (
+              <div className="h-full overflow-auto">
+                <MarkdownViewer
+                  body={content}
+                  repoName={repo}
+                  filePath={path}
+                  elementsRef={previewElementsRef}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Desktop: resizable side-by-side editor and preview */
+        <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
+          <ResizablePanel defaultSize={50} minSize={25}>
+            <div className="flex h-full">
+              {/* Line numbers */}
+              <div className="shrink-0 select-none overflow-hidden border-r bg-muted/20 px-2 py-2 text-right font-mono text-xs leading-[1.5] text-muted-foreground">
+                {lines.map((_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
+              </div>
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={handleChange}
+                className="flex-1 resize-none bg-background p-2 font-mono text-sm leading-[1.5] outline-none"
+                spellCheck={false}
+              />
             </div>
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={handleChange}
-              className="flex-1 resize-none bg-background p-2 font-mono text-sm leading-[1.5] outline-none"
-              spellCheck={false}
-            />
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={50} minSize={20}>
-          <div className="h-full overflow-auto">
-            <MarkdownViewer
-              body={content}
-              repoName={repo}
-              filePath={path}
-              elementsRef={previewElementsRef}
-            />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={50} minSize={20}>
+            <div className="h-full overflow-auto">
+              <MarkdownViewer
+                body={content}
+                repoName={repo}
+                filePath={path}
+                elementsRef={previewElementsRef}
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
 
       {/* Status bar */}
       <div className="flex shrink-0 items-center gap-3 border-t bg-muted/30 px-3 py-0.5 text-xs text-muted-foreground">
