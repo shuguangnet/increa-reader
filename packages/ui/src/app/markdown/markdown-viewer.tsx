@@ -22,6 +22,7 @@ type MarkdownViewerProps = {
   repoName: string
   filePath: string
   elementsRef: RefObject<Set<HTMLElement>>
+  scrollY?: number
 }
 
 function resolveImageSrc(
@@ -36,7 +37,7 @@ function resolveImageSrc(
   return `/api/raw/${repo}/${resolved}`
 }
 
-export function MarkdownViewer({ body, repoName, filePath, elementsRef }: MarkdownViewerProps) {
+export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY }: MarkdownViewerProps) {
   const pref = usePref('outline')
   const [showOutline, setShowOutline] = useState(() => pref.get('visible', true))
   const markdownRef = useExternalLinks()
@@ -89,6 +90,20 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef }: Markdo
     setShowOutline(next)
     pref.set('visible', next)
   }, [showOutline, pref])
+
+  // Restore scroll position after content renders
+  useEffect(() => {
+    if (!scrollY || scrollY < 50) return
+    const el = scrollRef.current
+    if (!el) return
+    const timer = setTimeout(() => {
+      const maxScroll = el.scrollHeight - el.clientHeight
+      if (maxScroll > 0 && scrollY <= maxScroll) {
+        el.scrollTop = scrollY
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [body, scrollY])
 
   const handleNavigate = useCallback((id: string) => {
     const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`)

@@ -158,7 +158,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
 
   // Reading progress tracking
   const updateProgress = useProgressStore(s => s.updateProgress)
-
+  const getProgress = useProgressStore(s => s.getProgress)
   useEffect(() => {
     if (!preview || !repo || !path) return
     const el = scrollBodyRef.current
@@ -180,6 +180,31 @@ export function FileViewer({ repo, path }: FileViewerProps) {
       cancelAnimationFrame(rafId)
     }
   }, [preview, repo, path, updateProgress])
+
+  // Restore scroll position when opening a file
+  useEffect(() => {
+    if (!preview || !repo || !path) return
+    const el = scrollBodyRef.current
+    if (!el) return
+
+    const savedProgress = getProgress(repo, path)
+    if (savedProgress && savedProgress.scrollY > 50) {
+      // Use requestAnimationFrame to wait for content to render
+      const raf = requestAnimationFrame(() => {
+        // For markdown/PDF, content renders asynchronously, so use a small delay
+        const timer = setTimeout(() => {
+          if (el) {
+            const maxScroll = el.scrollHeight - el.clientHeight
+            if (maxScroll > 0 && savedProgress.scrollY <= maxScroll) {
+              el.scrollTop = savedProgress.scrollY
+            }
+          }
+        }, 150)
+        return () => clearTimeout(timer)
+      })
+      return () => cancelAnimationFrame(raf)
+    }
+  }, [preview, repo, path, getProgress])
 
   useEffect(() => {
     if (!preview || (preview.type !== 'markdown' && preview.type !== 'pdf')) {
@@ -288,6 +313,7 @@ export function FileViewer({ repo, path }: FileViewerProps) {
               repoName={repo}
               filePath={path}
               elementsRef={elementsRef}
+              scrollY={getProgress(repo, path)?.scrollY}
             />
           )}
         </div>
