@@ -376,21 +376,28 @@ User Question:
                 # 发送系统初始化事件
                 yield f"data: {json.dumps({'type': 'system', 'subtype': 'init', 'session_id': current_session_id}, ensure_ascii=False)}\n\n"
 
+                # 确保 base_url 格式正确
+                base_url = config["base_url"].rstrip("/")
+
                 # 创建 OpenAI 客户端并请求流式响应
                 client = AsyncOpenAI(
                     api_key=api_key,
-                    base_url=config["base_url"],
+                    base_url=base_url,
                 )
 
-                stream = await client.chat.completions.create(
-                    model=config["model"],
-                    messages=[
+                stream_kwargs = {
+                    "model": config["model"],
+                    "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_content},
                     ],
-                    stream=True,
-                    stream_options={"include_usage": True},
-                )
+                    "stream": True,
+                }
+                # stream_options 不是所有兼容 API 都支持，仅在 OpenAI 官方时加上
+                if "api.openai.com" in base_url:
+                    stream_kwargs["stream_options"] = {"include_usage": True}
+
+                stream = await client.chat.completions.create(**stream_kwargs)
 
                 # 收集完整响应用于计算 token 使用量
                 full_content = ""

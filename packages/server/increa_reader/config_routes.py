@@ -102,13 +102,15 @@ def create_config_routes(app: FastAPI, workspace_config: WorkspaceConfig):
         - "xxx" → set new key (ignoring masked values containing "...")
         """
         current = load_api_settings()
-        updated = {
-            "base_url": request.base_url,
-            "default_model": request.default_model,
-            "ai_provider": request.ai_provider,
-            "openai_base_url": request.openai_base_url,
-            "openai_model": request.openai_model,
-        }
+        updated = {}
+        # 只更新明确提供的字段，未提供的字段保留原值
+        for key in ("base_url", "default_model", "ai_provider", "openai_base_url", "openai_model"):
+            val = getattr(request, key, None)
+            # None 表示客户端未发送该字段 → 保留原值
+            if val is not None:
+                updated[key] = val
+            else:
+                updated[key] = current.get(key)
         # Anthropic API key
         if request.api_key is None:
             updated["api_key"] = current.get("api_key")

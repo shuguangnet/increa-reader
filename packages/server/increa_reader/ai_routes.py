@@ -137,7 +137,11 @@ async def _call_openai(prompt: str, max_tokens: int = 1024) -> str:
     if not api_key:
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured")
 
+    # 确保 base_url 格式正确：去除尾斜杠，保证 /chat/completions 拼接正确
     base_url = config["base_url"].rstrip("/")
+    # 如果用户填的 base_url 不包含 /v1 后缀，且不像已包含完整路径，自动补 /v1
+    if not any(base_url.endswith(suffix) for suffix in ("/v1", "/v1/chat/completions")):
+        base_url = base_url.rstrip("/") + "/v1"
     model = config["model"]
 
     headers = {
@@ -150,21 +154,28 @@ async def _call_openai(prompt: str, max_tokens: int = 1024) -> str:
         "messages": [{"role": "user", "content": prompt}],
     }
 
+    url = f"{base_url}/chat/completions"
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                f"{base_url}/chat/completions",
+                url,
                 headers=headers,
                 json=body,
-                timeout=30,
+                timeout=60,
             )
             resp.raise_for_status()
             data = resp.json()
             return data["choices"][0]["message"]["content"]
     except httpx.HTTPStatusError as exc:
+        # 尝试提取更详细的错误信息
+        try:
+            error_body = exc.response.json()
+            error_msg = error_body.get("error", {}).get("message", str(error_body))
+        except Exception:
+            error_msg = f"HTTP {exc.response.status_code}"
         raise HTTPException(
             status_code=502,
-            detail=f"OpenAI API error: {exc.response.status_code}",
+            detail=f"OpenAI API error: {error_msg}",
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"OpenAI API call failed: {exc}")
