@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Bold, Italic, Heading1, Heading2, Heading3,
-  Link, Code, List, Quote, Eye, Save, PenLine,
+  Link, Code, List, Quote, Eye, Save, PenLine, ScrollText,
 } from 'lucide-react'
 import { MarkdownViewer } from './markdown-viewer'
 import { useEditorStore } from '@/stores/editor-store'
@@ -54,6 +54,13 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const previewElementsRef = useRef(EMPTY_SET)
   const [mobileView, setMobileView] = useState<'edit' | 'preview'>('edit')
+
+  // Synchronized scrolling between editor and preview
+  const editorScrollRef = useRef<HTMLDivElement>(null)
+  const previewScrollRef = useRef<HTMLDivElement>(null)
+  const syncScrollEnabled = useRef(true)
+  const syncScrollSource = useRef<'editor' | 'preview' | null>(null)
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!fileState) openFile(repo, path, initialContent)
@@ -118,6 +125,61 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
   }, [])
 
+  // Synchronized scrolling: when one panel scrolls, the other follows proportionally
+  const handleEditorScroll = useCallback(() => {
+    if (!syncScrollEnabled.current) return
+    if (syncScrollSource.current === 'preview') return
+    syncScrollSource.current = 'editor'
+
+    const editorEl = editorScrollRef.current
+    const previewEl = previewScrollRef.current
+    if (!editorEl || !previewEl) return
+
+    const editorMaxScroll = editorEl.scrollHeight - editorEl.clientHeight
+    const previewMaxScroll = previewEl.scrollHeight - previewEl.clientHeight
+
+    if (editorMaxScroll <= 0 || previewMaxScroll <= 0) return
+
+    const ratio = editorEl.scrollTop / editorMaxScroll
+    previewEl.scrollTop = ratio * previewMaxScroll
+
+    // Reset sync source after a short delay to allow independent scrolling
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current)
+    scrollTimeoutRef.current = setTimeout(() => {
+      syncScrollSource.current = null
+    }, 100)
+  }, [])
+
+  const handlePreviewScroll = useCallback(() => {
+    if (!syncScrollEnabled.current) return
+    if (syncScrollSource.current === 'editor') return
+    syncScrollSource.current = 'preview'
+
+    const editorEl = editorScrollRef.current
+    const previewEl = previewScrollRef.current
+    if (!editorEl || !previewEl) return
+
+    const editorMaxScroll = editorEl.scrollHeight - editorEl.clientHeight
+    const previewMaxScroll = previewEl.scrollHeight - previewEl.clientHeight
+
+    if (editorMaxScroll <= 0 || previewMaxScroll <= 0) return
+
+    const ratio = previewEl.scrollTop / previewMaxScroll
+    editorEl.scrollTop = ratio * editorMaxScroll
+
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current)
+    scrollTimeoutRef.current = setTimeout(() => {
+      syncScrollSource.current = null
+    }, 100)
+  }, [])
+
+  const [syncScroll, setSyncScroll] = useState(true)
+
+  // Keep the ref in sync with state
+  useEffect(() => {
+    syncScrollEnabled.current = syncScroll
+  }, [syncScroll])
+
   const lines = content.split('\n')
   const lineCount = lines.length
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
@@ -163,14 +225,28 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
               {mobileView === 'edit' ? <Eye size={15} /> : <PenLine size={15} />}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => setEditMode(false)}
-              className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-              title="预览模式"
-            >
-              <Eye size={15} />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setSyncScroll(v => !v)}
+                className={`rounded p-1.5 transition-colors ${
+                  syncScroll
+                    ? 'text-foreground bg-accent'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                }`}
+                title={syncScroll ? '同步滚动已开启' : '同步滚动已关闭'}
+              >
+                <ScrollText size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditMode(false)}
+                className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="预览模式"
+              >
+                <Eye size={15} />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -240,7 +316,7 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
         /* Desktop: resizable side-by-side editor and preview */
         <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
           <ResizablePanel defaultSize={50} minSize={25}>
-            <div className="flex h-full">
+            <div ref={editorScrollRef} onScroll={handleEditorScroll} className="flex h-full overflow-auto">
               {/* Line numbers */}
               <div className="shrink-0 select-none overflow-hidden border-r bg-muted/20 px-2 py-2 text-right font-mono text-xs leading-[1.5] text-muted-foreground">
                 {lines.map((_, i) => (
@@ -258,7 +334,7 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
           </ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel defaultSize={50} minSize={20}>
-            <div className="h-full overflow-auto">
+            <div ref={previewScrollRef} onScroll={handlePreviewScroll} className="h-full overflow-auto">
               <MarkdownViewer
                 body={content}
                 repoName={repo}
@@ -274,6 +350,11 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
       <div className="flex shrink-0 items-center gap-3 border-t bg-muted/30 px-3 py-0.5 text-xs text-muted-foreground">
         <span>行 {lineCount}</span>
         <span>词 {wordCount}</span>
+        {!isMobile && (
+          <span className={syncScroll ? 'text-foreground' : ''}>
+            {syncScroll ? '🔗 同步滚动' : '↕ 独立滚动'}
+          </span>
+        )}
         <span className="ml-auto">
           {saveStatus === 'saving' && '保存中…'}
           {saveStatus === 'saved' && '✓ 已保存'}
