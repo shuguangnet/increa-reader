@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'increa-reader-v1'
+const CACHE_NAME = 'increa-reader-v2'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -27,6 +27,7 @@ self.addEventListener('activate', (event) => {
       ),
     ),
   )
+  // Take control of all clients immediately so the new SW is used
   self.clients.claim()
 })
 
@@ -51,18 +52,18 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Static assets: cache-first, fall back to network
+  // Static assets: stale-while-revalidate for better UX
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached
-      return fetch(event.request).then((response) => {
-        // Cache successful responses for static assets
+      const fetchPromise = fetch(event.request).then((response) => {
         if (response.ok) {
           const clone = response.clone()
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
         }
         return response
-      })
+      }).catch(() => cached)
+
+      return cached || fetchPromise
     }),
   )
 })

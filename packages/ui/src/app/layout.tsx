@@ -1,10 +1,11 @@
-import { Command, Download, Home, Menu, MessageSquare, Monitor, Moon, Search, Sun, X } from 'lucide-react'
+import { Command, Download, Home, Menu, MessageSquare, Monitor, Moon, RefreshCw, Search, Sun, X } from 'lucide-react'
 import { useCallback, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePWAInstall } from '@/hooks/use-pwa-install'
 import { useTheme } from '@/hooks/use-theme'
+import { useServiceWorkerUpdate } from '@/hooks/use-pwa'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useUIStore } from '@/stores/ui-store'
@@ -15,6 +16,34 @@ import { LeftPanel } from './left-panel'
 import { SearchPanel } from './search-panel'
 import { ShortcutsDialog } from './shortcuts-dialog'
 import { ToastContainer } from './toast'
+
+/** PWA update notification banner */
+function PWAUpdateBanner() {
+  const { updateStatus, applyUpdate, dismissUpdate } = useServiceWorkerUpdate()
+
+  if (updateStatus !== 'update-available') return null
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-xs animate-in slide-in-from-top duration-300">
+      <RefreshCw className="size-3.5 shrink-0" />
+      <span className="flex-1">新版本可用</span>
+      <button
+        type="button"
+        onClick={applyUpdate}
+        className="rounded px-2 py-0.5 bg-white/20 hover:bg-white/30 transition-colors font-medium"
+      >
+        更新
+      </button>
+      <button
+        type="button"
+        onClick={dismissUpdate}
+        className="rounded p-0.5 hover:bg-white/20 transition-colors"
+      >
+        <X className="size-3.5" />
+      </button>
+    </div>
+  )
+}
 
 function ThemeToggle() {
   const { theme, toggle } = useTheme()
@@ -282,6 +311,9 @@ export function Layout() {
 
   return (
     <div className="h-full">
+      {/* PWA update banner */}
+      <PWAUpdateBanner />
+
       {/* Top bar */}
       <div className="flex h-9 items-center justify-between border-b bg-white px-2 dark:bg-gray-950 md:px-3">
         <div className="flex items-center gap-1.5">

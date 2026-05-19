@@ -1,7 +1,7 @@
 import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
-import { Clock, FolderOpen, Hash, Keyboard, Network, Search, Star } from 'lucide-react'
+import { BookOpen, BarChart3, Clock, FolderOpen, Hash, Keyboard, MessageSquare, Network, Search, Star } from 'lucide-react'
 import { VisibleContentProvider } from '../contexts/visible-content-context'
 import { useFavoritesStore } from '../stores/favorites-store'
 import { useRecentFilesStore } from '../stores/recent-files-store'
@@ -27,6 +27,7 @@ function HomePage() {
   const progressMap = useProgressStore(s => s.progressMap)
   const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
   const setSearchPanelOpen = useUIStore(s => s.setSearchPanelOpen)
+  const toggleRightPanel = useUIStore(s => s.toggleRightPanel)
 
   const navigateToFile = (repo: string, path: string) => {
     navigate(`/views/${repo}/${path}`)
@@ -36,6 +37,18 @@ function HomePage() {
   const [expandedTag, setExpandedTag] = useState<string | null>(null)
   const [tagFiles, setTagFiles] = useState<TagFile[]>([])
   const [tagFilesLoading, setTagFilesLoading] = useState(false)
+  const [repoCount, setRepoCount] = useState<number>(0)
+
+  const loadRepoCount = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/repos')
+      const data = await res.json()
+      const repos = data.repos ?? data.data ?? data
+      setRepoCount(Array.isArray(repos) ? repos.length : 0)
+    } catch {
+      setRepoCount(0)
+    }
+  }, [])
 
   const loadTags = useCallback(async () => {
     try {
@@ -68,7 +81,8 @@ function HomePage() {
 
   useEffect(() => {
     loadTags()
-  }, [loadTags])
+    loadRepoCount()
+  }, [loadTags, loadRepoCount])
 
   const sortedRecent = [...recentFiles].sort((a, b) => b.openedAt - a.openedAt).slice(0, 8)
   const sortedFavorites = [...favorites].sort((a, b) => b.addedAt - a.addedAt).slice(0, 8)
@@ -77,10 +91,17 @@ function HomePage() {
   const now = Date.now()
   const todayFiles = sortedRecent.filter(f => now - f.openedAt < 86400000)
 
+  // Continue reading: files with progress > 10% and < 90%, sorted by progress desc, top 5
+  const continueReading = Object.values(progressMap)
+    .filter(p => p.percent > 0.1 && p.percent < 0.9)
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 5)
+
   const quickActions = [
     { label: '搜索文件内容', icon: <Search className="size-5" />, onClick: () => setSearchPanelOpen(true), color: 'text-blue-500 bg-blue-50 dark:bg-blue-950' },
     { label: '命令面板', icon: <Keyboard className="size-5" />, onClick: () => setCommandPaletteOpen(true), color: 'text-violet-500 bg-violet-50 dark:bg-violet-950' },
     { label: '知识图谱', icon: <Network className="size-5" />, onClick: () => navigate('/graph'), color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950' },
+    { label: 'AI对话', icon: <MessageSquare className="size-5" />, onClick: () => toggleRightPanel(), color: 'text-amber-500 bg-amber-50 dark:bg-amber-950' },
   ]
 
   const displayRecent = todayFiles.length > 0 ? todayFiles : sortedRecent
@@ -99,8 +120,39 @@ function HomePage() {
           </p>
         </div>
 
-        {/* Quick Actions */}
+        {/* Statistics Bar */}
         <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="flex items-center gap-3 p-3 rounded-xl border bg-card">
+            <div className="p-2 rounded-lg text-blue-500 bg-blue-50 dark:bg-blue-950">
+              <FolderOpen className="size-4" />
+            </div>
+            <div>
+              <div className="text-lg font-bold">{repoCount}</div>
+              <div className="text-xs text-muted-foreground">仓库</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-xl border bg-card">
+            <div className="p-2 rounded-lg text-emerald-500 bg-emerald-50 dark:bg-emerald-950">
+              <BarChart3 className="size-4" />
+            </div>
+            <div>
+              <div className="text-lg font-bold">{Object.keys(progressMap).length}</div>
+              <div className="text-xs text-muted-foreground">已读文件</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-xl border bg-card">
+            <div className="p-2 rounded-lg text-orange-500 bg-orange-50 dark:bg-orange-950">
+              <Hash className="size-4" />
+            </div>
+            <div>
+              <div className="text-lg font-bold">{tags.length}</div>
+              <div className="text-xs text-muted-foreground">标签</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-4 gap-3 mb-8">
           {quickActions.map(action => (
             <button
               key={action.label}
@@ -114,6 +166,48 @@ function HomePage() {
             </button>
           ))}
         </div>
+
+        {/* Continue Reading */}
+        {continueReading.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <BookOpen className="size-4 text-indigo-500" />
+              <h2 className="text-sm font-semibold">继续阅读</h2>
+            </div>
+            <div className="space-y-2">
+              {continueReading.map(p => {
+                const percent = Math.round(p.percent * 100)
+                const fileName = p.path.split('/').pop() || p.path
+                return (
+                  <div
+                    key={`${p.repo}-${p.path}`}
+                    className="flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{fileName}</div>
+                      <div className="text-xs text-muted-foreground truncate">{p.repo}/{p.path}</div>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-indigo-500 dark:bg-indigo-400 transition-all"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">{percent}%</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigateToFile(p.repo, p.path)}
+                      className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+                    >
+                      继续
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Recent Files */}
         {displayRecent.length > 0 && (
@@ -203,21 +297,28 @@ function HomePage() {
               <h2 className="text-sm font-semibold">标签</h2>
             </div>
             <div className="flex flex-wrap gap-2 mb-3">
-              {tags.map(tag => (
-                <button
-                  key={tag.name}
-                  onClick={() => loadTagFiles(tag.name)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                    expandedTag === tag.name
-                      ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
-                      : 'bg-muted hover:bg-accent text-muted-foreground'
-                  }`}
-                >
-                  <Hash className="size-3" />
-                  {tag.name}
-                  <span className="opacity-60">{tag.count}</span>
-                </button>
-              ))}
+              {tags.map(tag => {
+                const sizeClass = tag.count >= 6
+                  ? 'text-base font-semibold'
+                  : tag.count >= 3
+                    ? 'text-sm'
+                    : 'text-xs'
+                return (
+                  <button
+                    key={tag.name}
+                    onClick={() => loadTagFiles(tag.name)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium transition-colors ${sizeClass} ${
+                      expandedTag === tag.name
+                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                        : 'bg-muted hover:bg-accent text-muted-foreground'
+                    }`}
+                  >
+                    <Hash className="size-3" />
+                    {tag.name}
+                    <span className="opacity-60">{tag.count}</span>
+                  </button>
+                )
+              })}
             </div>
             {expandedTag && (
               <div className="space-y-1">
