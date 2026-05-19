@@ -191,3 +191,20 @@ html, body {
   background: oklch(0.7 0 0 / 0.3);
   border-radius: 2px;
 }
+
+/* PWA progress bar animation */
+@keyframes progress-bar {
+  0% {
+    width: 0%;
+  }
+  50% {
+    width: 70%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-progress-bar {
+  animation: progress-bar 2s ease-out forwards;
+}

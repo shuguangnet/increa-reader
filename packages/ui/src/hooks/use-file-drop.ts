@@ -107,8 +107,7 @@ export function useFileDrop(
     if (isDesktop()) {
       (async () => {
         try {
-          // @ts-expect-error — optional peer dependency, not present in web builds
-          const { getCurrentWindow } = await import('@tauri-apps/api/window')
+          const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
           const win = getCurrentWindow()
 
           // Listen for Tauri drag-drop event  

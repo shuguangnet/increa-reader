@@ -29,8 +29,7 @@ export async function saveWindowBounds(): Promise<void> {
   if (!isDesktop()) return
 
   try {
-    // @ts-expect-error — optional peer dependency, not present in web builds
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
     const win = getCurrentWindow()
 
     const position = await win.outerPosition()
@@ -74,10 +73,8 @@ export async function restoreWindowBounds(): Promise<void> {
       return
     }
 
-    // @ts-expect-error — optional peer dependency, not present in web builds
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    // @ts-expect-error — optional peer dependency, not present in web builds
-    const { LogicalPosition, LogicalSize } = await import('@tauri-apps/api/dpi')
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
+    const { LogicalPosition, LogicalSize } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/dpi')
     const win = getCurrentWindow()
 
     if (bounds.maximized) {

@@ -32,7 +32,8 @@ function HomePage() {
   const toggleRightPanel = useUIStore(s => s.toggleRightPanel)
 
   const navigateToFile = (repo: string, path: string) => {
-    navigate(`/views/${repo}/${path}`)
+    const clean = path.startsWith('/') ? path.slice(1) : path
+    navigate(`/views/${repo}/${clean}`)
   }
 
   const [tags, setTags] = useState<TagInfo[]>([])

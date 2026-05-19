@@ -56,23 +56,26 @@ let _tauriInvoke: TauriInvoke | null = null
 
 /**
  * Dynamically load the Tauri `invoke` function.
- * Uses a string-based import so the bundler never statically resolves
- * @tauri-apps/api/core — it is only fetched when actually running in Tauri.
+ * Uses `new Function` to completely hide the import from Vite's static
+ * analysis — @tauri-apps/api is an optional peer dependency only present
+ * in desktop builds.  The import() is only executed when running in Tauri.
  */
 async function loadTauriInvoke(): Promise<TauriInvoke> {
   if (_tauriInvoke) return _tauriInvoke
-  // @ts-expect-error — optional peer dependency, not present in web builds
-  const mod = await import(/* @vite-ignore */ '@tauri-apps/api/core')
+  // Use new Function to prevent Vite from resolving @tauri-apps at build time
+  const dynamicImport = new Function('modulePath', 'return import(modulePath)')
+  const mod = await dynamicImport('@tauri-apps/api/core')
   _tauriInvoke = mod.invoke as TauriInvoke
   return _tauriInvoke
 }
 
 /**
  * Dynamically load the Tauri getCurrentWindow helper.
+ * Same new Function trick — Vite cannot see the import path.
  */
 async function loadTauriWindow(): Promise<any> {
-  // @ts-expect-error — optional peer dependency, not present in web builds
-  const mod = await import(/* @vite-ignore */ '@tauri-apps/api/window')
+  const dynamicImport = new Function('modulePath', 'return import(modulePath)')
+  const mod = await dynamicImport('@tauri-apps/api/window')
   return mod.getCurrentWindow()
 }
 
@@ -264,8 +267,7 @@ type UnlistenFn = () => void
 export async function onFileDrop(callback: FileDropCallback): Promise<UnlistenFn> {
   if (!_hasTauri) return () => {}
   try {
-    // @ts-expect-error — optional peer dependency, not present in web builds
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
     const win = getCurrentWindow()
     const unlisten = await win.listen('tauri://drag-drop', (event: { payload: { paths: string[] } }) => {
       callback(event.payload.paths)
@@ -290,8 +292,7 @@ type MenuActionCallback = (action: string) => void
 export async function onMenuAction(callback: MenuActionCallback): Promise<UnlistenFn> {
   if (!_hasTauri) return () => {}
   try {
-    // @ts-expect-error — optional peer dependency, not present in web builds
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
     const win = getCurrentWindow()
     const unlisten = await win.listen('menu-action', (event: { payload: string }) => {
       callback(event.payload)
@@ -323,8 +324,7 @@ interface WindowBounds {
 export async function saveWindowBounds(): Promise<void> {
   if (!_hasTauri) return
   try {
-    // @ts-expect-error — optional peer dependency, not present in web builds
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
     const win = getCurrentWindow()
     const position = await win.outerPosition()
     const size = await win.innerSize()
@@ -363,10 +363,8 @@ export async function restoreWindowBounds(): Promise<void> {
     ) {
       return
     }
-    // @ts-expect-error — optional peer dependency, not present in web builds
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    // @ts-expect-error — optional peer dependency, not present in web builds
-    const { LogicalPosition, LogicalSize } = await import('@tauri-apps/api/dpi')
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
+    const { LogicalPosition, LogicalSize } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/dpi')
     const win = getCurrentWindow()
     if (bounds.maximized) {
       await win.maximize()

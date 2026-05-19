@@ -1,6 +1,6 @@
-import { Command, Download, Home, Menu, MessageSquare, Monitor, Moon, RefreshCw, Search, Sun, X } from 'lucide-react'
-import { useCallback, useEffect, useRef } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Command, Download, Home, Info, Menu, MessageSquare, Monitor, Moon, RefreshCw, Search, Share, Smartphone, Sun, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePWAInstall } from '@/hooks/use-pwa-install'
@@ -19,28 +19,155 @@ import { ShortcutsDialog } from './shortcuts-dialog'
 import { ToastContainer } from './toast'
 import { platform } from '@/lib/platform'
 
-/** PWA update notification banner */
+/** PWA update notification banner with version and progress */
 function PWAUpdateBanner() {
-  const { updateStatus, applyUpdate, dismissUpdate } = useServiceWorkerUpdate()
+  const { updateStatus, applyUpdate, dismissUpdate, appVersion } = useServiceWorkerUpdate()
+  const [remindLater, setRemindLater] = useState(false)
 
-  if (updateStatus !== 'update-available') return null
+  if (updateStatus !== 'update-available' && updateStatus !== 'updating' || remindLater) return null
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-xs animate-in slide-in-from-top duration-300">
-      <RefreshCw className="size-3.5 shrink-0" />
-      <span className="flex-1">新版本可用</span>
-      <button
-        type="button"
-        onClick={applyUpdate}
-        className="rounded px-2 py-0.5 bg-white/20 hover:bg-white/30 transition-colors font-medium"
-      >
-        更新
+      {updateStatus === 'update-available' && (
+        <>
+          <RefreshCw className="size-3.5 shrink-0 animate-spin" style={{ animationDuration: '3s' }} />
+          <span className="flex-1">
+            新版本可用
+            <span className="ml-1 opacity-75">({appVersion})</span>
+          </span>
+          <button
+            type="button"
+            onClick={applyUpdate}
+            className="rounded px-2 py-0.5 bg-white/20 hover:bg-white/30 transition-colors font-medium"
+          >
+            更新
+          </button>
+          <button
+            type="button"
+            onClick={() => setRemindLater(true)}
+            className="rounded px-2 py-0.5 hover:bg-white/20 transition-colors"
+          >
+            稍后
+          </button>
+          <button
+            type="button"
+            onClick={dismissUpdate}
+            className="rounded p-0.5 hover:bg-white/20 transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        </>
+      )}
+      {updateStatus === 'updating' && (
+        <>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <RefreshCw className="size-3.5 shrink-0 animate-spin" />
+              <span>正在更新…</span>
+            </div>
+            <div className="mt-1 h-0.5 w-full bg-white/30 rounded-full overflow-hidden">
+              <div className="h-full bg-white rounded-full animate-progress-bar" />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** PWA install prompt with iOS Safari guidance */
+function PWAInstallPrompt() {
+  const {
+    shouldShowInstall,
+    install,
+    isIOS,
+    showIOSGuide,
+    showIOSInstallGuide,
+    dismissIOSGuide,
+    dismissPermanently,
+    showThanks,
+    dismissThanks,
+  } = usePWAInstall()
+
+  if (!shouldShowInstall) return null
+
+  // Show "thanks" toast after successful install
+  if (showThanks) {
+    return (
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm rounded-lg shadow-lg animate-in slide-in-from-bottom duration-300">
+        <Info className="size-4 shrink-0" />
+        <span>🎉 已成功安装到主屏幕！</span>
+        <button type="button" onClick={dismissThanks} className="ml-2 rounded p-0.5 hover:bg-white/20">
+          <X className="size-3.5" />
+        </button>
+      </div>
+    )
+  }
+
+  // iOS Safari install guide modal
+  if (showIOSGuide) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+        <div className="bg-white dark:bg-gray-900 rounded-t-xl sm:rounded-xl w-full max-w-sm p-5 shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">添加到主屏幕</h3>
+            <button type="button" onClick={dismissIOSGuide} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+              <X className="size-5 text-gray-500" />
+            </button>
+          </div>
+          <ol className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+            <li className="flex gap-3 items-start">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400">1</span>
+              <span>点击底部工具栏的 <strong>分享按钮</strong> <Share className="inline size-4 text-blue-500 mx-0.5" /></span>
+            </li>
+            <li className="flex gap-3 items-start">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400">2</span>
+              <span>在弹出的菜单中找到 <strong>「添加到主屏幕」</strong> <Smartphone className="inline size-4 text-green-500 mx-0.5" /></span>
+            </li>
+            <li className="flex gap-3 items-start">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400">3</span>
+              <span>点击 <strong>「添加」</strong> 即可，Increa Reader 图标将出现在主屏幕上</span>
+            </li>
+          </ol>
+          <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between">
+            <button type="button" onClick={dismissPermanently} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              不再提示
+            </button>
+            <button type="button" onClick={dismissIOSGuide} className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
+              知道了
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Standard install prompt for Chromium browsers
+  if (isIOS) {
+    // iOS: show a small banner prompting to open the guide
+    return (
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm rounded-lg shadow-lg animate-in slide-in-from-bottom duration-300">
+        <Smartphone className="size-4 shrink-0" />
+        <span>安装 Increa Reader 到主屏幕</span>
+        <button type="button" onClick={showIOSInstallGuide} className="rounded px-2 py-0.5 bg-white/20 hover:bg-white/30 transition-colors font-medium">
+          查看步骤
+        </button>
+        <button type="button" onClick={dismissPermanently} className="rounded p-0.5 hover:bg-white/20 transition-colors">
+          <X className="size-3.5" />
+        </button>
+      </div>
+    )
+  }
+
+  // Non-iOS (Chrome, Edge, etc.)
+  return (
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm rounded-lg shadow-lg animate-in slide-in-from-bottom duration-300">
+      <Download className="size-4 shrink-0" />
+      <span>安装 Increa Reader</span>
+      <button type="button" onClick={() => { install().catch(console.error) }} className="rounded px-2 py-0.5 bg-white/20 hover:bg-white/30 transition-colors font-medium">
+        安装
       </button>
-      <button
-        type="button"
-        onClick={dismissUpdate}
-        className="rounded p-0.5 hover:bg-white/20 transition-colors"
-      >
+      <button type="button" onClick={dismissPermanently} className="rounded p-0.5 hover:bg-white/20 transition-colors">
         <X className="size-3.5" />
       </button>
     </div>
@@ -258,40 +385,48 @@ function MobileNavBar({ onHome, onSearch, onCommand, onChat }: {
   onCommand: () => void
   onChat: () => void
 }) {
+  // Determine active tab based on current location
+  const location = useLocation()
+  const rightPanelVisible = useUIStore((s) => s.rightPanelVisible)
+
+  // Determine active state: highlight the tab that matches the current view
+  const isHome = location.pathname === '/'
+  const isFiles = location.pathname.startsWith('/views/')
+  const isGraph = location.pathname.startsWith('/graph')
+  const isChatActive = rightPanelVisible
+
+  type NavKey = 'home' | 'search' | 'command' | 'chat'
+
+  const navItems: { key: NavKey; label: string; icon: typeof Home; onClick: () => void; active: boolean }[] = [
+    { key: 'home', label: '首页', icon: Home, onClick: onHome, active: isHome },
+    { key: 'search', label: '搜索', icon: Search, onClick: onSearch, active: false },
+    { key: 'command', label: '文件', icon: Command, onClick: onCommand, active: isFiles || isGraph },
+    { key: 'chat', label: 'AI', icon: MessageSquare, onClick: onChat, active: isChatActive },
+  ]
+
   return (
     <div className="flex items-center justify-around border-t bg-white dark:bg-gray-950 safe-bottom">
-      <button
-        type="button"
-        onClick={onHome}
-        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
-      >
-        <Home className="size-5" />
-        <span className="text-[10px]">首页</span>
-      </button>
-      <button
-        type="button"
-        onClick={onSearch}
-        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
-      >
-        <Search className="size-5" />
-        <span className="text-[10px]">搜索</span>
-      </button>
-      <button
-        type="button"
-        onClick={onCommand}
-        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
-      >
-        <Command className="size-5" />
-        <span className="text-[10px]">命令</span>
-      </button>
-      <button
-        type="button"
-        onClick={onChat}
-        className="flex flex-col items-center gap-0.5 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
-      >
-        <MessageSquare className="size-5" />
-        <span className="text-[10px]">AI</span>
-      </button>
+      {navItems.map(item => {
+        const Icon = item.icon
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={item.onClick}
+            className={`flex flex-col items-center gap-0.5 px-3 py-2 transition-colors touch-target relative ${
+              item.active
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="size-5" />
+            <span className="text-[10px] font-medium">{item.label}</span>
+            {item.active && (
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -306,8 +441,6 @@ export function Layout() {
   const searchPanelOpen = useUIStore((s) => s.searchPanelOpen)
   const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
-  const { installable, install } = usePWAInstall()
-
   // File drop handler — creates a visual highlight and logs dropped files
   const { isOver, dropHandler } = useFileDrop(useCallback((files) => {
     console.log('[Layout] Dropped files:', files)
@@ -362,10 +495,6 @@ export function Layout() {
     }
   }, [toggleLeftPanel, toggleRightPanel, setCommandPaletteOpen, setSearchPanelOpen])
 
-  const handleInstall = useCallback(() => {
-    install().catch(console.error)
-  }, [install])
-
   return (
     <div
       className={`h-full${isOver ? ' ring-2 ring-blue-500 ring-offset-2' : ''}`}
@@ -404,11 +533,6 @@ export function Layout() {
               </Button>
             </>
           )}
-          {installable && (
-            <Button variant="ghost" size="icon-sm" onClick={handleInstall} title="安装应用">
-              <Download className="size-4" />
-            </Button>
-          )}
           {isMobile && (
             <Button variant="ghost" size="icon-sm" onClick={toggleRightPanel} title="AI 助手">
               <MessageSquare className="size-4" />
@@ -420,6 +544,9 @@ export function Layout() {
 
       {/* Main content area */}
       {isMobile ? <MobileLayout /> : <DesktopLayout />}
+
+      {/* PWA install prompt */}
+      <PWAInstallPrompt />
 
       {/* Overlays */}
       <CommandPalette />
