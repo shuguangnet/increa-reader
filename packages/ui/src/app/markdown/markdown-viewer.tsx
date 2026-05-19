@@ -191,7 +191,7 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
   const components = useMemo(
     () => ({
       img({ src, alt, ...props }: ComponentPropsWithoutRef<'img'>) {
-        return <img src={resolveImageSrc(src, repoName, filePath)} alt={alt} {...props} />
+        return <img src={resolveImageSrc(src, repoName, filePath)} alt={alt} loading="lazy" {...props} />
       },
       code({ className, children, ...props }: ComponentPropsWithoutRef<'code'>) {
         const match = /language-(\w+)/.exec(className || '')

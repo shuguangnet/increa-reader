@@ -97,7 +97,7 @@ export const Message = ({ role, content, isStreaming, toolCalls }: MessageType) 
               <ReactMarkdown
                 components={{
                   img({ src, alt, ...props }) {
-                    return <img src={resolveImageSrc(src)} alt={alt} {...props} />
+                    return <img src={resolveImageSrc(src)} alt={alt} loading="lazy" {...props} />
                   },
                 }}
               >
@@ -114,7 +114,7 @@ export const Message = ({ role, content, isStreaming, toolCalls }: MessageType) 
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   img({ src, alt, ...props }) {
-                    return <img src={resolveImageSrc(src)} alt={alt} {...props} />
+                    return <img src={resolveImageSrc(src)} alt={alt} loading="lazy" {...props} />
                   },
                   code({
                     inline,
