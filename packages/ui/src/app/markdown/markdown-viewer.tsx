@@ -12,7 +12,8 @@ import { MarkdownNotesLayer } from '@/app/notes/markdown-notes-layer'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { useExternalLinks } from '@/hooks/use-external-links'
 import { usePref } from '@/hooks/use-pref'
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { useTheme } from '@/hooks/use-theme'
 import { ArticleOutline } from './article-outline'
 import { parseHeadings } from './heading-utils'
 import { useHeadingObserver } from './use-heading-observer'
@@ -44,6 +45,8 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
   const markdownRef = useExternalLinks()
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const { isDark } = useTheme()
+  const codeStyle = isDark ? vscDarkPlus : oneLight
 
   const headings = useMemo(() => parseHeadings(body), [body])
   const activeId = useHeadingObserver(scrollRef, headings)
@@ -158,7 +161,7 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
             <CodeBlockWithCopy
               language={match[1]}
               code={String(children).replace(/\n$/, '')}
-              style={oneLight}
+              style={codeStyle}
             />
           )
         }

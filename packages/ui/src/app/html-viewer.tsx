@@ -1,11 +1,12 @@
 import { Code, Eye, Pencil, Save } from 'lucide-react'
 import { useState, useRef, useCallback } from 'react'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Button } from '@/components/ui/button'
+import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
+import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useEditorStore } from '@/stores/editor-store'
 import { saveFile } from '@/app/api'
 import { showToast } from '@/app/toast'
+import { useTheme } from '@/hooks/use-theme'
 
 type HtmlViewerProps = {
   body: string
@@ -22,6 +23,7 @@ export function HtmlViewer({ body, repo, path }: HtmlViewerProps) {
   const fileKey = `${repo}:${path}`
   const fileState = editedFiles[fileKey]
   const content = fileState?.content ?? body
+  const { isDark } = useTheme()
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -66,6 +68,8 @@ export function HtmlViewer({ body, repo, path }: HtmlViewerProps) {
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   })
+
+  const codeStyle = isDark ? vscDarkPlus : oneLight
 
   return (
     <div className="flex h-full flex-col">
@@ -127,14 +131,13 @@ export function HtmlViewer({ body, repo, path }: HtmlViewerProps) {
         <iframe srcDoc={editedContent ?? body} className="flex-1 border-0" title="HTML Preview" />
       ) : mode === 'source' ? (
         <div className="flex-1 min-h-0 overflow-auto">
-          <SyntaxHighlighter
+          <CodeBlockWithCopy
             language="html"
-            style={vscDarkPlus}
+            code={editedContent ?? body}
+            style={codeStyle}
+            customStyle={{ height: '100%' }}
             showLineNumbers
-            customStyle={{ margin: 0, height: '100%' }}
-          >
-            {editedContent ?? body}
-          </SyntaxHighlighter>
+          />
         </div>
       ) : (
         <div className="flex-1 min-h-0">

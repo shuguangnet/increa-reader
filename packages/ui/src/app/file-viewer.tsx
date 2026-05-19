@@ -2,10 +2,11 @@
 
 import { ArrowLeftRight, Code, Download, Eye, FileQuestion, History, Pencil, Sparkles, Table } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useTheme } from '@/hooks/use-theme'
 import { useVisibleContent } from '@/contexts/visible-content-context'
 import { useNoteToolStore } from '@/stores/note-tool-store'
 import { useEditorStore } from '@/stores/editor-store'
@@ -71,6 +72,8 @@ function MobilePanelOverlay({ children }: {
 /** Code viewer with line numbers that supports scrolling to a specific line */
 function CodeViewerWithLines({ language, code, scrollToLine }: { language: string; code: string; scrollToLine?: number }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const { isDark } = useTheme()
+  const codeStyle = isDark ? vscDarkPlus : oneLight
 
   useEffect(() => {
     if (!scrollToLine || !containerRef.current) return
@@ -107,15 +110,13 @@ function CodeViewerWithLines({ language, code, scrollToLine }: { language: strin
 
   return (
     <div ref={containerRef}>
-      <SyntaxHighlighter
+      <CodeBlockWithCopy
         language={language}
-        style={vscDarkPlus}
+        code={code}
+        style={codeStyle}
         showLineNumbers
         lineNumberStyle={{ opacity: 0.5, userSelect: 'none', minWidth: '3.5em' }}
-        customStyle={{ margin: 0 }}
-      >
-        {code}
-      </SyntaxHighlighter>
+      />
     </div>
   )
 }

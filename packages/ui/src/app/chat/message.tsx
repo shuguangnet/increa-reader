@@ -3,10 +3,11 @@ import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { useExternalLinks } from '@/hooks/use-external-links'
+import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
 import type { Message as MessageType } from '@/types/chat'
 
@@ -54,6 +55,8 @@ export const Message = ({ role, content, isStreaming, toolCalls }: MessageType) 
         : ''
   const bgColor = role === 'error' ? 'bg-red-50 dark:bg-red-950/30 border-l-4 border-red-500' : ''
   const markdownRef = useExternalLinks()
+  const { isDark } = useTheme()
+  const codeStyle = isDark ? oneDark : oneLight
 
   return (
     <div className={cn('py-2 px-4 font-mono text-sm', textColor, bgColor)}>
@@ -132,7 +135,7 @@ export const Message = ({ role, content, isStreaming, toolCalls }: MessageType) 
                         <CodeBlockWithCopy
                           language={match[1]}
                           code={String(children).replace(/\n$/, '')}
-                          style={oneDark}
+                          style={codeStyle}
                           customStyle={{ fontSize: '0.8125rem' }}
                         />
                       )
