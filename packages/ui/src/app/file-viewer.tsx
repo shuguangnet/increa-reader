@@ -309,91 +309,99 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
 
     return (
       <div className="h-full flex">
-        <div className={`flex-1 min-w-0 relative ${panelOverlay ? 'hidden md:block' : ''}`}>
+        <div className={`flex-1 min-w-0 flex flex-col ${panelOverlay ? 'hidden md:flex' : ''}`}>
           {!isEditMode && (
-            <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBacklinksPanel(v => !v)
-                  setShowAiPanel(false)
-                  setShowVersionPanel(false)
-                  setShowExportPanel(false)
-                }}
-                className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
-                  showBacklinksPanel ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="链接关系"
-              >
-                <ArrowLeftRight size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowExportPanel(v => !v)
-                  setShowAiPanel(false)
-                  setShowVersionPanel(false)
-                  setShowBacklinksPanel(false)
-                }}
-                className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
-                  showExportPanel ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="导出/导入"
-              >
-                <Download size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAiPanel(v => !v)
-                  setShowVersionPanel(false)
-                  setShowExportPanel(false)
-                  setShowBacklinksPanel(false)
-                }}
-                className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
-                  showAiPanel ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="AI工具"
-              >
-                <Sparkles size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowVersionPanel(v => !v)
-                  setShowAiPanel(false)
-                  setShowExportPanel(false)
-                  setShowBacklinksPanel(false)
-                }}
-                className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
-                  showVersionPanel ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="版本历史"
-              >
-                <History size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  // 进入编辑模式：确保 store 中有文件数据，然后切换到编辑视图
-                  const key = `${repo}:${path}`
-                  const existing = useEditorStore.getState().editedFiles[key]
-                  if (!existing) {
-                    useEditorStore.getState().openFile(repo, path, preview.body)
-                  }
-                  setIsEditMode(true)
-                }}
-                className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
-                title="编辑"
-              >
-                <Pencil size={16} />
-              </button>
+            <div className="flex shrink-0 items-center gap-1 border-b bg-muted/30 px-3 py-1">
+              <span className="text-sm font-medium truncate max-w-48">{path.split('/').pop()}</span>
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBacklinksPanel(v => !v)
+                    setShowAiPanel(false)
+                    setShowVersionPanel(false)
+                    setShowExportPanel(false)
+                  }}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    showBacklinksPanel ? 'text-amber-600 dark:text-amber-400 bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                  }`}
+                  title="链接关系"
+                >
+                  <ArrowLeftRight size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExportPanel(v => !v)
+                    setShowAiPanel(false)
+                    setShowVersionPanel(false)
+                    setShowBacklinksPanel(false)
+                  }}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    showExportPanel ? 'text-emerald-600 dark:text-emerald-400 bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                  }`}
+                  title="导出/导入"
+                >
+                  <Download size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAiPanel(v => !v)
+                    setShowVersionPanel(false)
+                    setShowExportPanel(false)
+                    setShowBacklinksPanel(false)
+                  }}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    showAiPanel ? 'text-violet-600 dark:text-violet-400 bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                  }`}
+                  title="AI工具"
+                >
+                  <Sparkles size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVersionPanel(v => !v)
+                    setShowAiPanel(false)
+                    setShowExportPanel(false)
+                    setShowBacklinksPanel(false)
+                  }}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    showVersionPanel ? 'text-blue-600 dark:text-blue-400 bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                  }`}
+                  title="版本历史"
+                >
+                  <History size={16} />
+                </button>
+                <div className="mx-1 h-4 w-px bg-border" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    // 进入编辑模式：确保 store 中有文件数据，然后切换到编辑视图
+                    const key = `${repo}:${path}`
+                    const existing = useEditorStore.getState().editedFiles[key]
+                    if (!existing) {
+                      useEditorStore.getState().openFile(repo, path, preview.body)
+                    }
+                    setIsEditMode(true)
+                  }}
+                  className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  title="编辑"
+                >
+                  <Pencil size={14} />
+                  <span>编辑</span>
+                </button>
+              </div>
             </div>
           )}
           {isEditMode ? (
-            <MarkdownEditor repo={repo} path={path} initialContent={displayBody} onExitEdit={() => setIsEditMode(false)} />
+            <div className="flex-1 min-h-0">
+              <MarkdownEditor repo={repo} path={path} initialContent={displayBody} onExitEdit={() => setIsEditMode(false)} />
+            </div>
           ) : (
-            <MarkdownViewer
+            <div ref={scrollBodyRef} className="flex-1 min-h-0 overflow-auto scroll-body">
+              <MarkdownViewer
               body={displayBody}
               repoName={repo}
               filePath={path}
@@ -401,6 +409,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
               scrollY={getProgress(repo, path)?.scrollY}
               scrollToLine={scrollToLine}
             />
+            </div>
           )}
         </div>
         {showAiPanel && (
