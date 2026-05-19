@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Hash, Plus, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { showToast } from '@/app/toast'
@@ -18,6 +18,10 @@ export function TagsPanel() {
   const [newTag, setNewTag] = useState('')
   const [fileTags, setFileTags] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [highlightedSuggestion, setHighlightedSuggestion] = useState(-1)
+  const tagInputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
 
   const loadTags = useCallback(async () => {
     try {
@@ -46,6 +50,18 @@ export function TagsPanel() {
   useEffect(() => { loadTags() }, [loadTags])
   useEffect(() => { loadFileTags() }, [loadFileTags])
 
+  // Close suggestions dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showSuggestions && suggestionsRef.current && !suggestionsRef.current.contains(e.target as HTMLElement) && tagInputRef.current && !tagInputRef.current.contains(e.target as HTMLElement)) {
+        setShowSuggestions(false)
+        setHighlightedSuggestion(-1)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showSuggestions])
+
   const toggleExpand = async (tagName: string) => {
     if (expanded === tagName) { setExpanded(null); setTagFiles([]); return }
     setExpanded(tagName)
@@ -61,16 +77,19 @@ export function TagsPanel() {
     }
   }
 
-  const addTag = async () => {
-    if (!newTag.trim() || !repo || !path) return
+  const addTag = async (tagValue?: string) => {
+    const tagToAdd = (tagValue ?? newTag).trim()
+    if (!tagToAdd || !repo || !path) return
     try {
       await fetch('/api/tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_path: path, repo, tags: [newTag.trim()] }),
+        body: JSON.stringify({ file_path: path, repo, tags: [tagToAdd] }),
       })
-      showToast(`标签 "${newTag.trim()}" 已添加`, 'success')
+      showToast(`标签 "${tagToAdd}" 已添加`, 'success')
       setNewTag('')
+      setShowSuggestions(false)
+      setHighlightedSuggestion(-1)
       loadFileTags()
       loadTags()
     } catch {
@@ -93,6 +112,19 @@ export function TagsPanel() {
       showToast('移除标签失败', 'error')
     }
   }
+
+  // Compute tag suggestions: existing tags that match the input and are not already on this file
+  const suggestions = tags
+    .map(t => t.name)
+    .filter(name => {
+      if (!newTag.trim()) return false
+      const q = newTag.trim().toLowerCase()
+      if (!name.toLowerCase().includes(q)) return false
+      // Don't suggest tags already on this file
+      if (fileTags.includes(name)) return false
+      return true
+    })
+    .slice(0, 8)
 
   const navigateToFile = (fRepo: string, fPath: string) => {
     const clean = fPath.startsWith('/') ? fPath.slice(1) : fPath
@@ -118,15 +150,69 @@ export function TagsPanel() {
               </span>
             ))}
           </div>
-          <div className="flex gap-1">
-            <input
-              value={newTag}
-              onChange={e => setNewTag(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addTag()}
-              placeholder="添加标签..."
-              className="flex-1 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-xs outline-none focus:border-gray-400 dark:focus:border-gray-500"
-            />
-            <button onClick={addTag} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"><Plus className="size-3.5" /></button>
+          <div className="relative">
+            <div className="flex gap-1">
+              <input
+                ref={tagInputRef}
+                value={newTag}
+                onChange={e => {
+                  setNewTag(e.target.value)
+                  setShowSuggestions(true)
+                  setHighlightedSuggestion(-1)
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (highlightedSuggestion >= 0 && highlightedSuggestion < suggestions.length) {
+                      addTag(suggestions[highlightedSuggestion])
+                    } else {
+                      addTag()
+                    }
+                  }
+                  if (e.key === 'ArrowDown' && showSuggestions && suggestions.length > 0) {
+                    e.preventDefault()
+                    setHighlightedSuggestion(prev => Math.min(prev + 1, suggestions.length - 1))
+                  }
+                  if (e.key === 'ArrowUp' && showSuggestions && suggestions.length > 0) {
+                    e.preventDefault()
+                    setHighlightedSuggestion(prev => Math.max(prev - 1, 0))
+                  }
+                  if (e.key === 'Escape') {
+                    setShowSuggestions(false)
+                    setHighlightedSuggestion(-1)
+                  }
+                }}
+                onFocus={() => {
+                  if (newTag.trim()) setShowSuggestions(true)
+                }}
+                placeholder="添加标签..."
+                className="flex-1 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-xs outline-none focus:border-gray-400 dark:focus:border-gray-500"
+              />
+              <button onClick={() => addTag()} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"><Plus className="size-3.5" /></button>
+            </div>
+            {/* Tag autocomplete suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                ref={suggestionsRef}
+                className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-48 overflow-auto"
+              >
+                {suggestions.map((name, i) => (
+                  <button
+                    key={name}
+                    className={`w-full text-left px-2.5 py-1.5 text-xs flex items-center gap-1.5 transition-colors ${
+                      highlightedSuggestion === i
+                        ? 'bg-accent text-accent-foreground'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                    onClick={() => addTag(name)}
+                    onMouseEnter={() => setHighlightedSuggestion(i)}
+                  >
+                    <Hash className="size-3 text-muted-foreground" />
+                    <span>{name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

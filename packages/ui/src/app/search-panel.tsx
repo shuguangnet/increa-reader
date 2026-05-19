@@ -1,10 +1,11 @@
-import { Search, X } from 'lucide-react'
+import { RefreshCw, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { showToast } from '@/app/toast'
 import { fetchRepos, type RepoInfo } from './api'
 import { getFileIcon } from './file-tree'
 
@@ -42,12 +43,36 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   const [repoFilter, setRepoFilter] = useState<string | null>(null)
   const [repos, setRepos] = useState<RepoInfo[]>([])
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [rebuilding, setRebuilding] = useState(false)
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<number>(0)
   const resultsRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // Rebuild search index
+  const doSearchRef = useRef<((q: string) => Promise<void>) | null>(null)
+  const handleRebuild = useCallback(async () => {
+    setRebuilding(true)
+    try {
+      const res = await fetch('/api/search/rebuild', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        showToast(`搜索索引已重建（${data.total_files ?? 0} 个文件）`, 'success')
+        // Re-run search if there's a query
+        if (query.trim() && doSearchRef.current) {
+          doSearchRef.current(query)
+        }
+      } else {
+        showToast('重建搜索索引失败', 'error')
+      }
+    } catch {
+      showToast('重建搜索索引失败', 'error')
+    } finally {
+      setRebuilding(false)
+    }
+  }, [query])
 
   // Swipe-to-close for mobile
   const touchStartRef = useRef<{ startY: number; currentTranslateY: number; swiping: boolean }>({ startY: 0, currentTranslateY: 0, swiping: false })
@@ -93,6 +118,9 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
       setLoading(false)
     }
   }, [typeFilter, repoFilter])
+
+  // Keep ref in sync so rebuild can call it
+  doSearchRef.current = doSearch
 
   // Debounce search query changes
   useEffect(() => {
@@ -230,9 +258,14 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
             <h2 className="text-sm font-semibold flex items-center gap-2">
               <Search className="size-4" /> 搜索
             </h2>
-            <Button variant="ghost" size="icon-sm" onClick={onClose}>
-              <X className="size-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon-sm" onClick={handleRebuild} disabled={rebuilding} title="重建搜索索引">
+                <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button variant="ghost" size="icon-sm" onClick={onClose}>
+                <X className="size-4" />
+              </Button>
+            </div>
           </div>
 
           <div className="px-3 py-2 border-b space-y-2">
@@ -370,9 +403,14 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
           <h2 className="text-sm font-semibold flex items-center gap-2">
             <Search className="size-4" /> 全局搜索
           </h2>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <X className="size-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon-sm" onClick={handleRebuild} disabled={rebuilding} title="重建搜索索引">
+              <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+              <X className="size-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="p-3 border-b space-y-2">

@@ -191,3 +191,15 @@ def create_search_routes(app, workspace_config: WorkspaceConfig):
             body.query, body.repos, body.file_types, body.max_results
         )
         return {"results": results, "total": total}
+
+    @app.post("/api/search/rebuild")
+    async def rebuild_search_index():
+        """Rebuild the search index from scratch."""
+        from fastapi.responses import JSONResponse
+        search_index: SearchIndex = app.state.search_index
+        await search_index.rebuild(workspace_config)
+        total_files = sum(len(entries) for entries in search_index._index.values())
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Search index rebuilt successfully", "total_files": total_files},
+        )

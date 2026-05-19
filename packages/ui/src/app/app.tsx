@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
-import { Clock, FolderOpen, Keyboard, Network, Search, Star } from 'lucide-react'
+import { Clock, FolderOpen, Hash, Keyboard, Network, Search, Star } from 'lucide-react'
 import { VisibleContentProvider } from '../contexts/visible-content-context'
 import { useFavoritesStore } from '../stores/favorites-store'
 import { useRecentFilesStore } from '../stores/recent-files-store'
@@ -14,6 +14,9 @@ import { KnowledgeGraph } from './knowledge-graph'
 import { Layout } from './layout'
 import { TabbedViewer } from './tabs/tabbed-viewer'
 
+type TagInfo = { name: string; count: number }
+type TagFile = { repo: string; file_path: string; path?: string }
+
 function HomePage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -26,6 +29,44 @@ function HomePage() {
   const navigateToFile = (repo: string, path: string) => {
     navigate(`/views/${repo}/${path}`)
   }
+
+  const [tags, setTags] = useState<TagInfo[]>([])
+  const [expandedTag, setExpandedTag] = useState<string | null>(null)
+  const [tagFiles, setTagFiles] = useState<TagFile[]>([])
+  const [tagFilesLoading, setTagFilesLoading] = useState(false)
+
+  const loadTags = useCallback(async () => {
+    try {
+      const res = await fetch('/api/tags')
+      const data = await res.json()
+      setTags(data.tags ?? data.data ?? [])
+    } catch {
+      setTags([])
+    }
+  }, [])
+
+  const loadTagFiles = useCallback(async (tagName: string) => {
+    if (expandedTag === tagName) {
+      setExpandedTag(null)
+      setTagFiles([])
+      return
+    }
+    setExpandedTag(tagName)
+    setTagFilesLoading(true)
+    try {
+      const res = await fetch(`/api/tags/${encodeURIComponent(tagName)}`)
+      const data = await res.json()
+      setTagFiles(data.files ?? data.data ?? [])
+    } catch {
+      setTagFiles([])
+    } finally {
+      setTagFilesLoading(false)
+    }
+  }, [expandedTag])
+
+  useEffect(() => {
+    loadTags()
+  }, [loadTags])
 
   const sortedRecent = [...recentFiles].sort((a, b) => b.openedAt - a.openedAt).slice(0, 8)
   const sortedFavorites = [...favorites].sort((a, b) => b.addedAt - a.addedAt).slice(0, 8)
@@ -152,8 +193,60 @@ function HomePage() {
           </div>
         )}
 
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <Hash className="size-4 text-orange-500" />
+              <h2 className="text-sm font-semibold">标签</h2>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {tags.map(tag => (
+                <button
+                  key={tag.name}
+                  onClick={() => loadTagFiles(tag.name)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    expandedTag === tag.name
+                      ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                      : 'bg-muted hover:bg-accent text-muted-foreground'
+                  }`}
+                >
+                  <Hash className="size-3" />
+                  {tag.name}
+                  <span className="opacity-60">{tag.count}</span>
+                </button>
+              ))}
+            </div>
+            {expandedTag && (
+              <div className="space-y-1">
+                {tagFilesLoading && (
+                  <div className="text-xs text-muted-foreground px-1">加载中...</div>
+                )}
+                {!tagFilesLoading && tagFiles.length === 0 && (
+                  <div className="text-xs text-muted-foreground px-1">暂无文件</div>
+                )}
+                {tagFiles.slice(0, 8).map((f, i) => (
+                  <button
+                    key={`${f.repo}-${f.file_path}-${i}`}
+                    onClick={() => navigateToFile(f.repo, f.file_path)}
+                    className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-left"
+                  >
+                    {getFileIcon(f.file_path.split('/').pop() || f.file_path)}
+                    <span className="text-sm truncate">{f.repo}/{f.file_path}</span>
+                  </button>
+                ))}
+                {tagFiles.length > 8 && (
+                  <div className="text-xs text-muted-foreground px-3 py-1">
+                    还有 {tagFiles.length - 8} 个文件...
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Empty State */}
-        {sortedRecent.length === 0 && sortedFavorites.length === 0 && (
+        {sortedRecent.length === 0 && sortedFavorites.length === 0 && tags.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <FolderOpen className="size-12 mb-3 opacity-30" />
             <p className="text-sm mb-1">还没有打开过文件</p>

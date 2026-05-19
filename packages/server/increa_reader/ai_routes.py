@@ -78,7 +78,19 @@ async def _read_file_content(repo_root: str, path: str) -> str:
 
 
 async def _call_claude(prompt: str, max_tokens: int = 1024) -> str:
-    """Call Claude API and return the text response."""
+    """调用 AI API 并返回文本响应（根据 AI_PROVIDER 自动选择 Anthropic 或 OpenAI）"""
+    from .workspace import get_ai_provider, get_openai_config
+
+    provider = get_ai_provider()
+
+    if provider == "openai":
+        return await _call_openai(prompt, max_tokens)
+    else:
+        return await _call_anthropic(prompt, max_tokens)
+
+
+async def _call_anthropic(prompt: str, max_tokens: int = 1024) -> str:
+    """调用 Anthropic Claude API 并返回文本响应"""
     env = build_sdk_env()
     api_key = env.get("ANTHROPIC_API_KEY", "")
     if not api_key:
@@ -114,6 +126,48 @@ async def _call_claude(prompt: str, max_tokens: int = 1024) -> str:
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Claude API call failed: {exc}")
+
+
+async def _call_openai(prompt: str, max_tokens: int = 1024) -> str:
+    """调用 OpenAI API 并返回文本响应（使用 httpx 直接请求）"""
+    from .workspace import get_openai_config
+
+    config = get_openai_config()
+    api_key = config.get("api_key", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured")
+
+    base_url = config["base_url"].rstrip("/")
+    model = config["model"]
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{base_url}/chat/completions",
+                headers=headers,
+                json=body,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"OpenAI API error: {exc.response.status_code}",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"OpenAI API call failed: {exc}")
 
 
 def _collect_text_files(repo_root: str, limit: int = 100) -> List[str]:

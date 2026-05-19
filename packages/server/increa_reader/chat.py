@@ -1,5 +1,6 @@
 """
 Chat API endpoints with streaming support
+支持 Anthropic Claude 和 OpenAI 两种 AI provider
 """
 
 import asyncio
@@ -10,7 +11,6 @@ import time
 import uuid
 from pathlib import Path
 
-from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, create_sdk_mcp_server
 from fastapi import HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
@@ -29,7 +29,25 @@ from .frontend_tools import (
     complete_tool_call,
     frontend_tool_queue,
 )
-from .workspace import build_sdk_env, load_api_settings
+from .workspace import build_sdk_env, get_ai_provider, get_openai_config, load_api_settings
+
+# 尝试导入 claude-agent-sdk（OpenAI 模式下不需要）
+_try_sdk = True
+try:
+    from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, create_sdk_mcp_server
+except ImportError:
+    _try_sdk = False
+    ClaudeAgentOptions = None
+    ClaudeSDKClient = None
+    create_sdk_mcp_server = None
+
+# 尝试导入 openai 包（Anthropic 模式下不需要）
+_try_openai = True
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    _try_openai = False
+    AsyncOpenAI = None
 
 # Debug logging flag
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
@@ -41,6 +59,8 @@ session_lock = asyncio.Lock()
 
 async def cleanup_active_sessions():
     """Cleanup all active sessions on shutdown"""
+    if not _try_sdk:
+        return
     async with session_lock:
         for session_id, client in list(active_sessions.items()):
             try:
@@ -271,7 +291,163 @@ def create_chat_routes(app, workspace_config: WorkspaceConfig):
 
     @app.post("/api/chat/query")
     async def chat_query(request: ChatRequest):
-        """Handle chat queries with streaming response"""
+        """Handle chat queries with streaming response (支持 Anthropic 和 OpenAI)"""
+        provider = get_ai_provider()
+
+        if provider == "openai":
+            return await _chat_query_openai(request, app, workspace_config)
+        else:
+            return await _chat_query_anthropic(request, app, workspace_config)
+
+    async def _chat_query_openai(request, app, workspace_config):
+        """使用 OpenAI API 处理聊天请求（流式 SSE 响应）"""
+        if not _try_openai or AsyncOpenAI is None:
+            # openai 包未安装，回退到 Anthropic
+            print("⚠️  openai 包未安装，尝试回退到 Anthropic provider")
+            if not _try_sdk:
+                return JSONResponse(
+                    content={"error": "Neither openai nor claude-agent-sdk is available"},
+                    status_code=503,
+                )
+            return await _chat_query_anthropic(request, app, workspace_config)
+
+        config = get_openai_config()
+        api_key = config.get("api_key", "")
+        if not api_key:
+            return JSONResponse(
+                content={"error": "OPENAI_API_KEY not configured"},
+                status_code=503,
+            )
+
+        if DEBUG:
+            print("\n" + "=" * 80)
+            print(f"📥 [CHAT REQUEST - OPENAI] {request.prompt[:100]}...")
+            print(f"  SessionId: {request.sessionId}")
+            print(f"  Model: {config['model']}")
+            print("=" * 80 + "\n")
+
+        # 生成 SSE 格式的流式响应
+        current_session_id = request.sessionId
+        start_time = time.time()
+
+        async def generate_openai_response():
+            """使用 OpenAI API 生成流式响应"""
+            nonlocal current_session_id
+            try:
+                # 构建系统提示和工作区信息
+                repos_info = "\n".join(
+                    [f"  - {repo.name}: {repo.root}" for repo in workspace_config.repos]
+                )
+
+                system_prompt = (
+                    "你是一个智能阅读助手，帮助用户理解文档内容。"
+                    "你可以访问文件系统和 PDF 工具来查找信息。"
+                )
+
+                # 构建用户消息（加入上下文信息）
+                user_content = request.prompt
+                if request.context and (request.context.repo or request.context.path):
+                    context_info = []
+                    if request.context.repo:
+                        context_info.append(f"Repository: {request.context.repo}")
+                    if request.context.path:
+                        context_info.append(f"Current File: {request.context.path}")
+                    if request.context.pageNumber:
+                        context_info.append(f"Current Page: {request.context.pageNumber}")
+
+                    context_str = "\n".join(context_info)
+                    user_content = f"""[Workspace Configuration]
+Available Repositories:
+{repos_info}
+
+[Current Context]
+{context_str}
+
+User Question:
+{request.prompt}"""
+                else:
+                    user_content = f"""[Workspace Configuration]
+Available Repositories:
+{repos_info}
+
+User Question:
+{request.prompt}"""
+
+                # 发送系统初始化事件
+                yield f"data: {json.dumps({'type': 'system', 'subtype': 'init', 'session_id': current_session_id}, ensure_ascii=False)}\n\n"
+
+                # 创建 OpenAI 客户端并请求流式响应
+                client = AsyncOpenAI(
+                    api_key=api_key,
+                    base_url=config["base_url"],
+                )
+
+                stream = await client.chat.completions.create(
+                    model=config["model"],
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content},
+                    ],
+                    stream=True,
+                    stream_options={"include_usage": True},
+                )
+
+                # 收集完整响应用于计算 token 使用量
+                full_content = ""
+                input_tokens = 0
+                output_tokens = 0
+
+                async for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta:
+                        delta = chunk.choices[0].delta
+                        if delta.content:
+                            full_content += delta.content
+                            # 将 OpenAI 流式数据转换为前端期望的 SSE 格式
+                            # 模拟 Claude 的 content_block_delta 事件格式
+                            event_data = {
+                                "type": "stream_event",
+                                "event": {
+                                    "type": "content_block_delta",
+                                    "delta": {"type": "text_delta", "text": delta.content},
+                                },
+                            }
+                            yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+
+                    # 捕获 usage 信息
+                    if hasattr(chunk, "usage") and chunk.usage:
+                        input_tokens = getattr(chunk.usage, "prompt_tokens", 0) or 0
+                        output_tokens = getattr(chunk.usage, "completion_tokens", 0) or 0
+
+                # 发送助手消息完成事件
+                yield f"data: {json.dumps({'type': 'assistant', 'content': full_content}, ensure_ascii=False)}\n\n"
+
+                # 发送结果事件（模拟 Claude SDK 的 ResultMessage）
+                duration_ms = int((time.time() - start_time) * 1000)
+                yield f"data: {json.dumps({'type': 'result', 'session_id': current_session_id, 'duration_ms': duration_ms, 'usage': {'input_tokens': input_tokens, 'output_tokens': output_tokens}}, ensure_ascii=False)}\n\n"
+
+            except Exception as e:
+                print(f"❌ Error in OpenAI chat response: {e}")
+                import traceback
+                traceback.print_exc()
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(
+            generate_openai_response(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+
+    async def _chat_query_anthropic(request, app, workspace_config):
+        """使用 Anthropic Claude SDK 处理聊天请求（原始逻辑）"""
+        if not _try_sdk:
+            return JSONResponse(
+                content={"error": "claude-agent-sdk not available. Set AI_PROVIDER=openai to use OpenAI instead."},
+                status_code=503,
+            )
         if DEBUG:
             print("\n" + "=" * 80)
             print(f"📥 [CHAT REQUEST] {request.prompt[:100]}...")

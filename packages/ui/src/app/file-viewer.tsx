@@ -1,4 +1,4 @@
-import { Download, FileQuestion, History, Pencil, Sparkles, Table } from 'lucide-react'
+import { Code, Download, Eye, FileQuestion, History, Pencil, Sparkles, Table } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -403,11 +403,58 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
     )
   }
 
+  // For code files: show edit button and support edit mode
+  if (isEditMode && preview.type === 'code') {
+    const displayBody = editedContent ?? preview.body
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1 bg-muted/30">
+          <Code size={16} className="text-muted-foreground" />
+          <span className="text-sm font-medium">{path.split('/').pop()}</span>
+          <span className="text-xs text-muted-foreground truncate max-w-48">{preview.lang}</span>
+          <div className="ml-auto flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">编辑模式</span>
+            <button
+              type="button"
+              onClick={() => useEditorStore.getState().setEditMode(false)}
+              className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="预览模式"
+            >
+              <Eye size={15} />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0">
+          <textarea
+            value={displayBody}
+            onChange={(e) => useEditorStore.getState().updateContent(repo, path, e.target.value)}
+            className="h-full w-full resize-none bg-background p-3 font-mono text-sm leading-[1.5] outline-none"
+            spellCheck={false}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div ref={scrollBodyRef} className="h-full overflow-auto scroll-body">
       <SelectionToolbar containerRef={scrollBodyRef} />
 
+      {/* Edit button for code files */}
       {preview.type === 'code' && (
+        <div className="absolute top-2 right-2 z-10">
+          <button
+            type="button"
+            onClick={() => openFile(repo, path, preview.body)}
+            className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
+            title="编辑"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
+      )}
+
+      {preview.type === 'code' && !isEditMode && (
         <CodeViewerWithLines language={preview.lang} code={preview.body} scrollToLine={scrollToLine} />
       )}
 

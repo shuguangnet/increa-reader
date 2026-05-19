@@ -46,6 +46,23 @@ def load_api_settings() -> dict:
     return load_raw_config().get("api_settings", {})
 
 
+def get_ai_provider() -> str:
+    """确定当前 AI provider: 'anthropic' 或 'openai'
+
+    优先级:
+    1. 环境变量 AI_PROVIDER
+    2. 如果有 ANTHROPIC_API_KEY 则默认 anthropic
+    3. 否则默认 openai
+    """
+    explicit = os.getenv("AI_PROVIDER", "").lower()
+    if explicit in ("anthropic", "openai"):
+        return explicit
+    # 自动检测：有 Anthropic key 则用 anthropic，否则 openai
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return "anthropic"
+    return "openai"
+
+
 def build_sdk_env() -> dict[str, str]:
     """Build env dict for Claude SDK, filtering out None values"""
     api_settings = load_api_settings()
@@ -59,6 +76,31 @@ def build_sdk_env() -> dict[str, str]:
             or os.getenv("ANTHROPIC_API_KEY", ""),
         }.items()
         if v is not None
+    }
+
+
+def get_openai_config() -> dict[str, str]:
+    """获取 OpenAI API 配置（环境变量优先于 config.json）
+
+    返回:
+        dict: 包含 api_key, base_url, model 的配置字典
+    """
+    api_settings = load_api_settings()
+    return {
+        "api_key": (
+            api_settings.get("openai_api_key")
+            or os.getenv("OPENAI_API_KEY", "")
+        ),
+        "base_url": (
+            api_settings.get("openai_base_url")
+            or os.getenv("OPENAI_BASE_URL")
+            or "https://api.openai.com/v1"
+        ),
+        "model": (
+            api_settings.get("openai_model")
+            or os.getenv("OPENAI_MODEL")
+            or "gpt-4o"
+        ),
     }
 
 
