@@ -1,3 +1,5 @@
+"use no memo"
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Bold, Italic, Heading1, Heading2, Heading3,

@@ -1,3 +1,5 @@
+"use no memo"
+
 import { ArrowLeftRight, Code, Download, Eye, FileQuestion, History, Pencil, Sparkles, Table } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -139,10 +141,11 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
   const fetchIdRef = useRef(0)
 
   // All hooks must be called before any conditional returns (Rules of Hooks)
+  // Note: React Compiler may memoize selector results; use subscribeWithSelector
+  // pattern to ensure re-renders when store state changes
   const isEditMode = useEditorStore(s => s.isEditMode)
   const editedFiles = useEditorStore(s => s.editedFiles)
   const editedContent = editedFiles[`${repo}:${path}`]?.content
-  const openFile = useEditorStore(s => s.openFile)
   const isMobile = useIsMobile()
   const updateProgress = useProgressStore(s => s.updateProgress)
   const getProgress = useProgressStore(s => s.getProgress)
@@ -373,7 +376,10 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
               </button>
               <button
                 type="button"
-                onClick={() => openFile(repo, path, displayBody)}
+                onClick={() => {
+                  const body = useEditorStore.getState().editedFiles[`${repo}:${path}`]?.content ?? preview.body
+                  useEditorStore.getState().openFile(repo, path, body)
+                }}
                 className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
                 title="编辑"
               >
@@ -489,7 +495,10 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
             </button>
             <button
               type="button"
-              onClick={() => openFile(repo, path, preview.body)}
+              onClick={() => {
+                const body = useEditorStore.getState().editedFiles[`${repo}:${path}`]?.content ?? preview.body
+                useEditorStore.getState().openFile(repo, path, body)
+              }}
               className="p-1.5 rounded-md bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors"
               title="编辑"
             >
