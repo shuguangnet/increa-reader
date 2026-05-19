@@ -1,5 +1,6 @@
 import { Calendar, Clock, FolderOpen, Monitor, Moon, Search, Settings, Star, Sun, Tag, X } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +28,7 @@ export function LeftPanel() {
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const isFiltering = searchQuery !== deferredSearchQuery
   const searchStatusText = getLeftPanelSearchStatus(deferredSearchQuery, isFiltering)
+  const navigate = useNavigate()
 
   const loadRepos = useCallback(() => {
     fetchRepos()
@@ -153,15 +155,15 @@ export function LeftPanel() {
             <CalendarView
               repoName={repos[0].name}
               onFileClick={(filePath) => {
-                // Navigate to the file using the app's navigation
-                window.location.hash = `/views/${repos[0].name}/${filePath}`
+                // Navigate to the file using React Router
+                navigate(`/views/${repos[0].name}/${filePath}`)
               }}
               onCreateFile={(date) => {
                 // Create a date-named markdown file
                 const fileName = `${date}.md`
                 createFile(repos[0].name, fileName, 'file', `# ${date}\n\n`)
                   .then(() => {
-                    window.location.hash = `/views/${repos[0].name}/${fileName}`
+                    navigate(`/views/${repos[0].name}/${fileName}`)
                   })
                   .catch(console.error)
               }}

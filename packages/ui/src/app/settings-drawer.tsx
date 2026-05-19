@@ -25,6 +25,13 @@ export function SettingsDrawer({ open, onOpenChange, onReposChanged }: SettingsD
   const [newPath, setNewPath] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Listen for programmatic open requests (e.g., 401 auth errors from apiFetch)
+  useEffect(() => {
+    const handler = () => onOpenChange(true)
+    window.addEventListener('increa:navigate-settings', handler)
+    return () => window.removeEventListener('increa:navigate-settings', handler)
+  }, [onOpenChange])
+
   useEffect(() => {
     if (open) {
       fetchConfigRepos().then(setRepos).catch(console.error)

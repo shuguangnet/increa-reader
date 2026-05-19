@@ -20,8 +20,8 @@ function showToastAsync(message: string, type: 'success' | 'error' | 'info') {
 export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
   return fetch(getApiBase() + url, init).then(response => {
     if (response.status === 401) {
-      // Redirect to settings page for API configuration
-      window.location.hash = '#/settings'
+      // Dispatch event to open settings drawer for API configuration
+      // (BrowserRouter doesn't support hash-based navigation)
       window.dispatchEvent(new CustomEvent('increa:navigate-settings'))
       showToastAsync('API 认证失败，请检查 API 配置', 'error')
       throw response
