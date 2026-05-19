@@ -43,9 +43,9 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
   const updateContent = useEditorStore(s => s.updateContent)
   const markSaved = useEditorStore(s => s.markSaved)
   const setEditMode = useEditorStore(s => s.setEditMode)
-  const openFile = useEditorStore(s => s.openFile)
   const editedFiles = useEditorStore(s => s.editedFiles)
-  const fileState = editedFiles[`${repo}:${path}`]
+  const fileKey = `${repo}:${path}`
+  const fileState = editedFiles[fileKey]
   const content = fileState?.content ?? initialContent
   const isMobile = useIsMobile()
 
@@ -62,9 +62,24 @@ export function MarkdownEditor({ repo, path, initialContent }: Props) {
   const syncScrollSource = useRef<'editor' | 'preview' | null>(null)
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // 当 fileState 不存在时，用 initialContent 初始化编辑状态
+  // 使用 ref 追踪是否已初始化，避免无限循环
+  const initializedRef = useRef(false)
+  const prevPathRef = useRef(`${repo}:${path}`)
+  // 切换文件时重置初始化标记
+  if (prevPathRef.current !== `${repo}:${path}`) {
+    prevPathRef.current = `${repo}:${path}`
+    initializedRef.current = false
+  }
   useEffect(() => {
-    if (!fileState) openFile(repo, path, initialContent)
-  }, [repo, path, initialContent, fileState, openFile])
+    if (!fileState && !initializedRef.current) {
+      initializedRef.current = true
+      useEditorStore.getState().openFile(repo, path, initialContent)
+    }
+    if (fileState) {
+      initializedRef.current = true
+    }
+  }, [repo, path, initialContent, fileState])
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => updateContent(repo, path, e.target.value),

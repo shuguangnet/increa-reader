@@ -161,6 +161,8 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
 
     if (isRouteChange) {
       setState({ preview: null, loading: true, error: null })
+      // 切换文件时重置编辑模式，避免残留的 isEditMode 导致新文件显示异常
+      useEditorStore.getState().setEditMode(false)
     }
 
     const id = ++fetchIdRef.current
