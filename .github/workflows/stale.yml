@@ -1,0 +1,30 @@
+name: Stale — Close inactive issues & PRs
+
+on:
+  schedule:
+    - cron: '30 2 * * *'  # 每天UTC 02:30
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 30
+          days-before-close: 7
+          stale-issue-message: |
+            此 issue 已 30 天无活动，标记为 stale。7 天内若无人回复将自动关闭。
+            如仍需跟踪，请添加 `pinned` 标签或留言说明。
+          stale-pr-message: |
+            此 PR 已 30 天无活动，标记为 stale。7 天内若无人更新将自动关闭。
+            如仍需合并，请留言说明或添加 `pinned` 标签。
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: pinned,bug,enhancement
+          exempt-pr-labels: pinned
+          remove-stale-when-updated: true

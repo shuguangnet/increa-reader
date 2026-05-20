@@ -1,0 +1,19 @@
+# CODEOWNERS — increa-reader
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# 默认审查者
+*       @shuguangnet
+
+# 前端
+packages/ui/   @shuguangnet
+
+# 后端
+packages/server/   @shuguangnet
+
+# MCP 服务
+packages/pdf-reader-mcp/   @shuguangnet
+
+# CI/CD
+.github/   @shuguangnet
+Dockerfile   @shuguangnet
+docker-compose*.yml   @shuguangnet
