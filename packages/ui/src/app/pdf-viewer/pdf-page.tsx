@@ -1,7 +1,6 @@
 import { FileText, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
@@ -9,6 +8,7 @@ import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
 
 import { PDFNotesLayer } from '@/app/notes/pdf-notes-layer'
+import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { cn } from '@/lib/utils'
 import { RegionSelect } from './region-select'
@@ -170,16 +170,12 @@ function MarkdownContent({ pageData, loading, error }: MarkdownContentProps) {
               return <MermaidBlock code={String(children).replace(/\n$/, '')} />
             }
             return match ? (
-              <SyntaxHighlighter
+              <CodeBlockWithCopy
                 language={match[1]}
-                /* @ts-expect-error SyntaxHighlighter style type mismatch */
+                code={String(children).replace(/\n$/, '')}
                 style={oneLight}
-                PreTag="div"
-                customStyle={{ margin: 0, borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                {...props}
-              >
-                {String(children).replace(/\n$/, '')}
-              </SyntaxHighlighter>
+                customStyle={{ fontSize: '0.875rem' }}
+              />
             ) : (
               <code
                 className={cn(

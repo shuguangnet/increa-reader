@@ -1,6 +1,5 @@
 import { Check, Copy } from 'lucide-react'
-import { useCallback, useState } from 'react'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 type CodeBlockWithCopyProps = {
@@ -10,6 +9,24 @@ type CodeBlockWithCopyProps = {
   customStyle?: React.CSSProperties
   showLineNumbers?: boolean
   lineNumberStyle?: React.CSSProperties
+}
+
+/**
+ * Lazy-loaded SyntaxHighlighter from react-syntax-highlighter (Prism).
+ * This is a large dependency (~200KB+ with all Prism languages);
+ * lazy-loading ensures the syntax-highlighter chunk is only fetched
+ * when a code block actually needs to be rendered.
+ */
+const LazySyntaxHighlighter = lazy(() =>
+  import('react-syntax-highlighter').then(m => ({ default: m.Prism })),
+)
+
+function SyntaxHighlighterFallback() {
+  return (
+    <div className="animate-pulse bg-muted rounded-md min-h-[3rem] flex items-center justify-center text-xs text-muted-foreground">
+      Loading syntax highlight…
+    </div>
+  )
 }
 
 export function CodeBlockWithCopy({
@@ -41,21 +58,23 @@ export function CodeBlockWithCopy({
 
   return (
     <div className="group/code relative">
-      <SyntaxHighlighter
-        language={language}
-        style={style}
-        PreTag="div"
-        customStyle={{
-          margin: 0,
-          borderRadius: '0.375rem',
-          fontSize: '0.875rem',
-          ...customStyle,
-        }}
-        showLineNumbers={showLineNumbers}
-        lineNumberStyle={lineNumberStyle}
-      >
-        {code}
-      </SyntaxHighlighter>
+      <Suspense fallback={<SyntaxHighlighterFallback />}>
+        <LazySyntaxHighlighter
+          language={language}
+          style={style}
+          PreTag="div"
+          customStyle={{
+            margin: 0,
+            borderRadius: '0.375rem',
+            fontSize: '0.875rem',
+            ...customStyle,
+          }}
+          showLineNumbers={showLineNumbers}
+          lineNumberStyle={lineNumberStyle}
+        >
+          {code}
+        </LazySyntaxHighlighter>
+      </Suspense>
       <button
         type="button"
         onClick={handleCopy}
