@@ -7,26 +7,60 @@ on:
     branches: [main]
 
 jobs:
-  quality:
+  build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: pnpm/action-setup@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 10
-      - run: pnpm install
-      - run: pnpm --filter @increa-reader/ui typecheck
-      - run: pnpm --filter @increa-reader/ui build
-      - run: pnpm --filter @increa-reader/ui test
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm --filter @increa-reader/ui typecheck
+
+      - name: Lint
+        run: pnpm --filter @increa-reader/ui lint
+
+      - name: Build UI
+        run: pnpm --filter @increa-reader/ui build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install -r packages/server/requirements.txt
-      - run: cd packages/server && python -c "import server; print('Backend imports OK')"
+
+      - name: Install Python dependencies (server)
+        run: |
+          cd packages/server
+          pip install -r requirements.txt
+
+      - name: Install Python dependencies (pdf-reader-mcp)
+        run: |
+          cd packages/pdf-reader-mcp
+          pip install -e ".[dev]"
+
+      - name: Run pdf-reader-mcp tests
+        run: pnpm --filter @increa/pdf-reader-mcp test
