@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build artifacts
+*.tsbuildinfo
+packages/ui/dist/
+!packages/ui/dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+*.egg
+
+# Test and coverage
+coverage/
+.nyc_output/
+htmlcov/
+.pytest_cache/
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# CI
+.github/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+
+# Documentation
+README.md
+LICENSE
+*.md
+!packages/*/README.md
+
+# Misc
+.DS_Store
+.env
+.env.*
+*.log
+temp/
+tmp/
