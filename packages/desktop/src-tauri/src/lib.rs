@@ -21,6 +21,12 @@ use tauri::Manager;
 /// This is the single source of truth for plugin registration, command handlers,
 /// and app setup. Desktop `main.rs` calls `.run()` on the returned builder;
 /// mobile builds call `.run()` via the Tauri mobile runtime.
+///
+/// The `mobile_entry_point` attribute is required for Tauri v2 iOS/Android builds —
+/// it tells the Tauri mobile runtime where to find the app entry point so that
+/// `tauri ios init` / `tauri android init` can generate the correct native
+/// bootstrapping code.
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn build_app() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
