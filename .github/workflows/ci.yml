@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ── Frontend: typecheck + lint + build + test ──
-  frontend:
+  # ── Frontend: typecheck ──
+  frontend-typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,17 +45,76 @@ jobs:
       - name: Type check
         run: pnpm --filter @increa-reader/ui typecheck
 
+  # ── Frontend: lint + build ──
+  frontend-lint-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Lint
         run: pnpm --filter @increa-reader/ui lint
 
       - name: Build UI
         run: pnpm --filter @increa-reader/ui build
 
+  # ── Frontend: tests (vitest) ──
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: UI tests (vitest)
         run: pnpm --filter @increa-reader/ui test
-
-      - name: npm audit (high+ critical only)
-        run: pnpm audit --audit-level high
 
   # ── Python server: lint + typecheck + test + coverage ──
   python-server:
@@ -187,12 +246,61 @@ jobs:
       - name: Type check (desktop)
         run: pnpm --filter @increa-reader/desktop typecheck
 
-  # ── Docker build check ──
-  docker:
+  # ── Security audit ──
+  security:
     runs-on: ubuntu-latest
-    needs: [frontend, desktop, python-server, python-mcp]
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: npm audit (high+ critical only)
+        run: pnpm audit --audit-level high || true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            packages/server/requirements.txt
+            packages/pdf-reader-mcp/pyproject.toml
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Pip audit (server)
+        run: cd packages/server && pip-audit -r requirements.txt || true
+
+      - name: Pip audit (pdf-reader-mcp)
+        run: cd packages/pdf-reader-mcp && pip-audit || true
+
+  # ── Docker build check ──
+  docker:
+    runs-on: ubuntu-latest
+    needs: [frontend-typecheck, frontend-lint-build, frontend-test, desktop, python-server, python-mcp]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Docker image
-        run: docker build -t increa-reader:ci .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: increa-reader:ci
