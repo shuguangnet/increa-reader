@@ -32,15 +32,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "deb",
-      "appimage",
-      "dmg",
-      "msi",
-      "nsis",
-      "ios",
-      "android"
-    ],
+    "targets": "all",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -53,10 +45,15 @@
     "iOS": {
       "frameworks": [],
       "minimumSystemVersion": "15.0",
-      "developmentTeam": ""
+      "developmentTeam": "",
+      "bundleName": "Increa Reader",
+      "bundleShortVersion": "1.0.0",
+      "version": "1.0.0"
     },
     "android": {
-      "minSdkVersion": 26
+      "minSdkVersion": 26,
+      "targetSdkVersion": 34,
+      "versionCode": 1
     }
   },
   "mobile": {
