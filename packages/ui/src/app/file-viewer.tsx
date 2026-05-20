@@ -21,7 +21,9 @@ import { ExportImportPanel } from './export-import-panel'
 import { HtmlViewer } from './html-viewer'
 import { ImageViewer } from './image-viewer'
 import { InlineTagsEditor } from './inline-tags-editor'
-import { MarkdownEditor } from './markdown/markdown-editor'
+const MarkdownEditor = React.lazy(() =>
+  import('./markdown/markdown-editor').then(m => ({ default: m.MarkdownEditor })),
+)
 import { MarkdownViewer } from './markdown/markdown-viewer'
 import { PDFViewer } from './pdf-viewer'
 import { SelectionToolbar } from './selection/selection-toolbar'
@@ -418,7 +420,9 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
           )}
           {isEditMode ? (
             <div className="flex-1 min-h-0">
-              <MarkdownEditor repo={repo} path={path} initialContent={displayBody} onExitEdit={() => setIsEditMode(false)} />
+              <React.Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">加载编辑器…</div>}>
+                <MarkdownEditor repo={repo} path={path} initialContent={displayBody} onExitEdit={() => setIsEditMode(false)} />
+              </React.Suspense>
             </div>
           ) : (
             <ErrorBoundary>

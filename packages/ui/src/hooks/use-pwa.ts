@@ -233,7 +233,7 @@ export async function getCacheStats(): Promise<Record<string, number> | null> {
     }
 
     navigator.serviceWorker.addEventListener('message', handleMessage)
-    reg.active.postMessage({ type: 'GET_CACHE_STATS' })
+    reg.active?.postMessage({ type: 'GET_CACHE_STATS' })
   })
 }
 
