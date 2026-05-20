@@ -54,7 +54,7 @@ jobs:
       - name: UI tests (vitest)
         run: pnpm --filter @increa-reader/ui test
 
-  # ── Python server: lint + test ──
+  # ── Python server: lint + typecheck + test + coverage ──
   python-server:
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +67,7 @@ jobs:
           cache: pip
           cache-dependency-path: |
             packages/server/requirements.txt
-            packages/pdf-reader-mcp/pyproject.toml
+            packages/server/pyproject.toml
 
       - name: Install Python dependencies (server)
         run: |
@@ -85,12 +85,29 @@ jobs:
           cd packages/server
           isort --check-only --diff .
 
-      - name: Run server tests (pytest)
+      - name: Type check — mypy (server)
         run: |
           cd packages/server
-          python -m pytest tests/ -v --tb=short
+          python -m mypy increa_reader/ --ignore-missing-imports || true
 
-  # ── Python MCP: lint + test ──
+      - name: Run server tests with coverage (pytest)
+        run: |
+          cd packages/server
+          python -m pytest tests/ -v --tb=short \
+            --cov=increa_reader \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=0
+
+      - name: Upload coverage report (server)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: packages/server/coverage.xml
+          retention-days: 7
+
+  # ── Python MCP: lint + test + coverage ──
   python-mcp:
     runs-on: ubuntu-latest
     steps:
@@ -113,8 +130,22 @@ jobs:
           cd packages/pdf-reader-mcp
           ruff check .
 
-      - name: Run pdf-reader-mcp tests
-        run: pnpm --filter @increa/pdf-reader-mcp test
+      - name: Run pdf-reader-mcp tests with coverage (pytest)
+        run: |
+          cd packages/pdf-reader-mcp
+          python -m pytest tests/ -v \
+            --cov=pdf_reader_server \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=0
+
+      - name: Upload coverage report (mcp)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-coverage
+          path: packages/pdf-reader-mcp/coverage.xml
+          retention-days: 7
 
   # ── Docker build check ──
   docker:
