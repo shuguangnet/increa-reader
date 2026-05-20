@@ -20,6 +20,7 @@ jobs:
       - run: pnpm install
       - run: pnpm --filter @increa-reader/ui typecheck
       - run: pnpm --filter @increa-reader/ui build
+      - run: pnpm --filter @increa-reader/ui test
   backend:
     runs-on: ubuntu-latest
     steps:
