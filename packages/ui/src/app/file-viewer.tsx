@@ -1,7 +1,7 @@
 "use no memo"
 
 import { AlertTriangle, ArrowLeftRight, Code, Download, Eye, FileQuestion, History, Pencil, RefreshCw, Sparkles, Table } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { ErrorBoundary } from '@/components/error-boundary'
@@ -17,7 +17,6 @@ import type { BoardFile } from '@/types/board'
 import { fetchPreview, saveFile } from './api'
 import { AiToolsPanel } from './ai-tools-panel'
 import { BacklinksPanel } from './backlinks-panel'
-import { BoardViewer } from './board-viewer'
 import { ExportImportPanel } from './export-import-panel'
 import { HtmlViewer } from './html-viewer'
 import { ImageViewer } from './image-viewer'
@@ -28,6 +27,10 @@ import { PDFViewer } from './pdf-viewer'
 import { SelectionToolbar } from './selection/selection-toolbar'
 import { TableView, parseCSV } from './table-view'
 import { VersionHistoryPanel } from './version-history-panel'
+
+const BoardViewer = React.lazy(() =>
+  import('./board-viewer/board-viewer').then(m => ({ default: m.BoardViewer })),
+)
 
 type PreviewData =
   | { type: 'markdown'; body: string }
@@ -562,7 +565,9 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
       )}
 
       {preview.type === 'board' && (
-        <BoardViewer repo={repo} filePath={preview.path} data={preview.data} />
+        <React.Suspense fallback={null}>
+          <BoardViewer repo={repo} filePath={preview.path} data={preview.data} />
+        </React.Suspense>
       )}
 
       {preview.type === 'table' && (() => {

@@ -55,6 +55,8 @@ export default defineConfig({
           if (id.includes('node_modules/prism-')) return 'syntax-highlighter'
           // Icons: lucide-react is huge (44MB unminified) — keep it separate
           if (id.includes('node_modules/lucide-react') || id.includes('node_modules/lucide-static')) return 'icons'
+          // Creative coding: p5.js is large (~2.6MB) — keep it separate
+          if (id.includes('node_modules/p5')) return 'p5'
           // UI primitives: radix-ui components
           if (id.includes('node_modules/@radix-ui/') || id.includes('node_modules/radix-ui')) return 'radix-vendor'
           if (id.includes('node_modules/')) {
