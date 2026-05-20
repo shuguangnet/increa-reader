@@ -2,6 +2,7 @@ import { apiFetch } from '@/app/api'
 import { ArrowLeftRight, ExternalLink, Loader2, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '@/components/empty-state'
 
 import { useIsMobile } from '@/hooks/use-mobile'
 import { getFileIcon } from './file-tree'
@@ -144,10 +145,7 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
         )}
 
         {!loading && !error && data && links.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <ArrowLeftRight size={32} className="mb-3 opacity-30" />
-            <p className="text-sm">{emptyText}</p>
-          </div>
+          <EmptyState icon={ArrowLeftRight} title={emptyText} />
         )}
 
         {!loading && !error && data && links.length > 0 && (

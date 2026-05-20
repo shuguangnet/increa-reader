@@ -9,6 +9,7 @@ import { useUIStore } from '../stores/ui-store'
 import { useIsMobile } from '../hooks/use-mobile'
 import { getFileIcon } from './file-tree'
 import { prefetch } from './app'
+import { EmptyState } from '@/components/empty-state'
 
 type TagInfo = { name: string; count: number }
 type TagFile = { repo: string; file_path: string; path?: string }
@@ -346,11 +347,7 @@ function HomePage() {
 
         {/* Empty State */}
         {sortedRecent.length === 0 && sortedFavorites.length === 0 && tags.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <FolderOpen className="size-12 mb-3 opacity-30" />
-            <p className="text-sm mb-1">还没有打开过文件</p>
-            <p className="text-xs opacity-60">从左侧面板选择文件开始阅读</p>
-          </div>
+          <EmptyState icon={FolderOpen} title="还没有打开过文件" description="从左侧面板选择文件开始阅读" className="py-16" />
         )}
 
         {/* Keyboard shortcut hint */}

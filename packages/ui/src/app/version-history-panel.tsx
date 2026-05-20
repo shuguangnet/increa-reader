@@ -3,6 +3,7 @@ import { GitCommit, History, Loader2, RotateCcw, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { showToast } from '@/app/toast'
+import { EmptyState } from '@/components/empty-state'
 
 type VersionHistoryPanelProps = {
   repo: string
@@ -234,7 +235,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
           )}
 
           {!loading && !error && !noGit && versions.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground">暂无提交记录</div>
+            <EmptyState icon={History} title="暂无提交记录" className="py-6" />
           )}
 
           {/* Diff action button */}
@@ -448,7 +449,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
         )}
 
         {!loading && !error && !noGit && versions.length === 0 && (
-          <div className="p-3 text-sm text-muted-foreground">暂无提交记录</div>
+          <EmptyState icon={History} title="暂无提交记录" className="py-4" />
         )}
 
         {/* Diff action button */}
