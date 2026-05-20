@@ -11,7 +11,7 @@
 //   5. Fonts & icons                → Cache First (immutable, long TTL)
 // ══════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v4'
+const CACHE_VERSION = 'v5'
 const CACHE_NAME = `increa-reader-${CACHE_VERSION}`
 const STATIC_CACHE = `increa-static-${CACHE_VERSION}`
 const API_CACHE = `increa-api-${CACHE_VERSION}`
@@ -27,8 +27,9 @@ const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon-192.svg',
-  '/icon-512.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon-180.png',
 ]
 
 // API paths that use Stale-While-Revalidate
@@ -357,8 +358,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Increa Reader', {
       body: data.body || '',
-      icon: '/icon-192.svg',
-      badge: '/icon-192.svg',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag: data.tag || 'default',
     }),
   )

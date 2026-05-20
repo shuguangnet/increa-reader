@@ -10,50 +10,71 @@
   "orientation": "any",
   "screenshots": [
     {
-      "src": "/screenshots/home.svg",
+      "src": "/screenshots/home.png",
       "sizes": "1280x720",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "form_factor": "wide",
       "label": "Increa Reader 首页"
     },
     {
-      "src": "/screenshots/mobile-home.svg",
+      "src": "/screenshots/ai-chat.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "AI 智能对话"
+    },
+    {
+      "src": "/screenshots/pdf-reader.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "PDF 阅读器"
+    },
+    {
+      "src": "/screenshots/mobile-home.png",
       "sizes": "390x844",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "form_factor": "narrow",
       "label": "Increa Reader 移动端首页"
     },
     {
-      "src": "/screenshots/mobile-file.svg",
+      "src": "/screenshots/mobile-file.png",
       "sizes": "390x844",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "form_factor": "narrow",
       "label": "文件查看"
+    },
+    {
+      "src": "/screenshots/mobile-ai.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "移动端 AI 对话"
     }
   ],
   "icons": [
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
@@ -66,14 +87,14 @@
       "short_name": "搜索",
       "description": "搜索文件内容",
       "url": "/?action=search",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "AI 对话",
       "short_name": "AI",
       "description": "与 AI 助手对话",
       "url": "/?action=ai-chat",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
   "share_target": {

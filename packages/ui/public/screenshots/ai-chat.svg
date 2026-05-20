@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#ffffff"/>
+  <rect x="0" y="0" width="1280" height="3" fill="#3b82f6"/>
+  <rect x="260" y="0" width="1" height="720" fill="#e2e8f0"/>
+  <rect x="960" y="0" width="1" height="720" fill="#e2e8f0"/>
+  <rect x="0" y="0" width="260" height="720" fill="#f8fafc"/>
+  <circle cx="80" cy="60" r="24" fill="#3b82f6" opacity="0.2"/>
+  <rect x="30" y="110" width="200" height="16" rx="4" fill="#e2e8f0"/>
+  <rect x="30" y="136" width="180" height="16" rx="4" fill="#e2e8f0"/>
+  <rect x="30" y="162" width="160" height="16" rx="4" fill="#818cf8" opacity="0.3"/>
+  <rect x="30" y="188" width="190" height="16" rx="4" fill="#e2e8f0"/>
+  <text x="300" y="42" font-family="system-ui,sans-serif" font-size="14" fill="#64748b">AI 对话</text>
+  <text x="980" y="42" font-family="system-ui,sans-serif" font-size="14" fill="#64748b"> Increa Reader</text>
+  <!-- User message -->
+  <rect x="500" y="80" width="440" height="72" rx="12" fill="#eff6ff"/>
+  <text x="520" y="108" font-family="system-ui,sans-serif" font-size="14" fill="#1e293b">这个项目的核心架构是什么？</text>
+  <text x="520" y="132" font-family="system-ui,sans-serif" font-size="12" fill="#94a3b8">用户</text>
+  <!-- AI response -->
+  <rect x="300" y="170" width="640" height="200" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="320" y="198" font-family="system-ui,sans-serif" font-size="14" fill="#1e293b" font-weight="600">Increa Reader 采用三层架构：</text>
+  <text x="320" y="226" font-family="system-ui,sans-serif" font-size="13" fill="#64748b">1. UI 层 — React 19 + Vite，Tailwind CSS v4</text>
+  <text x="320" y="250" font-family="system-ui,sans-serif" font-size="13" fill="#64748b">2. Server 层 — FastAPI + PyMuPDF，MCP 协议</text>
+  <text x="320" y="274" font-family="system-ui,sans-serif" font-size="13" fill="#64748b">3. Desktop 层 — Tauri v2 Rust shell</text>
+  <rect x="320" y="296" width="120" height="4" rx="2" fill="#3b82f6"/>
+  <rect x="448" y="296" width="80" height="4" rx="2" fill="#3b82f6" opacity="0.3"/>
+  <text x="320" y="340" font-family="system-ui,sans-serif" font-size="12" fill="#94a3b8">🤖 AI 助手</text>
+  <!-- Right panel: context info -->
+  <rect x="980" y="64" width="280" height="100" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="1000" y="90" font-family="system-ui,sans-serif" font-size="13" fill="#1e293b" font-weight="600">当前知识库</text>
+  <text x="1000" y="112" font-family="system-ui,sans-serif" font-size="12" fill="#64748b">📁 my-knowledge-base</text>
+  <text x="1000" y="132" font-family="system-ui,sans-serif" font-size="12" fill="#64748b">📄 247 文件 · 12 MB</text>
+  <!-- Input bar -->
+  <rect x="300" y="640" width="640" height="52" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="320" y="670" font-family="system-ui,sans-serif" font-size="14" fill="#94a3b8">输入你的问题...</text>
+  <rect x="880" y="648" width="48" height="36" rx="8" fill="#3b82f6"/>
+  <text x="894" y="671" font-family="system-ui,sans-serif" font-size="14" fill="#ffffff">▶</text>
+</svg>

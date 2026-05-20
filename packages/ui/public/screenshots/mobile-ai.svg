@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <rect width="390" height="844" fill="#ffffff"/>
+  <rect x="0" y="0" width="390" height="44" fill="#f8fafc"/>
+  <text x="175" y="33" font-family="system-ui,sans-serif" font-size="16" font-weight="bold" fill="#1e293b">AI 对话</text>
+  <!-- User message -->
+  <rect x="120" y="64" width="250" height="64" rx="12" fill="#eff6ff"/>
+  <text x="140" y="92" font-family="system-ui,sans-serif" font-size="14" fill="#1e293b">这个项目的核心架构</text>
+  <text x="140" y="112" font-family="system-ui,sans-serif" font-size="14" fill="#1e293b">是什么？</text>
+  <!-- AI response -->
+  <rect x="20" y="144" width="350" height="240" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="172" font-family="system-ui,sans-serif" font-size="14" fill="#1e293b" font-weight="600">Increa Reader 三层架构：</text>
+  <rect x="40" y="190" width="310" height="1" fill="#e2e8f0"/>
+  <text x="40" y="214" font-family="system-ui,sans-serif" font-size="13" fill="#64748b">1. React 19 + Vite 前端</text>
+  <text x="40" y="238" font-family="system-ui,sans-serif" font-size="13" fill="#64748b">2. FastAPI + PyMuPDF 后端</text>
+  <text x="40" y="262" font-family="system-ui,sans-serif" font-size="13" fill="#64748b">3. Tauri v2 桌面 shell</text>
+  <rect x="40" y="284" width="120" height="4" rx="2" fill="#3b82f6"/>
+  <rect x="168" y="284" width="80" height="4" rx="2" fill="#3b82f6" opacity="0.3"/>
+  <text x="40" y="340" font-family="system-ui,sans-serif" font-size="12" fill="#94a3b8">🤖 AI 助手 · 知识库模式</text>
+  <!-- User follow-up -->
+  <rect x="100" y="404" width="270" height="52" rx="12" fill="#eff6ff"/>
+  <text x="120" y="432" font-family="system-ui,sans-serif" font-size="14" fill="#1e293b">MCP 协议的作用是什么？</text>
+  <!-- AI response 2 -->
+  <rect x="20" y="472" width="350" height="180" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="500" font-family="system-ui,sans-serif" font-size="14" fill="#1e293b" font-weight="600">MCP (Model Context Protocol)</text>
+  <rect x="40" y="516" width="310" height="1" fill="#e2e8f0"/>
+  <text x="40" y="540" font-family="system-ui,sans-serif" font-size="13" fill="#64748b">让 AI 助手能够调用外部工具</text>
+  <text x="40" y="564" font-family="system-ui,sans-serif" font-size="13" fill="#64748b">如 PDF 阅读器、文件搜索等</text>
+  <text x="40" y="600" font-family="system-ui,sans-serif" font-size="12" fill="#94a3b8">🤖 AI 助手</text>
+  <!-- Input bar -->
+  <rect x="20" y="760" width="350" height="48" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="790" font-family="system-ui,sans-serif" font-size="14" fill="#94a3b8">输入你的问题...</text>
+  <rect x="322" y="768" width="36" height="32" rx="8" fill="#3b82f6"/>
+  <text x="334" y="790" font-family="system-ui,sans-serif" font-size="14" fill="#ffffff">↑</text>
+  <!-- Bottom nav -->
+  <rect x="0" y="800" width="390" height="44" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="825" font-family="system-ui,sans-serif" font-size="12" fill="#64748b">首页</text>
+  <text x="130" y="825" font-family="system-ui,sans-serif" font-size="12" fill="#64748b">搜索</text>
+  <text x="230" y="825" font-family="system-ui,sans-serif" font-size="12" fill="#64748b">文件</text>
+  <text x="320" y="825" font-family="system-ui,sans-serif" font-size="12" fill="#3b82f6" font-weight="600">AI</text>
+</svg>

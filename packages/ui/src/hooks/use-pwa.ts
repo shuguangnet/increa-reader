@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 type SWUpdateStatus = 'idle' | 'update-available' | 'updating'
 
 const APP_VERSION_KEY = 'app-version'
-const CACHE_VERSION = 'v4'
+const CACHE_VERSION = 'v5'
 
 /**
  * Get the current app version from the build or SW cache.
