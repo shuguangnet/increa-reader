@@ -4,6 +4,46 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 
+/**
+ * Extract the actual package name from a module ID, handling both
+ * npm flat and pnpm nested path structures.
+ *
+ * npm:   .../node_modules/lodash-es/...
+ * pnpm:  .../node_modules/.pnpm/lodash-es@4.17.21/node_modules/lodash-es/...
+ */
+function extractPackageName(id: string): string | null {
+  const nmIndex = id.lastIndexOf('node_modules/')
+  if (nmIndex === -1) return null
+
+  const afterNm = id.slice(nmIndex + 'node_modules/'.length)
+  // Skip .pnpm/ prefix used by pnpm: ".pnpm/pkg@ver/node_modules/actual-pkg/"
+  const afterPnpm = afterNm.startsWith('.pnpm/')
+    ? afterNm.slice('.pnpm/'.length)
+    : afterNm
+
+  // e.g. "lodash-es@4.17.21/node_modules/lodash-es/..." → take first segment
+  const firstSegment = afterPnpm.split('/')[0]
+
+  // Scoped package: strip version after @scope/pkg@version
+  // e.g. "@radix-ui+react-dialog@1.2.3" → extract "@radix-ui/react-dialog"
+  if (firstSegment.startsWith('@')) {
+    // pnpm encodes scoped packages as @scope+name@version
+    // Find the last @ that starts a version (after the scope/name)
+    const plusIndex = firstSegment.indexOf('+')
+    if (plusIndex !== -1) {
+      const scope = firstSegment.slice(0, plusIndex) // @radix-ui
+      const rest = firstSegment.slice(plusIndex + 1) // react-dialog@1.2.3 or react-dialog
+      const nameNoVersion = rest.split('@')[0] // react-dialog
+      return `${scope}/${nameNoVersion}`
+    }
+    return firstSegment
+  }
+
+  // Unscoped: strip version suffix
+  // e.g. "scheduler@0.27.0" → "scheduler"
+  return firstSegment.split('@')[0]
+}
+
 export default defineConfig({
   plugins: [
     react({
@@ -29,65 +69,81 @@ export default defineConfig({
       external: [/^@tauri-apps\/api\//],
       output: {
         manualChunks(id: string) {
+          if (!id.includes('node_modules/')) return
+
+          // ── Specific groupings (high priority) ──
+
           // Cytoscape graph library (used by mermaid architecture diagrams)
-          if (id.includes('node_modules/cytoscape')) return 'cytoscape'
-          if (id.includes('node_modules/cytoscape-fcose') || id.includes('node_modules/cytoscape-cose')) return 'cytoscape'
-          if (id.includes('node_modules/cose-base') || id.includes('node_modules/layout-base')) return 'cytoscape'
+          if (id.includes('/cytoscape')) return 'cytoscape'
+          if (id.includes('/cytoscape-fcose') || id.includes('/cytoscape-cose')) return 'cytoscape'
+          if (id.includes('/cose-base') || id.includes('/layout-base')) return 'cytoscape'
+
           // KaTeX math rendering
-          if (id.includes('node_modules/katex')) return 'katex'
+          if (id.includes('/katex')) return 'katex'
+
           // Mermaid diagram engine
-          if (id.includes('node_modules/mermaid')) return 'mermaid'
-          if (id.includes('@mermaid-js')) return 'mermaid'
-          if (id.includes('node_modules/dagre')) return 'mermaid-vendor'
-          if (id.includes('node_modules/khroma')) return 'mermaid-vendor'
-          if (id.includes('node_modules/non-layered-tidy')) return 'mermaid-vendor'
+          if (id.includes('/mermaid') || id.includes('@mermaid-js')) return 'mermaid'
+          if (id.includes('/dagre') || id.includes('/dagre-d3')) return 'mermaid-vendor'
+          if (id.includes('/khroma')) return 'mermaid-vendor'
+          if (id.includes('/non-layered-tidy')) return 'mermaid-vendor'
+
           // Lodash utilities
-          if (id.includes('node_modules/lodash')) return 'lodash'
-          // Markdown rendering pipeline: react-markdown, remark-*, rehype-*, unified, etc.
-          if (id.includes('node_modules/marked') || id.includes('node_modules/markdown')) return 'markdown'
-          if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark')) return 'markdown'
-          if (id.includes('node_modules/rehype')) return 'markdown'
-          if (id.includes('node_modules/unified') || id.includes('node_modules/unist')) return 'markdown'
-          if (id.includes('node_modules/bail') || id.includes('node_modules/trough')) return 'markdown'
-          if (id.includes('node_modules/is-plain-obj') || id.includes('node_modules/debounce')) return 'markdown'
+          if (id.includes('/lodash')) return 'lodash'
+
+          // Markdown rendering pipeline
+          if (id.includes('/marked') || id.includes('/markdown-it')) return 'markdown'
+          if (id.includes('/react-markdown') || id.includes('/remark')) return 'markdown'
+          if (id.includes('/rehype')) return 'markdown'
+          if (id.includes('/unified') || id.includes('/unist')) return 'markdown'
+          if (id.includes('/bail') || id.includes('/trough')) return 'markdown'
+          if (id.includes('/is-plain-obj') || id.includes('/debounce')) return 'markdown'
+
           // Code editing: CodeMirror packages
-          if (id.includes('node_modules/codemirror') || id.includes('@codemirror')) return 'codemirror'
-          if (id.includes('node_modules/@lezer')) return 'codemirror'
-          if (id.includes('node_modules/crelt') || id.includes('node_modules/style-mod')) return 'codemirror'
-          if (id.includes('node_modules/w3c-keynames')) return 'codemirror'
-          // Syntax highlighting: react-syntax-highlighter + prismjs languages
-          if (id.includes('node_modules/react-syntax-highlighter') || id.includes('node_modules/prismjs')) return 'syntax-highlighter'
-          if (id.includes('node_modules/refractor')) return 'syntax-highlighter'
-          if (id.includes('node_modules/prism-')) return 'syntax-highlighter'
-          // Icons: lucide-react is huge (44MB unminified) — keep it separate
-          if (id.includes('node_modules/lucide-react') || id.includes('node_modules/lucide-static')) return 'icons'
-          // Creative coding: p5.js is large (~2.6MB) — keep it separate
-          if (id.includes('node_modules/p5')) return 'p5'
-          // UI primitives: radix-ui components
-          if (id.includes('node_modules/@radix-ui/') || id.includes('node_modules/radix-ui')) return 'radix-vendor'
-          // Virtual scrolling
-          if (id.includes('@tanstack/react-virtual') || id.includes('@tanstack/virtual')) return 'tanstack-vendor'
-          // Remaining node_modules: auto-group by package for smaller main bundle
-          if (id.includes('node_modules/')) {
-            const parts = id.split('node_modules/')
-            if (parts.length > 1) {
-              const pkg = parts[1].split('/')[0]
-              // React ecosystem → react-vendor
-              if (pkg.startsWith('@')) {
-                const scoped = parts[1].split('/')[1]
-                if (['react', 'react-dom', 'react-router', 'scheduler', 'zustand', 'use-sync-external-store'].includes(pkg) ||
-                    ['react', 'react-dom', 'react-router', 'scheduler', 'zustand'].includes(scoped)) {
-                  return 'react-vendor'
-                }
-              }
-              // Other scoped packages: group by scope/package
-              if (pkg.startsWith('@')) {
-                return `${pkg}/${parts[1].split('/')[1]}`
-              }
-              // Unscoped packages: group by package name
-              return pkg
-            }
+          if (id.includes('/codemirror') || id.includes('@codemirror')) return 'codemirror'
+          if (id.includes('/@lezer') || id.includes('/lezer-')) return 'codemirror'
+          if (id.includes('/crelt') || id.includes('/style-mod')) return 'codemirror'
+          if (id.includes('/w3c-keynames')) return 'codemirror'
+
+          // Syntax highlighting: react-syntax-highlighter + prismjs
+          if (id.includes('/react-syntax-highlighter') || id.includes('/prismjs')) return 'syntax-highlighter'
+          if (id.includes('/refractor')) return 'syntax-highlighter'
+          if (id.includes('/prism-')) return 'syntax-highlighter'
+
+          // Icons: lucide-react is huge — keep it separate
+          if (id.includes('/lucide-react') || id.includes('/lucide-static')) return 'icons'
+
+          // Creative coding: p5.js is large — keep it separate
+          if (id.includes('/p5')) return 'p5'
+
+          // ── Fallback: auto-group remaining packages ──
+
+          const pkg = extractPackageName(id)
+          if (!pkg) return
+
+          // React ecosystem → react-vendor
+          if (['react', 'react-dom', 'react-router', 'scheduler', 'zustand', 'use-sync-external-store'].includes(pkg)) {
+            return 'react-vendor'
           }
+
+          // Radix UI → radix-vendor
+          if (pkg.startsWith('@radix-ui/') || pkg.startsWith('radix-ui')) {
+            return 'radix-vendor'
+          }
+
+          // Tanstack → tanstack-vendor
+          if (pkg.startsWith('@tanstack/')) {
+            return 'tanstack-vendor'
+          }
+
+          // Group other packages by name — rollup will merge small ones
+          // Avoid creating too many tiny chunks: only group known large ones
+          const largeUngrouped = ['clsx', 'tailwind-merge', 'class-variance-authority', 'react-resizable-panels']
+          if (largeUngrouped.includes(pkg)) {
+            return 'react-vendor'
+          }
+
+          // All other node_modules → react-vendor (keeps chunks manageable)
+          return 'react-vendor'
         },
       },
     },
