@@ -1,26 +1,31 @@
 /// <reference lib="webworker" />
 
 // ══════════════════════════════════════════════════════════════════════
-// Increa Reader — Service Worker v4
+// Increa Reader — Service Worker v5
 //
 // Cache strategies:
-//   1. Static assets (JS/CSS/images) → Cache First (fast load, bg revalidate)
-//   2. API data (tree, config, tags) → Stale-While-Revalidate (instant + fresh)
-//   3. API streaming (chat/query SSE) → Network Only (never cache)
-//   4. Navigation (HTML pages)      → Network First + offline fallback
-//   5. Fonts & icons                → Cache First (immutable, long TTL)
+//   1. Static assets (JS/CSS/images)   → Cache First (fast load, bg revalidate)
+//   2. API data (tree, config, tags)   → Stale-While-Revalidate (instant + fresh)
+//   3. API content (views, pdf text)    → Stale-While-Revalidate (instant + fresh)
+//   4. API streaming (chat/query SSE)  → Network Only (never cache)
+//   5. Navigation (HTML pages)         → Network First + offline fallback
+//   6. Fonts & icons                   → Cache First (immutable, long TTL)
+//   7. Screenshot/manifest assets      → Cache First (rarely change)
 // ══════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v5'
+const CACHE_VERSION = 'v6'
 const CACHE_NAME = `increa-reader-${CACHE_VERSION}`
 const STATIC_CACHE = `increa-static-${CACHE_VERSION}`
 const API_CACHE = `increa-api-${CACHE_VERSION}`
 const FONT_CACHE = `increa-fonts-${CACHE_VERSION}`
+const NAV_CACHE = `increa-nav-${CACHE_VERSION}`
 
 // ── Config ──────────────────────────────────────────────────────────
 const API_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
-const API_CACHE_MAX_ENTRIES = 100
-const STATIC_CACHE_MAX_ENTRIES = 300
+const NAV_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+const API_CACHE_MAX_ENTRIES = 150
+const STATIC_CACHE_MAX_ENTRIES = 400
+const NAV_CACHE_MAX_ENTRIES = 20
 
 // Pre-cache App Shell on install
 const APP_SHELL = [
@@ -38,12 +43,17 @@ const SWR_API_PATTERNS = [
   /\/api\/workspace\/repos$/,
   /\/api\/tags$/,
   /\/api\/config\/api-settings$/,
+  // Content endpoints: file views and PDF page text (small, cacheable)
+  /\/api\/views\//,
+  /\/api\/pdf\/page\//,
 ]
 
-// API paths that should NEVER be cached (streams, mutations)
+// API paths that should NEVER be cached (streams, mutations, large binary)
 const NEVER_CACHE_API_PATTERNS = [
-  /\/api\/chat\/query/,      // SSE streaming endpoint
-  /\/api\/pdf\/page-render/, // Large binary responses
+  /\/api\/chat\/query/,       // SSE streaming endpoint
+  /\/api\/pdf\/page-render/,  // Large binary responses (SVG/PNG)
+  /\/api\/preview/,           // Dynamic binary preview
+  /\/api\/temp-image\//,     // Temporary images — may be cleaned up server-side
 ]
 
 // Immutable asset patterns (font files, hashed Vite assets)
@@ -58,7 +68,17 @@ const IMMUTABLE_PATTERNS = [
 // ══════════════════════════════════════════════════════════════════════
 async function cacheFirst(request, cacheName = STATIC_CACHE) {
   const cached = await caches.match(request)
-  if (cached) return cached
+  if (cached) {
+    // Revalidate in background for non-font resources
+    if (cacheName !== FONT_CACHE) {
+      fetch(request).then((freshResponse) => {
+        if (freshResponse.ok) {
+          caches.open(cacheName).then((cache) => cache.put(request, freshResponse))
+        }
+      }).catch(() => {})
+    }
+    return cached
+  }
 
   try {
     const response = await fetch(request)
@@ -81,14 +101,25 @@ async function staleWhileRevalidate(request) {
   const cache = await caches.open(API_CACHE)
   const cached = await cache.match(request)
 
+  // Check if the cached entry is stale beyond TTL
+  let isExpired = false
+  if (cached) {
+    const timestamp = cached.headers.get('sw-cache-timestamp')
+    if (timestamp) {
+      const age = Date.now() - parseInt(timestamp, 10)
+      // If older than 2x TTL, mark as expired but still return it
+      isExpired = age > API_CACHE_TTL_MS * 2
+    }
+  }
+
   // Fetch fresh data in the background
   const fetchPromise = fetch(request)
     .then((response) => {
       if (response.ok) {
-        // Clone before putting — response can only be consumed once
         const responseToCache = response.clone()
         const headers = new Headers(responseToCache.headers)
         headers.set('sw-cache-timestamp', Date.now().toString())
+        headers.set('sw-cache-source', 'swr')
         responseToCache.blob().then((body) => {
           const cachedResponse = new Response(body, {
             status: responseToCache.status,
@@ -104,7 +135,6 @@ async function staleWhileRevalidate(request) {
 
   if (cached) {
     // Return stale immediately, let background fetch update cache
-    // (Don't await fetchPromise — it runs in background)
     fetchPromise.catch(() => {}) // swallow unhandled rejection
     return cached
   }
@@ -131,14 +161,37 @@ async function networkFirstNavigation(request) {
   try {
     const response = await fetch(request)
     if (response.ok) {
-      const cache = await caches.open(STATIC_CACHE)
-      cache.put(request, response.clone())
+      const cache = await caches.open(NAV_CACHE)
+      const headers = new Headers(response.headers)
+      headers.set('sw-cache-timestamp', Date.now().toString())
+      const body = await response.blob()
+      const cachedResponse = new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      })
+      cache.put(request, cachedResponse)
+      // Return original response (already consumed body, need to re-fetch)
+      return new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      })
     }
     return response
   } catch {
     // Try exact match first
     const cached = await caches.match(request)
     if (cached) return cached
+
+    // Check if the cached navigation is still within TTL
+    const navCached = await caches.match(request, { cacheName: NAV_CACHE })
+    if (navCached) {
+      const timestamp = navCached.headers.get('sw-cache-timestamp')
+      if (timestamp && (Date.now() - parseInt(timestamp, 10)) < NAV_CACHE_TTL_MS) {
+        return navCached
+      }
+    }
 
     // Fall back to cached index.html for SPA routing
     const indexHtml = await caches.match('/index.html')
@@ -185,6 +238,7 @@ async function pruneStaleApiEntries() {
   const cache = await caches.open(API_CACHE)
   const keys = await cache.keys()
   const now = Date.now()
+  let deleted = 0
 
   for (const request of keys) {
     const response = await cache.match(request)
@@ -192,12 +246,14 @@ async function pruneStaleApiEntries() {
     const timestamp = response.headers.get('sw-cache-timestamp')
     if (timestamp) {
       const age = now - parseInt(timestamp, 10)
-      if (age > API_CACHE_TTL_MS * 2) {
-        // Entry is more than 2x TTL — delete it
+      if (age > API_CACHE_TTL_MS * 6) {
+        // Entry is more than 6x TTL (30 min) — delete it
         await cache.delete(request)
+        deleted++
       }
     }
   }
+  return deleted
 }
 
 
@@ -218,6 +274,7 @@ const OFFLINE_PAGE = `<!DOCTYPE html>
     button { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem;
              border-radius: 8px; font-size: 1rem; cursor: pointer; }
     button:hover { background: #2563eb; }
+    .details { margin-top: 1rem; font-size: 0.85rem; color: #64748b; }
   </style>
 </head>
 <body>
@@ -225,7 +282,11 @@ const OFFLINE_PAGE = `<!DOCTYPE html>
     <h1>📡 无法连接到服务器</h1>
     <p>请检查你的网络连接，然后点击下方按钮重试。</p>
     <button onclick="window.location.reload()">重新加载</button>
+    <div class="details" id="details"></div>
   </div>
+  <script>
+    document.getElementById('details').textContent = '离线时间: ' + new Date().toLocaleString('zh-CN');
+  </script>
 </body>
 </html>`
 
@@ -236,10 +297,22 @@ const OFFLINE_PAGE = `<!DOCTYPE html>
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(APP_SHELL)),
+    caches.open(STATIC_CACHE)
+      .then((cache) => {
+        // Cache APP_SHELL resources — individual failures shouldn't block install
+        return Promise.allSettled(
+          APP_SHELL.map((url) =>
+            cache.add(url).catch((err) => {
+              console.warn(`[SW] Failed to cache ${url}:`, err)
+            })
+          )
+        )
+      })
+      .then(() => {
+        // Activate immediately without waiting for existing tabs to close
+        self.skipWaiting()
+      })
   )
-  // Activate immediately without waiting for existing tabs to close
-  self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
@@ -251,19 +324,42 @@ self.addEventListener('activate', (event) => {
             key !== CACHE_NAME &&
             key !== STATIC_CACHE &&
             key !== API_CACHE &&
-            key !== FONT_CACHE
+            key !== FONT_CACHE &&
+            key !== NAV_CACHE
           )
-          .map((key) => caches.delete(key)),
-      ),
-    ).then(() => pruneStaleApiEntries()),
+          .map((key) => caches.delete(key))
+      )
+    ).then(() => Promise.all([
+      pruneStaleApiEntries(),
+      pruneCache(STATIC_CACHE, STATIC_CACHE_MAX_ENTRIES),
+      pruneCache(API_CACHE, API_CACHE_MAX_ENTRIES),
+      pruneCache(NAV_CACHE, NAV_CACHE_MAX_ENTRIES),
+    ])).then(() => {
+      // Take control of all clients immediately
+      self.clients.claim()
+    })
   )
-  // Take control of all clients immediately
-  self.clients.claim()
 })
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting()
+  }
+  if (event.data && event.data.type === 'PRUNE_CACHES') {
+    event.waitUntil(
+      Promise.all([
+        pruneCache(STATIC_CACHE, STATIC_CACHE_MAX_ENTRIES),
+        pruneCache(API_CACHE, API_CACHE_MAX_ENTRIES),
+        pruneStaleApiEntries(),
+      ])
+    )
+  }
+  if (event.data && event.data.type === 'CLEAR_ALL_CACHES') {
+    event.waitUntil(
+      caches.keys().then((keys) =>
+        Promise.all(keys.map((key) => caches.delete(key)))
+      ).then(() => self.clients.claim())
+    )
   }
 })
 
@@ -282,6 +378,9 @@ self.addEventListener('fetch', (event) => {
 
   // Skip Vite HMR / dev server
   if (url.pathname.startsWith('/@') || url.pathname.includes('/__vite_hmr')) return
+
+  // Skip range requests (partial content, typically video/audio)
+  if (event.request.headers.get('range')) return
 
   // ── Route: Never-cache API (SSE streams, large binary) ──
   if (NEVER_CACHE_API_PATTERNS.some((p) => p.test(url.pathname))) {
@@ -324,19 +423,6 @@ self.addEventListener('fetch', (event) => {
 })
 
 
-// ── Periodic cache cleanup (via message trigger or idle) ──────────────
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'PRUNE_CACHES') {
-    event.waitUntil(
-      Promise.all([
-        pruneCache(STATIC_CACHE, STATIC_CACHE_MAX_ENTRIES),
-        pruneCache(API_CACHE, API_CACHE_MAX_ENTRIES),
-        pruneStaleApiEntries(),
-      ]),
-    )
-  }
-})
-
 // ── Background Sync ──────────────────────────────────────────────────
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-file-operations') {
@@ -361,6 +447,30 @@ self.addEventListener('push', (event) => {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       tag: data.tag || 'default',
-    }),
+      vibrate: data.vibrate || [100, 50, 100],
+      data: {
+        url: data.url || '/',
+      },
+    })
+  )
+})
+
+// ── Notification Click Handler ────────────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const urlToOpen = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Focus existing window if available
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      // Open new window
+      return self.clients.openWindow(urlToOpen)
+    })
   )
 })

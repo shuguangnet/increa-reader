@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 type SWUpdateStatus = 'idle' | 'update-available' | 'updating'
 
 const APP_VERSION_KEY = 'app-version'
-const CACHE_VERSION = 'v5'
+const CACHE_VERSION = 'v6'
 
 /**
  * Get the current app version from the build or SW cache.
@@ -122,6 +122,11 @@ export function registerServiceWorker() {
         reg.addEventListener('updatefound', () => {
           // no-op
         })
+
+        // Prune caches on registration
+        if (reg.active) {
+          reg.active.postMessage({ type: 'PRUNE_CACHES' })
+        }
       })
       .catch((err) => {
         console.warn('[PWA] Service Worker registration failed:', err)
@@ -138,6 +143,27 @@ export function isStandalonePWA(): boolean {
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as unknown as { standalone: boolean }).standalone === true
   )
+}
+
+/**
+ * Clear all service worker caches. Useful for troubleshooting
+ * or when a major version change requires a clean slate.
+ */
+export async function clearAllCaches(): Promise<void> {
+  if (typeof window === 'undefined') return
+  if (!('serviceWorker' in navigator)) return
+
+  const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+  if (reg?.active) {
+    reg.active.postMessage({ type: 'CLEAR_ALL_CACHES' })
+  }
+
+  // Also clear localStorage version to force re-cache
+  try {
+    localStorage.removeItem(APP_VERSION_KEY)
+  } catch {
+    // ignore
+  }
 }
 
 /**
