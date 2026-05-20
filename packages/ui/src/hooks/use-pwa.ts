@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 type SWUpdateStatus = 'idle' | 'update-available' | 'updating'
 
 const APP_VERSION_KEY = 'app-version'
+const CACHE_VERSION = 'v4'
 
 /**
  * Get the current app version from the build or SW cache.
@@ -60,6 +61,11 @@ export function useServiceWorkerUpdate() {
             })
           }, 60 * 60 * 1000)
 
+          // Trigger cache pruning on registration to keep caches tidy
+          if (reg.active) {
+            reg.active.postMessage({ type: 'PRUNE_CACHES' })
+          }
+
           return () => clearInterval(interval)
         })
         .catch((err) => {
@@ -82,11 +88,11 @@ export function useServiceWorkerUpdate() {
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
       // Update stored version
       try {
-        localStorage.setItem(APP_VERSION_KEY, 'v3')
+        localStorage.setItem(APP_VERSION_KEY, CACHE_VERSION)
       } catch {
         // ignore
       }
-      setAppVersion('v3')
+      setAppVersion(CACHE_VERSION)
       window.location.reload()
     }
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
@@ -147,7 +153,7 @@ export async function readShareData(): Promise<{
 } | null> {
   if (typeof window === 'undefined') return null
   try {
-    const cache = await caches.open('increa-reader-v3')
+    const cache = await caches.open(`increa-api-${CACHE_VERSION}`)
     const response = await cache.match('/__share_data__')
     if (!response) return null
     const data = await response.json()
