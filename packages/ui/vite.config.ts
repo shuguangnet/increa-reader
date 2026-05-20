@@ -37,10 +37,26 @@ export default defineConfig({
           if (id.includes('node_modules/khroma')) return 'mermaid-vendor'
           if (id.includes('node_modules/non-layered-tidy')) return 'mermaid-vendor'
           if (id.includes('node_modules/lodash')) return 'lodash'
+          // Markdown rendering pipeline: react-markdown, remark-*, rehype-*, unified, etc.
           if (id.includes('node_modules/marked') || id.includes('node_modules/markdown')) return 'markdown'
           if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark')) return 'markdown'
           if (id.includes('node_modules/rehype')) return 'markdown'
+          if (id.includes('node_modules/unified') || id.includes('node_modules/unist')) return 'markdown'
+          if (id.includes('node_modules/bail') || id.includes('node_modules/trough')) return 'markdown'
+          if (id.includes('node_modules/is-plain-obj') || id.includes('node_modules/debounce')) return 'markdown'
+          // Code editing: CodeMirror packages
           if (id.includes('node_modules/codemirror') || id.includes('@codemirror')) return 'codemirror'
+          if (id.includes('node_modules/@lezer')) return 'codemirror'
+          if (id.includes('node_modules/crelt') || id.includes('node_modules/style-mod')) return 'codemirror'
+          if (id.includes('node_modules/w3c-keynames')) return 'codemirror'
+          // Syntax highlighting: react-syntax-highlighter + prismjs languages
+          if (id.includes('node_modules/react-syntax-highlighter') || id.includes('node_modules/prismjs')) return 'syntax-highlighter'
+          if (id.includes('node_modules/refractor')) return 'syntax-highlighter'
+          if (id.includes('node_modules/prism-')) return 'syntax-highlighter'
+          // Icons: lucide-react is huge (44MB unminified) — keep it separate
+          if (id.includes('node_modules/lucide-react') || id.includes('node_modules/lucide-static')) return 'icons'
+          // UI primitives: radix-ui components
+          if (id.includes('node_modules/@radix-ui/') || id.includes('node_modules/radix-ui')) return 'radix-vendor'
           if (id.includes('node_modules/')) {
             // Further split react/vendor by first path segment
             const parts = id.split('node_modules/')
@@ -53,7 +69,6 @@ export default defineConfig({
                   return 'react-vendor'
                 }
               }
-              if (['lucide-react', 'lucide-static'].includes(pkg)) return 'icons'
             }
           }
         },

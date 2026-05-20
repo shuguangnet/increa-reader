@@ -35,3 +35,5 @@ src-tauri/gen/
 # Test fixtures
 packages/ui/fixture/
 packages/server/test_*.py
+find-unused-imports.mjs
+packages/ui/core
