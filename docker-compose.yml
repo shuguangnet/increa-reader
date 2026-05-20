@@ -1,0 +1,44 @@
+# Increa Reader — Docker Compose for Development
+#
+# Usage:
+#   cp .env.example .env   # then fill in your values
+#   docker compose up      # start all services
+#   docker compose up -d   # start in background
+#
+# The UI dev server runs on http://localhost:5173 (with HMR)
+# The API server runs on http://localhost:3000
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - INCREA_REPO=${INCREA_REPO:-/data/repos}
+      - PORT=3000
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-}
+      - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN:-}
+      - AI_PROVIDER=${AI_PROVIDER:-anthropic}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-}
+      - CHAT_LOGS_DIR=${CHAT_LOGS_DIR:-chat-logs}
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      # Mount repo directories for live file access
+      - ${INCREA_REPO:-/data/repos}:/data/repos:ro
+      # Persist chat logs
+      - chat-logs:/app/chat-logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/api/workspace/tree')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  chat-logs:

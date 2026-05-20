@@ -54,6 +54,9 @@ jobs:
       - name: UI tests (vitest)
         run: pnpm --filter @increa-reader/ui test
 
+      - name: npm audit (high+ critical only)
+        run: pnpm audit --audit-level high || true
+
   # ── Python server: lint + typecheck + test + coverage ──
   python-server:
     runs-on: ubuntu-latest

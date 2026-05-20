@@ -2,15 +2,17 @@
 node_modules/
 **/node_modules/
 
-# Build artifacts
+# Build artifacts — NOTE: we need packages/ui/dist in the final image so we
+# exclude the local dev artefact but keep the builder-stage copy.
 *.tsbuildinfo
 packages/ui/dist/
 !packages/ui/dist/
 
-# Python
+# Python caches
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 *.egg-info/
 .venv/
 venv/
@@ -46,10 +48,13 @@ LICENSE
 *.md
 !packages/*/README.md
 
-# Misc
+# Env and secrets
 .DS_Store
 .env
 .env.*
+!.env.example
+
+# Temp files
 *.log
 temp/
 tmp/

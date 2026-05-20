@@ -16,9 +16,14 @@ WORKDIR /app
 RUN groupadd --gid 1000 appuser && \
     useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
 
-# Install Python dependencies
+# Install Python dependencies — server
 COPY packages/server/requirements.txt ./packages/server/requirements.txt
 RUN pip install --no-cache-dir -r packages/server/requirements.txt
+
+# Install pdf-reader-mcp package
+COPY packages/pdf-reader-mcp/pyproject.toml ./packages/pdf-reader-mcp/pyproject.toml
+COPY packages/pdf-reader-mcp/pdf_reader_server.py ./packages/pdf-reader-mcp/pdf_reader_server.py
+RUN pip install --no-cache-dir ./packages/pdf-reader-mcp
 
 # Copy server code
 COPY packages/server/increa_reader/ ./packages/server/increa_reader/
