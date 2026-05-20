@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Incrementa Reader — iOS App Store Export Options -->
+    <!-- Used by: xcodebuild -exportArchive -exportOptionsPlist ExportOptions.plist -->
+
+    <!-- Distribution method: app-store, ad-hoc, enterprise, development -->
+    <key>method</key>
+    <string>app-store</string>
+
+    <!-- Team ID (replace with your actual team ID before building) -->
+    <key>teamID</key>
+    <string>DEVELOPMENT_TEAM_ID</string>
+
+    <!-- Upload symbols to App Store Connect for crash symbolication -->
+    <key>uploadSymbols</key>
+    <true/>
+
+    <!-- Bitcode is deprecated in Xcode 14+; disable for Tauri/Rust builds -->
+    <key>uploadBitcode</key>
+    <false/>
+
+    <!-- Automatically manage signing -->
+    <key>signingStyle</key>
+    <string>automatic</string>
+
+    <!-- App bundle identifier -->
+    <key>bundleIdentifier</key>
+    <string>com.increa.reader</string>
+</dict>
+</plist>
