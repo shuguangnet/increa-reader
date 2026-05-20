@@ -1,0 +1,39 @@
+# PR Labeler — 根据 PR 修改的文件自动添加标签
+# https://github.com/actions/labeler
+
+frontend:
+  - changed-files:
+    - any-glob-to-any-file: 'packages/ui/**'
+
+backend:
+  - changed-files:
+    - any-glob-to-any-file: 'packages/server/**'
+
+mcp:
+  - changed-files:
+    - any-glob-to-any-file: 'packages/pdf-reader-mcp/**'
+
+desktop:
+  - changed-files:
+    - any-glob-to-any-file: 'packages/desktop/**'
+
+ci-cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**'
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'pnpm-lock.yaml'
+      - 'packages/server/requirements.txt'
+      - 'packages/server/pyproject.toml'
+      - 'packages/pdf-reader-mcp/pyproject.toml'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**'

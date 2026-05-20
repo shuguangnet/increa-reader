@@ -1,0 +1,51 @@
+# Release Drafter 配置
+# https://github.com/release-drafter/release-drafter
+
+name-template: 'v$RESOLVED_VERSION 🌈'
+tag-template: 'v$RESOLVED_VERSION'
+version-resolver:
+  major:
+    labels: ['breaking', 'major']
+  minor:
+    labels: ['enhancement', 'feature']
+  patch:
+    labels: ['bug', 'fix', 'patch']
+  default: patch
+
+categories:
+  - title: '🚀 新功能'
+    labels: ['enhancement', 'feature']
+  - title: '🐛 Bug 修复'
+    labels: ['bug', 'fix']
+  - title: '⚡ 性能优化'
+    labels: ['performance']
+  - title: '♻️ 重构'
+    labels: ['refactor']
+  - title: '📝 文档'
+    labels: ['documentation']
+  - title: '🔧 构建/CI'
+    labels: ['ci-cd']
+  - title: '⬆️ 依赖更新'
+    labels: ['dependencies']
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+no-changes-template: '- 暂无变更'
+
+template: |
+  ## 变更内容
+
+  $CHANGES
+
+autolabeler:
+  - label: frontend
+    files: ['packages/ui/.*']
+  - label: backend
+    files: ['packages/server/.*']
+  - label: mcp
+    files: ['packages/pdf-reader-mcp/.*']
+  - label: ci-cd
+    files: ['.github/.*', 'Dockerfile', 'docker-compose.*']
+  - label: documentation
+    files: ['.*\.md$', 'docs/.*']
+  - label: dependencies
+    files: ['pnpm-lock.yaml', 'requirements.txt', 'pyproject.toml']
