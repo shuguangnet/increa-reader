@@ -24,6 +24,7 @@ use tauri::Manager;
 pub fn build_app() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(Mutex::new(PythonServer::new()))
         .invoke_handler(tauri::generate_handler![
             commands::start_server,

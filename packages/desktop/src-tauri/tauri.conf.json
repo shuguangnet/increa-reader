@@ -48,12 +48,30 @@
       "developmentTeam": "",
       "bundleName": "Increa Reader",
       "bundleShortVersion": "1.0.0",
-      "version": "1.0.0"
+      "version": "1",
+      "infoPlistEntries": {
+        "CFBundleLocalizations": ["zh-CN", "en"],
+        "UILaunchScreen": {
+          "UIColorName": "",
+          "UIImageName": ""
+        },
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
       "minSdkVersion": 26,
       "targetSdkVersion": 34,
-      "versionCode": 1
+      "versionCode": 1,
+      "versionName": "1.0.0",
+      "splitModulesEnabled": false
     }
   },
   "mobile": {
