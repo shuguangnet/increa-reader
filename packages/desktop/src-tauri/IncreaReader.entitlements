@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Increa Reader iOS Entitlements -->
+    <!-- Reference: https://developer.apple.com/documentation/bundleresources/entitlements -->
+
+    <!-- Network access: required for remote backend communication -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- Network server: local Python backend on desktop, not needed on iOS
+         but declared for future local-network discovery features -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <!-- File access: read documents from Files app / iCloud Drive -->
+    <key>com.apple.security.files.user-selected.read-only</key>
+    <true/>
+
+    <!-- Face ID: biometric authentication for protecting private repos -->
+    <!-- Usage description already in Info.plist NSFaceIDUsageDescription -->
+    <key>com.apple.developer.face-id</key>
+    <true/>
+
+    <!-- Push notifications (remote-notification UIBackgroundMode) -->
+    <key>aps-environment</key>
+    <string>development</string>
+
+    <!-- App Groups: shared container for future widget extensions -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.increa.reader</string>
+    </array>
+
+    <!-- Keychain access: secure credential storage for remote backend configs -->
+    <key>keychain-access-groups</key>
+    <array>
+        <string>$(AppIdentifierPrefix)com.increa.reader</string>
+    </array>
+</dict>
+</plist>

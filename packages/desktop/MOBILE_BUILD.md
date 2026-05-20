@@ -25,21 +25,23 @@ src-tauri/
 
 ## 构建 Bundle Targets 说明
 
-`tauri.conf.json` 中的 `bundle.targets` 明确指定了桌面端打包格式：
+`tauri.conf.json` 中的 `bundle.targets` 明确指定了所有平台的打包格式：
 
-| Target   | 平台    | 说明                |
-|----------|---------|---------------------|
-| `app`    | macOS   | .app 应用包         |
-| `dmg`    | macOS   | DMG 安装镜像        |
-| `nsis`   | Windows | NSIS 安装程序       |
-| `deb`    | Linux   | Debian/Ubuntu 包    |
-| `appimage`| Linux  | AppImage 便携包     |
-| `updater`| 全平台  | 增量更新元数据      |
+| Target     | 平台    | 说明                |
+|------------|---------|---------------------|
+| `app`      | macOS   | .app 应用包         |
+| `dmg`      | macOS   | DMG 安装镜像        |
+| `nsis`     | Windows | NSIS 安装程序       |
+| `deb`      | Linux   | Debian/Ubuntu 包    |
+| `appimage` | Linux   | AppImage 便携包     |
+| `updater`  | 全平台  | 增量更新元数据      |
+| `ios`      | iOS     | .ipa 应用包         |
+| `apk`      | Android | APK 安装包（调试用） |
+| `aab`      | Android | AAB 发布包（Play Store） |
 
-> ⚠️ iOS (.ipa) 和 Android (.apk/.aab) 不在 `bundle.targets` 中，
-> 需要通过 `tauri ios build` / `tauri android build` 单独构建。
-> 原因：移动端构建依赖本机 SDK（Xcode/Android Studio），
-> 无法在 CI 中跨平台构建。
+> ⚠️ 移动端构建依赖本机 SDK（Xcode / Android Studio），
+> 在没有对应 SDK 的机器上 `tauri build` 会自动跳过移动端 target。
+> 也可以通过 `tauri ios build` / `tauri android build` 单独构建。
 
 ## iOS 构建流程
 

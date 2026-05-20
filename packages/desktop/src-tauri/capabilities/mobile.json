@@ -43,7 +43,11 @@
     "http:allow-fetch-send",
     "http:allow-fetch-cancel",
     "core:window:allow-set-fullscreen",
-    "core:window:allow-is-fullscreen"
+    "core:window:allow-is-fullscreen",
+    "biometric:default",
+    "biometric:allow-authenticate",
+    "biometric:allow-status",
+    "biometric:allow-is-available"
   ],
   "platforms": ["iOS", "android"]
 }
