@@ -14,6 +14,7 @@ import { RepoPanel } from './repo-panel'
 import { SettingsDrawer } from './settings-drawer'
 import { TagsPanel } from './tags-panel'
 import { useUIStore } from '@/stores/ui-store'
+import { FileTreeSkeleton } from '@/components/skeleton'
 
 type LeftTab = 'files' | 'favorites' | 'recent' | 'tags' | 'calendar'
 
@@ -42,7 +43,7 @@ export function LeftPanel() {
   }, [loadRepos])
 
   if (loading) {
-    return <div className="p-4">加载中...</div>
+    return <FileTreeSkeleton />
   }
 
   const tabs: { key: LeftTab; label: string; icon: React.ReactNode }[] = [

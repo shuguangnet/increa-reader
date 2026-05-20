@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { AppSkeleton } from '@/components/skeleton'
 import { VisibleContentProvider } from '../contexts/visible-content-context'
 import { useFavoritesStore } from '../stores/favorites-store'
 import { useRecentFilesStore } from '../stores/recent-files-store'
@@ -69,7 +70,7 @@ function App() {
   return (
     <ErrorBoundary>
       <VisibleContentProvider>
-        <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm p-8">加载中...</div>}>
+        <Suspense fallback={<AppSkeleton />}>
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
