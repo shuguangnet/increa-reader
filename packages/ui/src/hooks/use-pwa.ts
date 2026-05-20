@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 type SWUpdateStatus = 'idle' | 'update-available' | 'updating'
 
 const APP_VERSION_KEY = 'app-version'
-const CACHE_VERSION = 'v7'
+const CACHE_VERSION = 'v8'
 
 /**
  * Get the current app version from the build or SW cache.
@@ -208,6 +208,33 @@ export function useConnectivity() {
   }, [])
 
   return { isOnline }
+}
+
+/**
+ * Request cache statistics from the service worker.
+ * Returns a promise that resolves with cache entry counts and storage quota info.
+ */
+export async function getCacheStats(): Promise<Record<string, number> | null> {
+  if (typeof window === 'undefined') return null
+  if (!('serviceWorker' in navigator)) return null
+
+  const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+  if (!reg?.active) return null
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(null), 3000)
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'CACHE_STATS') {
+        clearTimeout(timeout)
+        navigator.serviceWorker.removeEventListener('message', handleMessage)
+        resolve(event.data.stats)
+      }
+    }
+
+    navigator.serviceWorker.addEventListener('message', handleMessage)
+    reg.active.postMessage({ type: 'GET_CACHE_STATS' })
+  })
 }
 
 /**

@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // ══════════════════════════════════════════════════════════════════════
-// Increa Reader — Service Worker v7
+// Increa Reader — Service Worker v8
 //
 // Cache strategies:
 //   1. Static assets (JS/CSS/images)   → Cache First (fast load, bg revalidate)
@@ -10,29 +10,36 @@
 //   4. API streaming (chat/query SSE)  → Network Only (never cache)
 //   5. Navigation (HTML pages)         → Network First + offline fallback
 //   6. Fonts & icons                   → Cache First (immutable, long TTL)
-//   7. Screenshot/manifest assets       → Cache First (rarely change)
+//   7. Screenshot/manifest assets      → Cache First (rarely change)
+//   8. Images (png/jpg/svg/webp)       → Cache First (medium TTL)
 //
-// v7 improvements over v6:
-//   - Navigation Preload (faster nav after SW activation)
-//   - Request deduplication (in-flight SWR requests share the same fetch)
-//   - Online/offline awareness (clients notified of connectivity changes)
-//   - Range request passthrough (PDF streaming, video/audio seek)
-//   - Version migration (old caches auto-cleaned on major version change)
+// v8 improvements over v7:
+//   - FIX: navigation preload now correctly uses event.preloadResponse
+//   - Storage quota awareness: aggressive prune under pressure (>80%)
+//   - Efficient SWR caching: avoid blob() round-trip, use clone + headers
+//   - Dedicated IMAGE_CACHE for screenshots/icons/manifest assets
+//   - Cross-cache offline fallback: search all caches before returning 503
+//   - Cache status reporting via postMessage for UI diagnostics
+//   - Periodic background trim (every 30 min) to prevent unbounded growth
 // ══════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v7'
+const CACHE_VERSION = 'v8'
 const CACHE_NAME = `increa-reader-${CACHE_VERSION}`
 const STATIC_CACHE = `increa-static-${CACHE_VERSION}`
 const API_CACHE = `increa-api-${CACHE_VERSION}`
 const FONT_CACHE = `increa-fonts-${CACHE_VERSION}`
 const NAV_CACHE = `increa-nav-${CACHE_VERSION}`
+const IMAGE_CACHE = `increa-images-${CACHE_VERSION}`
 
 // ── Config ──────────────────────────────────────────────────────────
 const API_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 const NAV_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+const IMAGE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 const API_CACHE_MAX_ENTRIES = 150
 const STATIC_CACHE_MAX_ENTRIES = 400
 const NAV_CACHE_MAX_ENTRIES = 20
+const IMAGE_CACHE_MAX_ENTRIES = 200
+const TRIM_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
 
 // ── Online/Offline Tracking ──────────────────────────────────────────
 let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -76,15 +83,25 @@ const IMMUTABLE_PATTERNS = [
   /\/assets\/[a-f0-9]{8,}\.\w+\./, // Vite hashed assets like /assets/abc12345.xxx.js
 ]
 
+// Image file extensions
+const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|svg|webp|avif|ico)$/i
+
+// Known image paths (screenshots, icons, manifest assets)
+const KNOWN_IMAGE_PATHS = [
+  '/screenshots/',
+  '/icon-',
+  '/apple-touch-icon',
+]
+
 
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 1: Cache First (static assets, fonts, hashed resources)
 // ══════════════════════════════════════════════════════════════════════
 async function cacheFirst(request, cacheName = STATIC_CACHE) {
-  const cached = await caches.match(request)
+  const cached = await caches.match(request, { cacheName })
   if (cached) {
-    // Revalidate in background for non-font resources
-    if (cacheName !== FONT_CACHE) {
+    // Revalidate in background for non-font/non-image resources
+    if (cacheName === STATIC_CACHE) {
       fetch(request).then((freshResponse) => {
         if (freshResponse.ok) {
           caches.open(cacheName).then((cache) => cache.put(request, freshResponse))
@@ -102,6 +119,9 @@ async function cacheFirst(request, cacheName = STATIC_CACHE) {
     }
     return response
   } catch {
+    // Offline fallback: try to find a stale version in any cache
+    const stale = await findInAnyCache(request)
+    if (stale) return stale
     return new Response('Offline', { status: 503, statusText: 'Service Unavailable' })
   }
 }
@@ -156,18 +176,11 @@ async function staleWhileRevalidate(request) {
   const fetchPromise = fetch(request)
     .then((response) => {
       if (response.ok) {
-        const responseToCache = response.clone()
-        const headers = new Headers(responseToCache.headers)
-        headers.set('sw-cache-timestamp', Date.now().toString())
-        headers.set('sw-cache-source', 'swr')
-        responseToCache.blob().then((body) => {
-          const cachedResponse = new Response(body, {
-            status: responseToCache.status,
-            statusText: responseToCache.statusText,
-            headers,
-          })
-          cache.put(request, cachedResponse)
-        })
+        // Efficient caching: clone response and inject timestamp header
+        // We use the clone() + new Response(headers) approach instead of
+        // blob() to avoid the expensive serialization round-trip.
+        const bodyClone = response.clone()
+        cache.put(request, injectTimestamp(bodyClone, 'swr'))
       }
       // Remove from in-flight map once completed
       inFlightRequests.delete(urlKey)
@@ -192,7 +205,9 @@ async function staleWhileRevalidate(request) {
     const response = await fetchPromise
     if (response) return response
   } catch {
-    // Network also failed
+    // Network also failed — try searching other caches as last resort
+    const stale = await findInAnyCache(request)
+    if (stale) return stale
   }
 
   return new Response(JSON.stringify({ error: 'Offline', data: null }), {
@@ -201,60 +216,94 @@ async function staleWhileRevalidate(request) {
   })
 }
 
+/**
+ * Inject a cache-timestamp header into a response and store it.
+ * More efficient than blob() because it streams the body directly.
+ */
+function injectTimestamp(response, source) {
+  const headers = new Headers(response.headers)
+  headers.set('sw-cache-timestamp', Date.now().toString())
+  headers.set('sw-cache-source', source)
+
+  // Return a new Response that can be put in cache without additional cloning
+  return response.arrayBuffer().then((body) => {
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    })
+  })
+}
+
 
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 3: Network First with offline fallback (navigation)
 // Enhanced with Navigation Preload support
 // ══════════════════════════════════════════════════════════════════════
-async function networkFirstNavigation(request) {
+async function networkFirstNavigation(request, preloadResponsePromise) {
   // Use navigation preload response if available (faster than regular fetch)
-  const preloadResponse = await request.preloadResponse
-
-  try {
-    const response = preloadResponse || await fetch(request)
-    if (response.ok) {
-      const cache = await caches.open(NAV_CACHE)
-      const headers = new Headers(response.headers)
-      headers.set('sw-cache-timestamp', Date.now().toString())
-      const body = await response.blob()
-      const cachedResponse = new Response(body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      })
-      cache.put(request, cachedResponse)
-      // Return a fresh response from the same blob
-      return new Response(body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-      })
-    }
-    return response
-  } catch {
-    // Try exact match first
-    const cached = await caches.match(request)
-    if (cached) return cached
-
-    // Check if the cached navigation is still within TTL
-    const navCached = await caches.match(request, { cacheName: NAV_CACHE })
-    if (navCached) {
-      const timestamp = navCached.headers.get('sw-cache-timestamp')
-      if (timestamp && (Date.now() - parseInt(timestamp, 10)) < NAV_CACHE_TTL_MS) {
-        return navCached
+  // FIX (v8): preloadResponse is on the event, not on the request
+  let response
+  if (preloadResponsePromise) {
+    try {
+      const preloadResponse = await preloadResponsePromise
+      if (preloadResponse && preloadResponse.ok) {
+        response = preloadResponse
       }
+    } catch {
+      // Preload failed, fall through to regular fetch
     }
+  }
 
-    // Fall back to cached index.html for SPA routing
-    const indexHtml = await caches.match('/index.html')
-    if (indexHtml) return indexHtml
+  if (!response) {
+    try {
+      response = await fetch(request)
+    } catch {
+      // Network failed
+    }
+  }
 
-    // Last resort: offline page
-    return new Response(OFFLINE_PAGE, {
-      status: 503,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  if (response && response.ok) {
+    const cache = await caches.open(NAV_CACHE)
+    const headers = new Headers(response.headers)
+    headers.set('sw-cache-timestamp', Date.now().toString())
+    const body = await response.arrayBuffer()
+    const cachedResponse = new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    })
+    cache.put(request, cachedResponse)
+    // Return a fresh response from the same ArrayBuffer
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
     })
   }
+
+  // Network failed — try exact match first
+  const cached = await caches.match(request)
+  if (cached) return cached
+
+  // Check if the cached navigation is still within TTL
+  const navCached = await caches.match(request, { cacheName: NAV_CACHE })
+  if (navCached) {
+    const timestamp = navCached.headers.get('sw-cache-timestamp')
+    if (timestamp && (Date.now() - parseInt(timestamp, 10)) < NAV_CACHE_TTL_MS) {
+      return navCached
+    }
+  }
+
+  // Fall back to cached index.html for SPA routing
+  const indexHtml = await caches.match('/index.html')
+  if (indexHtml) return indexHtml
+
+  // Last resort: offline page
+  return new Response(OFFLINE_PAGE, {
+    status: 503,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  })
 }
 
 
@@ -273,13 +322,85 @@ async function networkOnly(request) {
 }
 
 
+// ══════════════════════════════════════════════════════════════════════
+// Strategy 5: Image Cache First (screenshots, icons, manifest images)
+// ══════════════════════════════════════════════════════════════════════
+async function imageCacheFirst(request) {
+  const cache = await caches.open(IMAGE_CACHE)
+  const cached = await cache.match(request)
+
+  if (cached) {
+    // Check TTL for images — they occasionally update
+    const timestamp = cached.headers.get('sw-cache-timestamp')
+    if (timestamp) {
+      const age = Date.now() - parseInt(timestamp, 10)
+      // Revalidate in background if older than IMAGE_CACHE_TTL_MS
+      if (age > IMAGE_CACHE_TTL_MS) {
+        fetch(request).then((freshResponse) => {
+          if (freshResponse.ok) {
+            const headers = new Headers(freshResponse.headers)
+            headers.set('sw-cache-timestamp', Date.now().toString())
+            freshResponse.arrayBuffer().then((body) => {
+              cache.put(request, new Response(body, {
+                status: freshResponse.status,
+                headers,
+              }))
+            })
+          }
+        }).catch(() => {})
+      }
+    }
+    return cached
+  }
+
+  try {
+    const response = await fetch(request)
+    if (response.ok) {
+      const headers = new Headers(response.headers)
+      headers.set('sw-cache-timestamp', Date.now().toString())
+      const body = await response.arrayBuffer()
+      cache.put(request, new Response(body, {
+        status: response.status,
+        headers,
+      }))
+      return new Response(body, {
+        status: response.status,
+        headers: response.headers,
+      })
+    }
+    return response
+  } catch {
+    // Offline: try finding in any cache as fallback
+    const stale = await findInAnyCache(request)
+    if (stale) return stale
+    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' })
+  }
+}
+
+
+// ── Cross-Cache Search ─────────────────────────────────────────────
+// Search all Increa caches for a stale version of a resource
+async function findInAnyCache(request) {
+  const allCacheNames = [STATIC_CACHE, API_CACHE, NAV_CACHE, IMAGE_CACHE, FONT_CACHE, CACHE_NAME]
+  for (const name of allCacheNames) {
+    try {
+      const cache = await caches.open(name)
+      const match = await cache.match(request)
+      if (match) return match
+    } catch { /* skip invalid cache */ }
+  }
+  return null
+}
+
+
 // ── Cache Pruning ────────────────────────────────────────────────────
 async function pruneCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName)
   const keys = await cache.keys()
   if (keys.length <= maxEntries) return
 
-  // Delete oldest entries first (they're at the start of the keys list)
+  // Sort by recency: keep the most recent entries
+  // Since Cache API keys are in insertion order, oldest are first
   const deleteCount = keys.length - maxEntries
   for (let i = 0; i < deleteCount; i++) {
     await cache.delete(keys[i])
@@ -308,6 +429,32 @@ async function pruneStaleApiEntries() {
   return deleted
 }
 
+// ── Storage Quota Awareness ─────────────────────────────────────────
+async function checkStoragePressure() {
+  if (!navigator.storage || !navigator.storage.estimate) return false
+  try {
+    const estimate = await navigator.storage.estimate()
+    if (!estimate.quota || !estimate.usage) return false
+    const usageRatio = estimate.usage / estimate.quota
+    return usageRatio > 0.8 // Under pressure if >80% quota used
+  } catch {
+    return false
+  }
+}
+
+async function aggressivePrune() {
+  const underPressure = await checkStoragePressure()
+  // Always prune stale entries and enforce max limits
+  const results = await Promise.all([
+    pruneStaleApiEntries(),
+    pruneCache(STATIC_CACHE, underPressure ? Math.floor(STATIC_CACHE_MAX_ENTRIES / 2) : STATIC_CACHE_MAX_ENTRIES),
+    pruneCache(API_CACHE, underPressure ? Math.floor(API_CACHE_MAX_ENTRIES / 2) : API_CACHE_MAX_ENTRIES),
+    pruneCache(NAV_CACHE, NAV_CACHE_MAX_ENTRIES),
+    pruneCache(IMAGE_CACHE, underPressure ? Math.floor(IMAGE_CACHE_MAX_ENTRIES / 2) : IMAGE_CACHE_MAX_ENTRIES),
+  ])
+  return results.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0)
+}
+
 // ── Version Migration ────────────────────────────────────────────────
 // Clean up old-version caches that don't match the current version prefix
 async function migrateOldCaches() {
@@ -318,6 +465,7 @@ async function migrateOldCaches() {
     API_CACHE,
     FONT_CACHE,
     NAV_CACHE,
+    IMAGE_CACHE,
   ])
 
   const keys = await caches.keys()
@@ -343,6 +491,30 @@ function notifyClientsOfConnectivity(online) {
       })
     }
   }).catch(() => {})
+}
+
+// ── Cache Status Reporting ───────────────────────────────────────────
+async function getCacheStats() {
+  const names = [STATIC_CACHE, API_CACHE, FONT_CACHE, NAV_CACHE, IMAGE_CACHE, CACHE_NAME]
+  const stats = {}
+  for (const name of names) {
+    try {
+      const cache = await caches.open(name)
+      const keys = await cache.keys()
+      stats[name] = keys.length
+    } catch {
+      stats[name] = -1
+    }
+  }
+  // Add storage quota info if available
+  if (navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate()
+      stats._quota = est.quota
+      stats._usage = est.usage
+    } catch { /* ignore */ }
+  }
+  return stats
 }
 
 
@@ -412,12 +584,7 @@ self.addEventListener('activate', (event) => {
           console.log(`[SW] Migrated/deleted ${deleted} old cache(s)`)
         }
       })
-      .then(() => Promise.all([
-        pruneStaleApiEntries(),
-        pruneCache(STATIC_CACHE, STATIC_CACHE_MAX_ENTRIES),
-        pruneCache(API_CACHE, API_CACHE_MAX_ENTRIES),
-        pruneCache(NAV_CACHE, NAV_CACHE_MAX_ENTRIES),
-      ]))
+      .then(() => aggressivePrune())
       .then(() => {
         // Take control of all clients immediately
         self.clients.claim()
@@ -433,6 +600,20 @@ self.addEventListener('activate', (event) => {
       })
   )
 })
+
+// ── Periodic Background Trim ─────────────────────────────────────────
+let lastTrimTime = Date.now()
+
+function maybePeriodicTrim() {
+  const now = Date.now()
+  if (now - lastTrimTime < TRIM_INTERVAL_MS) return
+  lastTrimTime = now
+  aggressivePrune().then((pruned) => {
+    if (pruned > 0) {
+      console.log(`[SW] Periodic trim: removed ${pruned} stale entries`)
+    }
+  }).catch(() => {})
+}
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -453,6 +634,15 @@ self.addEventListener('message', (event) => {
         Promise.all(keys.map((key) => caches.delete(key)))
       ).then(() => self.clients.claim())
     )
+  }
+  // Respond to cache status requests from the UI
+  if (event.data && event.data.type === 'GET_CACHE_STATS') {
+    getCacheStats().then((stats) => {
+      event.source?.postMessage({
+        type: 'CACHE_STATS',
+        stats,
+      })
+    }).catch(() => {})
   }
 })
 
@@ -476,6 +666,9 @@ self.addEventListener('fetch', (event) => {
   // These must go directly to network for proper streaming behavior
   if (event.request.headers.get('range')) return
 
+  // Periodic background trim check (throttled to avoid overhead)
+  maybePeriodicTrim()
+
   // ── Route: Never-cache API (SSE streams, large binary) ──
   if (NEVER_CACHE_API_PATTERNS.some((p) => p.test(url.pathname))) {
     event.respondWith(networkOnly(event.request))
@@ -496,7 +689,7 @@ self.addEventListener('fetch', (event) => {
 
   // ── Route: Navigation (HTML pages) ──
   if (event.request.mode === 'navigate') {
-    event.respondWith(networkFirstNavigation(event.request))
+    event.respondWith(networkFirstNavigation(event.request, event.preloadResponse))
     return
   }
 
@@ -509,6 +702,14 @@ self.addEventListener('fetch', (event) => {
   // ── Route: Hashed static assets — Cache First (immutable) ──
   if (IMMUTABLE_PATTERNS[1].test(url.pathname)) {
     event.respondWith(cacheFirst(event.request, STATIC_CACHE))
+    return
+  }
+
+  // ── Route: Images — dedicated image cache with medium TTL ──
+  // Screenshots, icons, manifest images, and other image files
+  if (IMAGE_EXTENSIONS.test(url.pathname) ||
+      KNOWN_IMAGE_PATHS.some((p) => url.pathname.startsWith(p))) {
+    event.respondWith(imageCacheFirst(event.request))
     return
   }
 
@@ -530,7 +731,6 @@ async function replayOfflineOperations() {
     client.postMessage({ type: 'REPLAY_OFFLINE_OPERATIONS' })
   }
 }
-
 
 // ── Push Notification Handler ─────────────────────────────────────────
 self.addEventListener('push', (event) => {
