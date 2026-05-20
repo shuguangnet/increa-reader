@@ -3,6 +3,38 @@
 An AI-assisted reader for code, Markdown, PDF, images, HTML, and `.board` files.
 The chat backend is powered by the Claude Code SDK stack via `claude-agent-sdk`.
 
+[English](#features) | [功能亮点](#功能亮点)
+
+## 功能亮点
+
+### 文档阅读
+- **Markdown** — GFM、KaTeX 数学公式、Mermaid 图表、标题大纲滚动同步
+- **PDF** — SVG 矢量渲染 + Markdown 阅读双模式，区域选择与文本提取
+- **代码** — 50+ 语言语法高亮、CodeMirror 6 在线编辑
+- **图片 / HTML / Board** — 自适应预览、iframe 渲染、p5.js 交互画布
+
+### 知识管理
+- 三栏布局：文件树 + 文档查看 + AI 对话
+- 多仓库浏览，文件树实时过滤与虚拟滚动
+- 标签系统（自动提取 frontmatter 标签 + 搜索索引）
+- 双向链接与反向链接面板
+- 版本历史（Git diff）
+- 收藏与最近文件
+
+### AI 对话
+- 流式对话，支持 Anthropic / OpenAI 双 provider 切换
+- 上下文感知工具：读取可见内容、选区、PDF 页面、笔记
+- 图片上传（剪贴板粘贴）
+- Canvas 绘图与截图工具
+
+### 工程质量
+- React 19 + React Compiler + Zustand
+- Vitest 单元测试（26 tests）
+- 骨架屏加载态、空状态统一组件
+- 路由懒加载 + 悬停预加载
+- 安全响应头（X-Frame-Options, X-XSS-Protection 等）
+- GitHub Actions CI + Dockerfile
+
 ## Features
 
 ### Multi-format Document Viewer
