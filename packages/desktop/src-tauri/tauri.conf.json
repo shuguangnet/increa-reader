@@ -74,7 +74,13 @@
         "NSCameraUsageDescription": "Increa Reader 需要使用相机以便拍照并上传到对话中。",
         "NSDocumentsFolderUsageDescription": "Increa Reader 需要访问文档以便浏览和阅读文件。",
         "NSLocalNetworkUsageDescription": "Increa Reader 需要访问本地网络以连接后端服务。",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "NSFaceIDUsageDescription": "Increa Reader 使用 Face ID 保护您的私人知识库。",
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false
+        }
       }
     },
     "android": {
@@ -82,7 +88,9 @@
       "targetSdkVersion": 34,
       "versionCode": 1,
       "versionName": "1.0.0",
-      "splitModulesEnabled": false
+      "splitModulesEnabled": false,
+      "allowBackup": false,
+      "abiFilters": ["aarch64", "arm64-v8a"]
     }
   },
   "mobile": {
