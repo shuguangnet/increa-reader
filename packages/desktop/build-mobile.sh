@@ -20,6 +20,7 @@
 #   ./build-mobile.sh init:android   — Initialize Android project (first time only)
 #   ./build-mobile.sh icons          — Generate all platform icons
 #   ./build-mobile.sh check          — Check prerequisites (Rust targets, env vars)
+#   ./build-mobile.sh sign:android   — Sign Android APK with debug keystore
 #   ./build-mobile.sh all            — Build both iOS + Android
 set -euo pipefail
 
@@ -42,7 +43,7 @@ error() { echo -e "${RED}✗${NC} $1" >&2; exit 1; }
 check_rust_targets() {
   local target="$1"
   if ! rustup target list --installed | grep -q "$target"; then
-    warn "Rust target '$target' not installed.Installing..."
+    warn "Rust target '$target' not installed. Installing..."
     rustup target add "$target"
     info "Installed Rust target: $target"
   fi
@@ -128,6 +129,25 @@ case "${1:-help}" in
     cd "$DESKTOP_DIR"
     npx tauri android dev
     ;;
+  sign:android)
+    # Sign an unsigned APK with a debug keystore for testing
+    check_android_prereqs
+    APK_DIR="$DESKTOP_DIR/src-tauri/target/android/release"
+    UNSIGNED_APK=$(find "$APK_DIR" -name "*.apk" ! -name "*-signed*" ! -name "*-unaligned*" | head -1)
+    if [[ -z "$UNSIGNED_APK" ]]; then
+      error "No unsigned APK found in $APK_DIR. Run './build-mobile.sh android' first."
+    fi
+    KEYSTORE="$DESKTOP_DIR/debug.keystore"
+    if [[ ! -f "$KEYSTORE" ]]; then
+      warn "Debug keystore not found. Creating one..."
+      keytool -genkey -v -keystore "$KEYSTORE" -alias increa_debug -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Increa Debug,O=Increa,C=CN"
+      info "Debug keystore created at $KEYSTORE"
+    fi
+    SIGNED_APK="${UNSIGNED_APK%.apk}-signed.apk"
+    apksigner sign --ks "$KEYSTORE" --ks-key-alias increa_debug --ks-pass pass:android --key-pass pass:android --out "$SIGNED_APK" "$UNSIGNED_APK" 2>/dev/null || \
+      jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore "$KEYSTORE" -storepass android -keypass android -signedjar "$SIGNED_APK" "$UNSIGNED_APK" increa_debug
+    info "Signed APK: $SIGNED_APK"
+    ;;
   icons)
     echo "🎨 Generating all platform icons from source..."
     cd "$DESKTOP_DIR"
@@ -154,6 +174,7 @@ case "${1:-help}" in
     echo "  android        Build Android release (requires Android SDK)"
     echo "  dev:ios        Start iOS dev server (simulator)"
     echo "  dev:android    Start Android dev server (emulator)"
+    echo "  sign:android   Sign Android APK with debug keystore"
     echo "  icons          Generate all platform icons from source"
     echo "  all            Build both iOS + Android"
     echo ""

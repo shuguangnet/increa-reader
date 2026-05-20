@@ -101,7 +101,43 @@
         },
         "LSApplicationQueriesSchemes": ["fbapi", "twitter", "whatsapp"],
         "NSBluetoothAlwaysUsageDescription": "Increa Reader 使用蓝牙进行设备间数据同步。",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification"],
+        "UIStatusBarStyle~iphone": "UIStatusBarStyleLightContent",
+        "UIStatusBarStyle~ipad": "UIStatusBarStyleDefault",
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "PDF Document",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": ["com.adobe.pdf"],
+            "CFBundleTypeRole": "Viewer"
+          },
+          {
+            "CFBundleTypeName": "Markdown Document",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": ["net.daringfireball.markdown"],
+            "CFBundleTypeRole": "Viewer"
+          }
+        ],
+        "UTImportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.adobe.pdf",
+            "UTTypeConformsTo": ["public.data"],
+            "UTTypeDescription": "PDF Document",
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["pdf"],
+              "public.mime-type": ["application/pdf"]
+            }
+          },
+          {
+            "UTTypeIdentifier": "net.daringfireball.markdown",
+            "UTTypeConformsTo": ["public.plain-text"],
+            "UTTypeDescription": "Markdown Document",
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["md", "markdown"],
+              "public.mime-type": ["text/markdown"]
+            }
+          }
+        ]
       }
     },
     "android": {
@@ -124,6 +160,42 @@
       "frameworks": [],
       "providerShortName": "",
       "signingIdentity": null
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": null,
+      "nsis": {
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": true,
+        "installMode": "currentUser",
+        "headerImage": null,
+        "sidebarImage": null,
+        "installerIcon": null,
+        "allowDowngrades": true,
+        "allowToChangeInstallationDirectory": true,
+        "installerHooks": null
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0", "libayatana-appindicator3-1"],
+        "desktop": {
+          "Name": "Increa Reader",
+          "Comment": "个人知识库阅读器",
+          "Categories": ["Productivity", "Education", "Utility"],
+          "Keywords": ["knowledge", "reader", "pdf", "notes"],
+          "StartupWMClass": "increa-reader",
+          "Type": "Application"
+        }
+      },
+      "rpm": {
+        "depends": ["webkit2gtk4.1", "gtk3", "libappindicator-gtk3"]
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
     }
   },
   "mobile": {
@@ -153,6 +225,12 @@
           "pathPrefix": "/open"
         }
       ]
+    },
+    "updater": {
+      "active": false,
+      "endpoints": [],
+      "dialog": true,
+      "pubkey": ""
     }
   }
 }
