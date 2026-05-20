@@ -39,7 +39,19 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico",
-      "icons/icon.png"
+      "icons/icon.png",
+      "icons/AppIcon-20x20@2x.png",
+      "icons/AppIcon-20x20@3x.png",
+      "icons/AppIcon-29x29@2x.png",
+      "icons/AppIcon-29x29@3x.png",
+      "icons/AppIcon-40x40@2x.png",
+      "icons/AppIcon-40x40@3x.png",
+      "icons/AppIcon-60x60@2x.png",
+      "icons/AppIcon-60x60@3x.png",
+      "icons/AppIcon-76x76.png",
+      "icons/AppIcon-76x76@2x.png",
+      "icons/AppIcon-83.5x83.5@2x.png",
+      "icons/AppIcon-1024x1024.png"
     ],
     "resources": [],
     "category": "Productivity",
@@ -48,18 +60,24 @@
     "iOS": {
       "frameworks": [],
       "minimumSystemVersion": "15.0",
-      "developmentTeam": "",
+      "developmentTeam": "DEVELOPMENT_TEAM_ID",
       "bundleName": "Increa Reader",
       "bundleShortVersion": "1.0.0",
       "version": "1",
       "infoPlistEntries": {
         "CFBundleLocalizations": ["zh-CN", "en"],
         "UILaunchScreen": {
-          "UIColorName": "",
+          "UIColorName": "#1e40af",
           "UIImageName": ""
         },
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
           "UIInterfaceOrientationLandscapeLeft",
           "UIInterfaceOrientationLandscapeRight"
         ],
@@ -80,7 +98,10 @@
         "NSFaceIDUsageDescription": "Increa Reader 使用 Face ID 保护您的私人知识库。",
         "UIApplicationSceneManifest": {
           "UIApplicationSupportsMultipleScenes": false
-        }
+        },
+        "LSApplicationQueriesSchemes": ["fbapi", "twitter", "whatsapp"],
+        "NSBluetoothAlwaysUsageDescription": "Increa Reader 使用蓝牙进行设备间数据同步。",
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -90,7 +111,11 @@
       "versionName": "1.0.0",
       "splitModulesEnabled": false,
       "allowBackup": false,
-      "abiFilters": ["aarch64", "arm64-v8a"]
+      "abiFilters": ["aarch64", "arm64-v8a"],
+      "adaptiveIcon": {
+        "foreground": "icons/android-icons/mipmap-xxxhdpi/ic_launcher_foreground.png",
+        "background": "icons/android-icons/mipmap-xxxhdpi/ic_launcher_background.png"
+      }
     }
   },
   "mobile": {
