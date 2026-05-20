@@ -16,6 +16,15 @@ const HomePage = lazy(() => import('./home-page').then(m => ({ default: m.HomePa
 const BoardViewer = lazy(() => import('./board-viewer/board-viewer').then(m => ({ default: m.BoardViewer })))
 const KnowledgeGraph = lazy(() => import('./knowledge-graph').then(m => ({ default: m.KnowledgeGraph })))
 
+/** Preload lazy components on hover/focus for instant navigation */
+export function prefetch(route: 'home' | 'board' | 'graph') {
+  switch (route) {
+    case 'home': import('./home-page'); break
+    case 'board': import('./board-viewer/board-viewer'); break
+    case 'graph': import('./knowledge-graph'); break
+  }
+}
+
 /**
  * Rehydrate all persisted Zustand stores on mount.
  * Using skipHydration: true prevents React 19 infinite loop caused by

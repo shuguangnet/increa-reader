@@ -8,6 +8,7 @@ import { useProgressStore } from '../stores/progress-store'
 import { useUIStore } from '../stores/ui-store'
 import { useIsMobile } from '../hooks/use-mobile'
 import { getFileIcon } from './file-tree'
+import { prefetch } from './app'
 
 type TagInfo = { name: string; count: number }
 type TagFile = { repo: string; file_path: string; path?: string }
@@ -92,10 +93,10 @@ function HomePage() {
     .slice(0, 5)
 
   const quickActions = [
-    { label: '搜索文件内容', icon: <Search className="size-5" />, onClick: () => setSearchPanelOpen(true), color: 'text-blue-500 bg-blue-50 dark:bg-blue-950' },
-    { label: '命令面板', icon: <Keyboard className="size-5" />, onClick: () => setCommandPaletteOpen(true), color: 'text-violet-500 bg-violet-50 dark:bg-violet-950' },
-    { label: '知识图谱', icon: <Network className="size-5" />, onClick: () => navigate('/graph'), color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950' },
-    { label: 'AI对话', icon: <MessageSquare className="size-5" />, onClick: () => toggleRightPanel(), color: 'text-amber-500 bg-amber-50 dark:bg-amber-950' },
+    { label: '搜索文件内容', icon: <Search className="size-5" />, onClick: () => setSearchPanelOpen(true), color: 'text-blue-500 bg-blue-50 dark:bg-blue-950', prefetch: undefined },
+    { label: '命令面板', icon: <Keyboard className="size-5" />, onClick: () => setCommandPaletteOpen(true), color: 'text-violet-500 bg-violet-50 dark:bg-violet-950', prefetch: undefined },
+    { label: '知识图谱', icon: <Network className="size-5" />, onClick: () => navigate('/graph'), color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950', prefetch: 'graph' as const },
+    { label: 'AI对话', icon: <MessageSquare className="size-5" />, onClick: () => toggleRightPanel(), color: 'text-amber-500 bg-amber-50 dark:bg-amber-950', prefetch: undefined },
   ]
 
   const displayRecent = todayFiles.length > 0 ? todayFiles : sortedRecent
@@ -151,6 +152,7 @@ function HomePage() {
             <button
               key={action.label}
               onClick={action.onClick}
+              onMouseEnter={() => action.prefetch && prefetch(action.prefetch)}
               className={`flex items-center ${isMobile ? 'justify-start' : 'flex-col items-center'} gap-3 ${isMobile ? 'p-3' : 'p-4'} rounded-xl border bg-card hover:bg-accent/50 transition-colors touch-target`}
             >
               <div className={`p-2.5 rounded-lg ${action.color}`}>
