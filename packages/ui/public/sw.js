@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // ══════════════════════════════════════════════════════════════════════
-// Increa Reader — Service Worker v5
+// Increa Reader — Service Worker v7
 //
 // Cache strategies:
 //   1. Static assets (JS/CSS/images)   → Cache First (fast load, bg revalidate)
@@ -10,10 +10,17 @@
 //   4. API streaming (chat/query SSE)  → Network Only (never cache)
 //   5. Navigation (HTML pages)         → Network First + offline fallback
 //   6. Fonts & icons                   → Cache First (immutable, long TTL)
-//   7. Screenshot/manifest assets      → Cache First (rarely change)
+//   7. Screenshot/manifest assets       → Cache First (rarely change)
+//
+// v7 improvements over v6:
+//   - Navigation Preload (faster nav after SW activation)
+//   - Request deduplication (in-flight SWR requests share the same fetch)
+//   - Online/offline awareness (clients notified of connectivity changes)
+//   - Range request passthrough (PDF streaming, video/audio seek)
+//   - Version migration (old caches auto-cleaned on major version change)
 // ══════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v6'
+const CACHE_VERSION = 'v7'
 const CACHE_NAME = `increa-reader-${CACHE_VERSION}`
 const STATIC_CACHE = `increa-static-${CACHE_VERSION}`
 const API_CACHE = `increa-api-${CACHE_VERSION}`
@@ -26,6 +33,13 @@ const NAV_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 const API_CACHE_MAX_ENTRIES = 150
 const STATIC_CACHE_MAX_ENTRIES = 400
 const NAV_CACHE_MAX_ENTRIES = 20
+
+// ── Online/Offline Tracking ──────────────────────────────────────────
+let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
+
+// ── Request Deduplication ────────────────────────────────────────────
+// Map of in-flight SWR requests to avoid duplicate fetches
+const inFlightRequests = new Map()
 
 // Pre-cache App Shell on install
 const APP_SHELL = [
@@ -96,6 +110,7 @@ async function cacheFirst(request, cacheName = STATIC_CACHE) {
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 2: Stale-While-Revalidate (API data endpoints)
 // Returns cached immediately, updates cache in background
+// With request deduplication — concurrent identical requests share one fetch
 // ══════════════════════════════════════════════════════════════════════
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(API_CACHE)
@@ -112,7 +127,32 @@ async function staleWhileRevalidate(request) {
     }
   }
 
-  // Fetch fresh data in the background
+  // Request deduplication: if the same URL is already being fetched,
+  // piggy-back on that in-flight request instead of creating another one
+  const urlKey = request.url
+
+  if (inFlightRequests.has(urlKey)) {
+    // Another request for the same URL is already in flight
+    // Return cached version (if any) and wait for the shared fetch to complete
+    if (cached) {
+      return cached
+    }
+    // No cache — wait for the in-flight fetch to resolve
+    try {
+      const response = await inFlightRequests.get(urlKey)
+      return response || new Response(JSON.stringify({ error: 'Offline', data: null }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    } catch {
+      return new Response(JSON.stringify({ error: 'Offline', data: null }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+  }
+
+  // Fetch fresh data in the background (or foreground if no cache)
   const fetchPromise = fetch(request)
     .then((response) => {
       if (response.ok) {
@@ -129,9 +169,17 @@ async function staleWhileRevalidate(request) {
           cache.put(request, cachedResponse)
         })
       }
+      // Remove from in-flight map once completed
+      inFlightRequests.delete(urlKey)
       return response
     })
-    .catch(() => null)
+    .catch((err) => {
+      inFlightRequests.delete(urlKey)
+      return null
+    })
+
+  // Register the in-flight request for deduplication
+  inFlightRequests.set(urlKey, fetchPromise)
 
   if (cached) {
     // Return stale immediately, let background fetch update cache
@@ -156,10 +204,14 @@ async function staleWhileRevalidate(request) {
 
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 3: Network First with offline fallback (navigation)
+// Enhanced with Navigation Preload support
 // ══════════════════════════════════════════════════════════════════════
 async function networkFirstNavigation(request) {
+  // Use navigation preload response if available (faster than regular fetch)
+  const preloadResponse = await request.preloadResponse
+
   try {
-    const response = await fetch(request)
+    const response = preloadResponse || await fetch(request)
     if (response.ok) {
       const cache = await caches.open(NAV_CACHE)
       const headers = new Headers(response.headers)
@@ -171,7 +223,7 @@ async function networkFirstNavigation(request) {
         headers,
       })
       cache.put(request, cachedResponse)
-      // Return original response (already consumed body, need to re-fetch)
+      // Return a fresh response from the same blob
       return new Response(body, {
         status: response.status,
         statusText: response.statusText,
@@ -256,6 +308,43 @@ async function pruneStaleApiEntries() {
   return deleted
 }
 
+// ── Version Migration ────────────────────────────────────────────────
+// Clean up old-version caches that don't match the current version prefix
+async function migrateOldCaches() {
+  const currentPrefix = 'increa-'
+  const currentVersions = new Set([
+    CACHE_NAME,
+    STATIC_CACHE,
+    API_CACHE,
+    FONT_CACHE,
+    NAV_CACHE,
+  ])
+
+  const keys = await caches.keys()
+  let deleted = 0
+  for (const key of keys) {
+    // Delete any cache that starts with our prefix but doesn't match current versions
+    if (key.startsWith(currentPrefix) && !currentVersions.has(key)) {
+      await caches.delete(key)
+      deleted++
+    }
+  }
+  return deleted
+}
+
+
+// ── Online/Offline Client Notification ────────────────────────────────
+function notifyClientsOfConnectivity(online) {
+  self.clients.matchAll({ includeUncontrolled: true }).then((clients) => {
+    for (const client of clients) {
+      client.postMessage({
+        type: online ? 'SW_ONLINE' : 'SW_OFFLINE',
+        timestamp: Date.now(),
+      })
+    }
+  }).catch(() => {})
+}
+
 
 // ── Offline page ─────────────────────────────────────────────────────
 const OFFLINE_PAGE = `<!DOCTYPE html>
@@ -317,27 +406,31 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) =>
-            key !== CACHE_NAME &&
-            key !== STATIC_CACHE &&
-            key !== API_CACHE &&
-            key !== FONT_CACHE &&
-            key !== NAV_CACHE
-          )
-          .map((key) => caches.delete(key))
-      )
-    ).then(() => Promise.all([
-      pruneStaleApiEntries(),
-      pruneCache(STATIC_CACHE, STATIC_CACHE_MAX_ENTRIES),
-      pruneCache(API_CACHE, API_CACHE_MAX_ENTRIES),
-      pruneCache(NAV_CACHE, NAV_CACHE_MAX_ENTRIES),
-    ])).then(() => {
-      // Take control of all clients immediately
-      self.clients.claim()
-    })
+    migrateOldCaches()
+      .then((deleted) => {
+        if (deleted > 0) {
+          console.log(`[SW] Migrated/deleted ${deleted} old cache(s)`)
+        }
+      })
+      .then(() => Promise.all([
+        pruneStaleApiEntries(),
+        pruneCache(STATIC_CACHE, STATIC_CACHE_MAX_ENTRIES),
+        pruneCache(API_CACHE, API_CACHE_MAX_ENTRIES),
+        pruneCache(NAV_CACHE, NAV_CACHE_MAX_ENTRIES),
+      ]))
+      .then(() => {
+        // Take control of all clients immediately
+        self.clients.claim()
+      })
+      .then(() => {
+        // Enable navigation preload if supported
+        if (self.registration.navigationPreload) {
+          return self.registration.navigationPreload.enable()
+            .catch((err) => {
+              console.warn('[SW] Navigation preload not supported:', err)
+            })
+        }
+      })
   )
 })
 
@@ -379,7 +472,8 @@ self.addEventListener('fetch', (event) => {
   // Skip Vite HMR / dev server
   if (url.pathname.startsWith('/@') || url.pathname.includes('/__vite_hmr')) return
 
-  // Skip range requests (partial content, typically video/audio)
+  // Skip range requests (partial content, typically video/audio/PDF seek)
+  // These must go directly to network for proper streaming behavior
   if (event.request.headers.get('range')) return
 
   // ── Route: Never-cache API (SSE streams, large binary) ──
@@ -437,6 +531,7 @@ async function replayOfflineOperations() {
   }
 }
 
+
 // ── Push Notification Handler ─────────────────────────────────────────
 self.addEventListener('push', (event) => {
   if (!event.data) return
@@ -473,4 +568,16 @@ self.addEventListener('notificationclick', (event) => {
       return self.clients.openWindow(urlToOpen)
     })
   )
+})
+
+
+// ── Online/Offline Event Awareness ─────────────────────────────────────
+self.addEventListener('online', () => {
+  isOnline = true
+  notifyClientsOfConnectivity(true)
+})
+
+self.addEventListener('offline', () => {
+  isOnline = false
+  notifyClientsOfConnectivity(false)
 })

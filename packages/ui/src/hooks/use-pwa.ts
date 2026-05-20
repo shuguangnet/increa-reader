@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 type SWUpdateStatus = 'idle' | 'update-available' | 'updating'
 
 const APP_VERSION_KEY = 'app-version'
-const CACHE_VERSION = 'v6'
+const CACHE_VERSION = 'v7'
 
 /**
  * Get the current app version from the build or SW cache.
@@ -117,7 +117,6 @@ export function registerServiceWorker() {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
       .then((reg) => {
-
         // Handle updates
         reg.addEventListener('updatefound', () => {
           // no-op
@@ -164,6 +163,51 @@ export async function clearAllCaches(): Promise<void> {
   } catch {
     // ignore
   }
+}
+
+/**
+ * Hook to listen for online/offline status changes from the service worker.
+ * Returns the current online status and listens for SW messages.
+ *
+ * The SW posts SW_ONLINE / SW_OFFLINE messages when connectivity changes.
+ * This hook also listens to the browser's native online/offline events
+ * for immediate feedback.
+ */
+export function useConnectivity() {
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return navigator.onLine
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    // Listen to native browser events for immediate feedback
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Also listen for SW connectivity messages (more reliable in some scenarios)
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'SW_ONLINE') {
+        setIsOnline(true)
+      } else if (event.data?.type === 'SW_OFFLINE') {
+        setIsOnline(false)
+      }
+    }
+
+    navigator.serviceWorker?.addEventListener('message', handleSWMessage)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      navigator.serviceWorker?.removeEventListener('message', handleSWMessage)
+    }
+  }, [])
+
+  return { isOnline }
 }
 
 /**

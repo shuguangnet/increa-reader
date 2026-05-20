@@ -8,6 +8,11 @@
   "background_color": "#ffffff",
   "theme_color": "#1e293b",
   "orientation": "any",
+  "scope": "/",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": ["productivity", "education"],
+  "prefer_related_applications": false,
   "screenshots": [
     {
       "src": "/screenshots/home.png",
@@ -78,9 +83,12 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["productivity", "education"],
-  "lang": "zh-CN",
-  "prefer_related_applications": false,
+  "protocol_handlers": [
+    {
+      "protocol": "web+increa",
+      "url": "/?action=open&path=%s"
+    }
+  ],
   "shortcuts": [
     {
       "name": "搜索",

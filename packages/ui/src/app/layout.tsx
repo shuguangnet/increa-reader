@@ -5,7 +5,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePWAInstall } from '@/hooks/use-pwa-install'
 import { useTheme } from '@/hooks/use-theme'
-import { useServiceWorkerUpdate } from '@/hooks/use-pwa'
+import { useServiceWorkerUpdate, useConnectivity } from '@/hooks/use-pwa'
 import { useFileDrop } from '@/hooks/use-file-drop'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -436,6 +436,7 @@ export function Layout() {
   useKeyboardShortcuts()
   useTheme()
 
+  const { isOnline } = useConnectivity()
   const isMobile = useIsMobile()
   const toggleLeftPanel = useUIStore((s) => s.toggleLeftPanel)
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel)
@@ -514,6 +515,13 @@ export function Layout() {
       )}
       {/* PWA update banner */}
       <PWAUpdateBanner />
+
+      {/* Offline banner */}
+      {!isOnline && (
+        <div className="flex items-center justify-center gap-1.5 px-3 py-1 bg-amber-500 text-white text-xs">
+          <span>📡 当前离线，部分功能不可用</span>
+        </div>
+      )}
 
       {/* Top bar */}
       <div className="flex h-9 items-center justify-between border-b bg-white px-2 dark:bg-gray-950 md:px-3 safe-top">
