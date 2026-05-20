@@ -141,6 +141,7 @@ def create_app() -> FastAPI:
 
     # CORS middleware
     from fastapi.middleware.cors import CORSMiddleware
+    from starlette.middleware.base import BaseHTTPMiddleware
 
     app.add_middleware(
         CORSMiddleware,
@@ -149,6 +150,18 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Security headers middleware
+    class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            response = await call_next(request)
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            return response
+
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # Global workspace configuration
     workspace_config = load_workspace_config()
