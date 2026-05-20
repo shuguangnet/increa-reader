@@ -1,48 +1,53 @@
 version: 2
-
 updates:
-  # Frontend & root deps (pnpm)
+  # ── JavaScript/TypeScript (pnpm) ──
   - package-ecosystem: npm
-    directory: /
+    directory: "/"
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    reviewers:
+      - shuguangnet
     labels:
       - dependencies
-      - frontend
+      - javascript
 
-  # Python server deps
+  # ── Python (server) ──
   - package-ecosystem: pip
-    directory: /packages/server
+    directory: "/packages/server"
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    reviewers:
+      - shuguangnet
     labels:
       - dependencies
       - python
-      - server
 
-  # Python MCP deps
+  # ── Python (pdf-reader-mcp) ──
   - package-ecosystem: pip
-    directory: /packages/pdf-reader-mcp
+    directory: "/packages/pdf-reader-mcp"
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    reviewers:
+      - shuguangnet
     labels:
       - dependencies
       - python
-      - mcp
 
-  # GitHub Actions
+  # ── GitHub Actions ──
   - package-ecosystem: github-actions
-    directory: /
+    directory: "/"
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 5
+    reviewers:
+      - shuguangnet
     labels:
       - dependencies
       - ci
