@@ -1,9 +1,5 @@
-use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::Manager;
-use tauri_plugin_shell::ShellExt;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServerStatus {
@@ -13,11 +9,16 @@ pub struct ServerStatus {
 }
 
 /// Holds the running sidecar process handle and the auto-assigned port.
+///
+/// On desktop this manages a local Python backend (sidecar or direct launch).
+/// On mobile this is a no-op — the app connects to a remote backend via HTTP.
 pub struct PythonServer {
     pub port: Option<u16>,
-    /// The sidecar child process (holds the PID and allows kill/detach).
+    /// The sidecar child process (desktop only).
+    #[cfg(desktop)]
     pub child: Option<tauri_plugin_shell::process::CommandChild>,
-    /// PID from direct Python launch (development fallback)
+    /// PID from direct Python launch (desktop/dev fallback).
+    #[cfg(desktop)]
     pub direct_pid: Option<u32>,
 }
 
@@ -25,23 +26,147 @@ impl PythonServer {
     pub fn new() -> Self {
         Self {
             port: None,
+            #[cfg(desktop)]
             child: None,
+            #[cfg(desktop)]
             direct_pid: None,
         }
     }
 
-    /// Start the Python backend via the Tauri sidecar mechanism.
+    /// Start the Python backend.
     ///
-    /// In development (when the sidecar binary doesn't exist at the expected
-    /// path) we fall back to running `python3 server.py` directly so that
-    /// `tauri dev` still works without a pre-built binary.
+    /// On desktop: starts via sidecar or direct Python launch.
+    /// On mobile: no-op (always returns Ok with status running=false).
     pub async fn start(&mut self, app_handle: &tauri::AppHandle) -> Result<(), String> {
+        #[cfg(desktop)]
+        {
+            self.start_desktop(app_handle).await
+        }
+        #[cfg(mobile)]
+        {
+            // Mobile: no local server, connect to remote backend
+            let _ = app_handle;
+            Ok(())
+        }
+    }
+
+    /// Stop the running server process.
+    pub fn stop(&mut self) {
+        #[cfg(desktop)]
+        {
+            if let Some(ref mut child) = self.child {
+                let _ = child.kill();
+            }
+            if let Some(pid) = self.direct_pid {
+                #[cfg(unix)]
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGTERM);
+                }
+                #[cfg(windows)]
+                {
+                    let _ = std::process::Command::new("taskkill")
+                        .args(["/PID", &pid.to_string(), "/F"])
+                        .output();
+                }
+            }
+            self.child = None;
+            self.direct_pid = None;
+        }
+        #[cfg(mobile)]
+        {
+            // Nothing to stop on mobile
+        }
+        self.port = None;
+    }
+
+    pub fn is_alive(&mut self) -> bool {
+        #[cfg(desktop)]
+        {
+            if self.child.is_some() {
+                true
+            } else if let Some(pid) = self.direct_pid {
+                #[cfg(unix)]
+                {
+                    unsafe { libc::kill(pid as i32, 0) == 0 }
+                }
+                #[cfg(windows)]
+                {
+                    self.port.map_or(false, |p| !Self::is_port_available(p))
+                }
+            } else {
+                false
+            }
+        }
+        #[cfg(mobile)]
+        {
+            // On mobile, we don't run a local server
+            false
+        }
+    }
+
+    pub fn status(&mut self) -> ServerStatus {
+        let alive = self.is_alive();
+        let pid = {
+            #[cfg(desktop)]
+            {
+                self.direct_pid.or_else(|| self.child.as_ref().map(|_| 0))
+            }
+            #[cfg(mobile)]
+            {
+                None
+            }
+        };
+        ServerStatus {
+            running: alive,
+            port: self.port,
+            pid,
+        }
+    }
+
+    // ── Desktop-only methods ──────────────────────────────────────────────
+
+    fn is_port_available(port: u16) -> bool {
+        std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
+    }
+
+    #[cfg(desktop)]
+    fn find_available_port() -> Result<u16, String> {
+        let start_port: u16 = std::env::var("PORT")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(3002);
+
+        for port in start_port..(start_port + 100) {
+            if Self::is_port_available(port) {
+                return Ok(port);
+            }
+        }
+        Err("No available port found".into())
+    }
+
+    #[cfg(desktop)]
+    fn get_default_repo_path(app_handle: &tauri::AppHandle) -> String {
+        app_handle
+            .path()
+            .app_data_dir()
+            .map(|p| {
+                let workspace = p.join("workspace");
+                std::fs::create_dir_all(&workspace).ok();
+                workspace.to_string_lossy().to_string()
+            })
+            .unwrap_or_else(|_| "./workspace".into())
+    }
+
+    #[cfg(desktop)]
+    async fn start_desktop(&mut self, app_handle: &tauri::AppHandle) -> Result<(), String> {
+        use futures::StreamExt;
+        use tauri_plugin_shell::ShellExt;
+
         // If already running, just return
         if (self.child.is_some() || self.direct_pid.is_some()) && self.is_alive() {
             return Ok(());
         }
 
-        // Find available port before starting
         let port = Self::find_available_port()?;
         let repo_path = Self::get_default_repo_path(app_handle);
 
@@ -52,7 +177,6 @@ impl PythonServer {
                 self.direct_pid = None;
                 self.port = Some(port);
 
-                // Wait for server to be ready
                 let ready = Self::wait_for_server(port, 30).await?;
                 if !ready {
                     self.stop();
@@ -91,71 +215,15 @@ impl PythonServer {
         }
     }
 
-    /// Stop the running server process.
-    pub fn stop(&mut self) {
-        if let Some(ref mut child) = self.child {
-            let _ = child.kill();
-        }
-        // For direct Python process, try to kill by PID
-        if let Some(pid) = self.direct_pid {
-            #[cfg(unix)]
-            {
-                unsafe {
-                    libc::kill(pid as i32, libc::SIGTERM);
-                }
-            }
-            #[cfg(windows)]
-            {
-                let _ = std::process::Command::new("taskkill")
-                    .args(["/PID", &pid.to_string(), "/F"])
-                    .output();
-            }
-        }
-        self.child = None;
-        self.direct_pid = None;
-        self.port = None;
-    }
-
-    pub fn is_alive(&mut self) -> bool {
-        if self.child.is_some() {
-            // We have a sidecar handle; treat as alive while held
-            true
-        } else if let Some(pid) = self.direct_pid {
-            // For direct Python process, check if PID is running
-            #[cfg(unix)]
-            {
-                // Send signal 0 to check if process exists
-                unsafe { libc::kill(pid as i32, 0) == 0 }
-            }
-            #[cfg(windows)]
-            {
-                // On Windows, check if we can still connect to the port
-                self.port.map_or(false, |p| !Self::is_port_available(p))
-            }
-        } else {
-            false
-        }
-    }
-
-    pub fn status(&mut self) -> ServerStatus {
-        let alive = self.is_alive();
-        let pid = self
-            .direct_pid
-            .or_else(|| self.child.as_ref().map(|_| 0));
-        ServerStatus {
-            running: alive,
-            port: self.port,
-            pid,
-        }
-    }
-
-    // ── Sidecar launch (Tauri plugin-shell) ─────────────────────────────────
-
+    #[cfg(desktop)]
     async fn start_sidecar(
         app_handle: &tauri::AppHandle,
         port: u16,
         repo_path: &str,
     ) -> Result<tauri_plugin_shell::process::CommandChild, String> {
+        use futures::StreamExt;
+        use tauri_plugin_shell::ShellExt;
+
         let sidecar_command = app_handle
             .shell()
             .sidecar("python-server")
@@ -201,8 +269,7 @@ impl PythonServer {
         Ok(child)
     }
 
-    // ── Direct Python launch (development fallback) ──────────────────────────
-
+    #[cfg(desktop)]
     fn start_python_direct(port: u16, repo_path: &str) -> Result<u32, String> {
         let server_path = Self::find_server_script_dev()?;
         let python_path = Self::find_python()?;
@@ -217,15 +284,14 @@ impl PythonServer {
         let child = cmd.spawn().map_err(|e| format!("Failed to start server: {e}"))?;
         let pid = child.id();
 
-        // Detach — we rely on port polling for health checks.
-        // The child will be cleaned up when the Tauri app exits or via stop().
         Ok(pid)
     }
 
-    fn find_server_script_dev() -> Result<PathBuf, String> {
+    #[cfg(desktop)]
+    fn find_server_script_dev() -> Result<std::path::PathBuf, String> {
         let dev_paths = vec![
-            PathBuf::from("packages/server/server.py"),
-            PathBuf::from("../server/server.py"),
+            std::path::PathBuf::from("packages/server/server.py"),
+            std::path::PathBuf::from("../server/server.py"),
         ];
 
         for path in &dev_paths {
@@ -237,6 +303,7 @@ impl PythonServer {
         Err("Could not find server script for direct launch".into())
     }
 
+    #[cfg(desktop)]
     fn find_python() -> Result<String, String> {
         for cmd in &["python3", "python"] {
             if which::which(cmd).is_ok() {
@@ -244,38 +311,6 @@ impl PythonServer {
             }
         }
         Err("Could not find Python installation".into())
-    }
-
-    // ── Utilities ───────────────────────────────────────────────────────────
-
-    fn find_available_port() -> Result<u16, String> {
-        let start_port: u16 = std::env::var("PORT")
-            .ok()
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(3002);
-
-        for port in start_port..(start_port + 100) {
-            if Self::is_port_available(port) {
-                return Ok(port);
-            }
-        }
-        Err("No available port found".into())
-    }
-
-    fn is_port_available(port: u16) -> bool {
-        std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
-    }
-
-    fn get_default_repo_path(app_handle: &tauri::AppHandle) -> String {
-        app_handle
-            .path()
-            .app_data_dir()
-            .map(|p| {
-                let workspace = p.join("workspace");
-                std::fs::create_dir_all(&workspace).ok();
-                workspace.to_string_lossy().to_string()
-            })
-            .unwrap_or_else(|_| "./workspace".into())
     }
 
     async fn wait_for_server(port: u16, max_seconds: u64) -> Result<bool, String> {
