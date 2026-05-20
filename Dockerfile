@@ -1,5 +1,6 @@
 # Stage 1: Build frontend
-FROM node:20-alpine AS frontend-builder
+ARG NODE_VERSION=20
+FROM node:${NODE_VERSION}-alpine AS frontend-builder
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/ui/package.json ./packages/ui/
@@ -9,7 +10,8 @@ COPY packages/ui/ ./packages/ui/
 RUN pnpm --filter @increa-reader/ui build
 
 # Stage 2: Python backend
-FROM python:3.13-slim AS backend
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}-slim AS backend
 WORKDIR /app
 
 # Create non-root user

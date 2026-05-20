@@ -55,7 +55,7 @@ jobs:
         run: pnpm --filter @increa-reader/ui test
 
       - name: npm audit (high+ critical only)
-        run: pnpm audit --audit-level high || true
+        run: pnpm audit --audit-level high
 
   # ── Python server: lint + typecheck + test + coverage ──
   python-server:
