@@ -1,6 +1,6 @@
 import { apiFetch } from '@/app/api'
 import { Clock, RefreshCw, RegexIcon, Search, Trash2, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
@@ -27,11 +27,10 @@ type SearchPanelProps = {
 
 const FILE_TYPE_FILTERS = ['md', 'py', 'ts', 'tsx', 'js', 'json', 'yaml', 'txt'] as const
 
-function highlightMatch(text: string, query: string, useRegex = false) {
-  if (!query) return text
-  const pattern = useRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function highlightWithRegex(text: string, regex: RegExp | null) {
+  if (!regex) return text
   try {
-    const parts = text.split(new RegExp(`(${pattern})`, 'gi'))
+    const parts = text.split(regex)
     return parts.map((part, i) =>
       i % 2 === 1 ? (
         <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">{part}</mark>
@@ -42,6 +41,19 @@ function highlightMatch(text: string, query: string, useRegex = false) {
   } catch {
     return text
   }
+}
+
+/** Hook to cache the highlight RegExp across renders */
+function useHighlightRegex(query: string, useRegex: boolean) {
+  return useMemo(() => {
+    if (!query) return null
+    const pattern = useRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    try {
+      return new RegExp(`(${pattern})`, 'gi')
+    } catch {
+      return null
+    }
+  }, [query, useRegex])
 }
 
 export function SearchPanel({ open, onClose }: SearchPanelProps) {
@@ -60,6 +72,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   const debounceRef = useRef<number>(0)
   const resultsRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const highlightRegex = useHighlightRegex(query, useRegex)
   const recentSearches = useSearchHistoryStore(s => s.recentSearches)
   const addSearch = useSearchHistoryStore(s => s.addSearch)
   const clearSearches = useSearchHistoryStore(s => s.clearSearches)
@@ -442,7 +455,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                             </div>
                           ))}
                           <div className="text-gray-600 dark:text-gray-400 line-clamp-1">
-                            {highlightMatch(r.line.trim(), query, useRegex)}
+                            {highlightWithRegex(r.line.trim(), highlightRegex)}
                           </div>
                           {r.context_after?.map((ctxLine, ci) => (
                             <div key={`after-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
@@ -646,7 +659,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                           </div>
                         ))}
                         <div className="text-gray-600 dark:text-gray-400 line-clamp-1">
-                          {highlightMatch(r.line.trim(), query, useRegex)}
+                          {highlightWithRegex(r.line.trim(), highlightRegex)}
                         </div>
                         {r.context_after?.map((ctxLine, ci) => (
                           <div key={`after-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
