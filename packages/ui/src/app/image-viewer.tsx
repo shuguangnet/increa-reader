@@ -113,6 +113,7 @@ export function ImageViewer({ src, alt }: ImageViewerProps) {
         <img
           src={src}
           alt={alt}
+          loading="lazy"
           className="select-none pointer-events-none"
           style={{
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
