@@ -29,13 +29,19 @@ export default defineConfig({
       external: [/^@tauri-apps\/api\//],
       output: {
         manualChunks(id: string) {
+          // Cytoscape graph library (used by mermaid architecture diagrams)
           if (id.includes('node_modules/cytoscape')) return 'cytoscape'
+          if (id.includes('node_modules/cytoscape-fcose') || id.includes('node_modules/cytoscape-cose')) return 'cytoscape'
+          if (id.includes('node_modules/cose-base') || id.includes('node_modules/layout-base')) return 'cytoscape'
+          // KaTeX math rendering
           if (id.includes('node_modules/katex')) return 'katex'
+          // Mermaid diagram engine
           if (id.includes('node_modules/mermaid')) return 'mermaid'
           if (id.includes('@mermaid-js')) return 'mermaid'
           if (id.includes('node_modules/dagre')) return 'mermaid-vendor'
           if (id.includes('node_modules/khroma')) return 'mermaid-vendor'
           if (id.includes('node_modules/non-layered-tidy')) return 'mermaid-vendor'
+          // Lodash utilities
           if (id.includes('node_modules/lodash')) return 'lodash'
           // Markdown rendering pipeline: react-markdown, remark-*, rehype-*, unified, etc.
           if (id.includes('node_modules/marked') || id.includes('node_modules/markdown')) return 'markdown'
@@ -59,11 +65,14 @@ export default defineConfig({
           if (id.includes('node_modules/p5')) return 'p5'
           // UI primitives: radix-ui components
           if (id.includes('node_modules/@radix-ui/') || id.includes('node_modules/radix-ui')) return 'radix-vendor'
+          // Virtual scrolling
+          if (id.includes('@tanstack/react-virtual') || id.includes('@tanstack/virtual')) return 'tanstack-vendor'
+          // Remaining node_modules: auto-group by package for smaller main bundle
           if (id.includes('node_modules/')) {
-            // Further split react/vendor by first path segment
             const parts = id.split('node_modules/')
             if (parts.length > 1) {
               const pkg = parts[1].split('/')[0]
+              // React ecosystem → react-vendor
               if (pkg.startsWith('@')) {
                 const scoped = parts[1].split('/')[1]
                 if (['react', 'react-dom', 'react-router', 'scheduler', 'zustand', 'use-sync-external-store'].includes(pkg) ||
@@ -71,6 +80,12 @@ export default defineConfig({
                   return 'react-vendor'
                 }
               }
+              // Other scoped packages: group by scope/package
+              if (pkg.startsWith('@')) {
+                return `${pkg}/${parts[1].split('/')[1]}`
+              }
+              // Unscoped packages: group by package name
+              return pkg
             }
           }
         },
