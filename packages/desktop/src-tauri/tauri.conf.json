@@ -42,6 +42,9 @@
       "icons/icon.png"
     ],
     "resources": [],
+    "category": "Productivity",
+    "shortDescription": "个人知识库阅读器",
+    "longDescription": "Increa Reader 是一个现代化的知识管理工具，支持文件浏览、全文搜索、AI 对话和 PDF 阅读。",
     "iOS": {
       "frameworks": [],
       "minimumSystemVersion": "15.0",
@@ -63,7 +66,15 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
-        }
+        },
+        "UIStatusBarStyle": "UIStatusBarStyleDefault",
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "UIRequiresFullScreen": false,
+        "NSPhotoLibraryUsageDescription": "Increa Reader 需要访问相册以便上传图片到对话中。",
+        "NSCameraUsageDescription": "Increa Reader 需要使用相机以便拍照并上传到对话中。",
+        "NSDocumentsFolderUsageDescription": "Increa Reader 需要访问文档以便浏览和阅读文件。",
+        "NSLocalNetworkUsageDescription": "Increa Reader 需要访问本地网络以连接后端服务。",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -91,6 +102,14 @@
           "name": "python-server",
           "sidecar": true,
           "args": true
+        }
+      ]
+    },
+    "deep-link": {
+      "mobile": [
+        {
+          "host": "increa.reader",
+          "pathPrefix": "/open"
         }
       ]
     }

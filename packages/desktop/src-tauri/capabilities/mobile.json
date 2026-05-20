@@ -27,13 +27,17 @@
     "fs:allow-mkdir",
     "path:default",
     "path:allow-app-data-dir",
+    "path:allow-app-local-data-dir",
+    "path:allow-app-cache-dir",
     "path:allow-document-dir",
     "path:allow-home-dir",
+    "path:allow-download-dir",
     "path:allow-cache-dir",
     "notification:default",
     "notification:allow-is-permission-granted",
     "notification:allow-request-permission",
-    "notification:allow-notify"
+    "notification:allow-notify",
+    "deep-link:default"
   ],
   "platforms": ["iOS", "android"]
 }
