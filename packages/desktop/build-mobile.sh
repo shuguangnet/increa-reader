@@ -610,7 +610,11 @@ case "${1:-help}" in
     prepare_ios_signing
     tauri_run "ios build --release"
     cd "$ROOT_DIR"
-    collect_ios_artifacts
+    if collect_ios_artifacts; then
+      verify_staged_manifest "ios" "$IOS_RELEASE_DIR"
+    else
+      error "iOS build completed but no IPA artifacts were found — check Xcode / Tauri output"
+    fi
     echo ""
     info "iOS build complete! IPA in src-tauri/target/ios/release/"
     ;;
@@ -623,9 +627,12 @@ case "${1:-help}" in
     cd "$DESKTOP_DIR"
     prepare_android_build_inputs
     tauri_run "android build --release"
-    sync_android_support_files
     cd "$ROOT_DIR"
-    collect_android_artifacts
+    if collect_android_artifacts; then
+      verify_staged_manifest "android" "$ANDROID_RELEASE_DIR"
+    else
+      error "Android build completed but no APK/AAB artifacts were found — check Gradle / Tauri output"
+    fi
     echo ""
     info "Android build complete! APK/AAB in src-tauri/target/android/release/"
     ;;
