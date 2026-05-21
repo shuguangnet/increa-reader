@@ -4,6 +4,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
+  "packageManager": "pnpm@10.18.3",
   "scripts": {
     "setup": "bash setup.sh",
     "check": "pnpm --filter @increa-reader/ui check",
@@ -12,7 +13,10 @@
     "lint": "pnpm --filter @increa-reader/ui lint",
     "lint:fix": "pnpm --filter @increa-reader/ui lint:fix",
     "format": "pnpm --filter @increa-reader/ui format",
-    "test": "pnpm --filter \"./packages/*\" test"
+    "test": "pnpm --filter \"./packages/*\" test",
+    "verify:ui": "pnpm --filter @increa-reader/ui test && pnpm --filter @increa-reader/ui build",
+    "verify:python": "pytest packages/server/tests/test_link_index.py packages/server/tests/test_notes_routes.py packages/server/tests/test_pdf_processor.py packages/server/tests/test_frontend_notes_tools.py -q && pytest packages/pdf-reader-mcp/tests -q",
+    "verify:ci": "pnpm verify:ui && pnpm verify:python"
   },
   "devDependencies": {
     "shadcn": "^3.3.1",
