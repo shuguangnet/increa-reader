@@ -115,7 +115,24 @@ async def lifespan(app: FastAPI):
                         await search_idx.update_file(repo_name, file_path, full_path, repo_root)
                         await link_idx.update_file(repo_name, file_path, full_path)
         for repo_name in changed_repos:
-            tree_cache.invalidate_repo(repo_name)
+            repo = next((r for r in workspace_config.repos if r.name == repo_name), None)
+            if repo is None:
+                continue
+            repo_root = Path(repo.root).resolve()
+            tree_cache.apply_file_changes(
+                repo_name,
+                repo_root,
+                added={
+                    key.split(':', 1)[1]
+                    for key in changed_files.get('added', set())
+                    if key.startswith(f"{repo_name}:")
+                },
+                deleted={
+                    key.split(':', 1)[1]
+                    for key in changed_files.get('deleted', set())
+                    if key.startswith(f"{repo_name}:")
+                },
+            )
         if DEBUG:
             print(f"   ✅ Indexes updated for {len(all_keys)} file changes")
 

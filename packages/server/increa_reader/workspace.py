@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 from threading import Lock
-from typing import List
+from typing import List, Optional
 
 from .models import RepoItem, TreeNode, WorkspaceConfig
 
@@ -284,3 +284,105 @@ class WorkspaceTreeCache:
         with self._lock:
             self._repo_trees.clear()
             self._workspace_tree = None
+
+    def apply_file_changes(
+        self,
+        repo_name: str,
+        repo_root: Path,
+        added: set[str] | None = None,
+        deleted: set[str] | None = None,
+    ) -> None:
+        """Incrementally update a cached repo tree for file additions/deletions."""
+        added = added or set()
+        deleted = deleted or set()
+
+        with self._lock:
+            tree = self._repo_trees.get(repo_name)
+            if tree is None:
+                return
+
+            for file_path in sorted(deleted):
+                self._remove_path(tree, file_path)
+
+            for file_path in sorted(added):
+                self._insert_path(tree, repo_root, file_path)
+
+            self._workspace_tree = None
+
+    def _remove_path(self, tree: List[TreeNode], relative_path: str) -> bool:
+        parts = [part for part in relative_path.split("/") if part]
+        return self._remove_parts(tree, parts)
+
+    def _remove_parts(self, nodes: List[TreeNode], parts: list[str]) -> bool:
+        if not parts:
+            return False
+
+        target = parts[0]
+        for index, node in enumerate(nodes):
+            if node.name != target:
+                continue
+
+            if len(parts) == 1:
+                nodes.pop(index)
+                return True
+
+            if node.type != "dir" or not node.children:
+                return False
+
+            removed = self._remove_parts(node.children, parts[1:])
+            if removed and not node.children:
+                nodes.pop(index)
+            return removed
+
+        return False
+
+    def _insert_path(self, tree: List[TreeNode], repo_root: Path, relative_path: str) -> None:
+        full_path = repo_root / relative_path
+        if not full_path.exists() or full_path.is_dir():
+            return
+
+        parts = [part for part in relative_path.split("/") if part]
+        if not parts:
+            return
+
+        current_nodes = tree
+        current_path_parts: list[str] = []
+
+        for part in parts[:-1]:
+            current_path_parts.append(part)
+            dir_path = "/".join(current_path_parts)
+            directory = self._find_node(current_nodes, part, "dir")
+            if directory is None:
+                directory = TreeNode(type="dir", name=part, path=dir_path, children=[])
+                self._insert_sorted(current_nodes, directory)
+            if directory.children is None:
+                directory.children = []
+            current_nodes = directory.children
+
+        file_name = parts[-1]
+        if self._find_node(current_nodes, file_name, "file") is not None:
+            return
+
+        self._insert_sorted(
+            current_nodes,
+            TreeNode(type="file", name=file_name, path=relative_path),
+        )
+
+    @staticmethod
+    def _find_node(
+        nodes: List[TreeNode], name: str, node_type: Optional[str] = None
+    ) -> Optional[TreeNode]:
+        for node in nodes:
+            if node.name == name and (node_type is None or node.type == node_type):
+                return node
+        return None
+
+    @staticmethod
+    def _insert_sorted(nodes: List[TreeNode], new_node: TreeNode) -> None:
+        new_key = (0 if new_node.type == "dir" else 1, new_node.name.lower())
+        for index, node in enumerate(nodes):
+            node_key = (0 if node.type == "dir" else 1, node.name.lower())
+            if new_key < node_key:
+                nodes.insert(index, new_node)
+                return
+        nodes.append(new_node)

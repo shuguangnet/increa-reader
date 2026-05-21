@@ -4,7 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from increa_reader.main import create_app
-from increa_reader.workspace import build_file_tree
+from increa_reader.models import TreeNode
+from increa_reader.workspace import WorkspaceTreeCache, build_file_tree
 
 
 def _build_client(tmp_path, monkeypatch):
@@ -221,3 +222,53 @@ def test_build_file_tree_keeps_directories_before_files(tmp_path):
         "a-file.md",
         "b-file.md",
     ]
+
+
+def test_workspace_tree_cache_apply_file_changes_updates_cached_tree(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    docs_dir = repo_root / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "guide.md").write_text("# Guide\n", encoding="utf-8")
+
+    cache = WorkspaceTreeCache(["node_modules", ".*", "*.log"])
+    tree = cache.get_repo_tree("repo", repo_root)
+    docs_node = next(node for node in tree if node.path == "docs")
+    assert [child.path for child in docs_node.children or []] == ["docs/guide.md"]
+
+    (docs_dir / "later.md").write_text("# Later\n", encoding="utf-8")
+    cache.apply_file_changes("repo", repo_root, added={"docs/later.md"})
+
+    docs_node_after_add = next(node for node in tree if node.path == "docs")
+    assert [child.path for child in docs_node_after_add.children or []] == [
+        "docs/guide.md",
+        "docs/later.md",
+    ]
+
+    (repo_root / "z-last.md").write_text("# Z\n", encoding="utf-8")
+    cache.apply_file_changes("repo", repo_root, added={"z-last.md"})
+    assert [node.path for node in tree] == ["docs", "z-last.md"]
+
+    cache.apply_file_changes("repo", repo_root, deleted={"docs/guide.md"})
+    docs_node_after_delete = next(node for node in tree if node.path == "docs")
+    assert [child.path for child in docs_node_after_delete.children or []] == ["docs/later.md"]
+
+
+def test_workspace_tree_cache_apply_file_changes_removes_empty_directories(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    cache = WorkspaceTreeCache(["node_modules", ".*", "*.log"])
+    tree = [
+        TreeNode(
+            type="dir",
+            name="docs",
+            path="docs",
+            children=[TreeNode(type="file", name="guide.md", path="docs/guide.md")],
+        )
+    ]
+    cache._repo_trees["repo"] = tree
+
+    cache.apply_file_changes("repo", repo_root, deleted={"docs/guide.md"})
+
+    assert tree == []
