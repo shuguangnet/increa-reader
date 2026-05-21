@@ -29,6 +29,7 @@ jobs:
       desktop: ${{ steps.filter.outputs.desktop }}
       docker: ${{ steps.filter.outputs.docker }}
       security: ${{ steps.filter.outputs.security }}
+      workflows: ${{ steps.filter.outputs.workflows }}
     steps:
       - uses: actions/checkout@v4
       - name: Detect changed areas
@@ -78,6 +79,21 @@ jobs:
               - 'packages/server/pyproject.toml'
               - 'packages/pdf-reader-mcp/requirements.txt'
               - 'packages/pdf-reader-mcp/pyproject.toml'
+            workflows:
+              - '.github/actions/**'
+              - '.github/workflows/**'
+
+  # ── Workflow validation ──
+  workflow-lint:
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate GitHub Actions workflows
+        uses: rhysd/actionlint@v1
 
   # ── Frontend: typecheck ──
   frontend-typecheck:

@@ -128,6 +128,7 @@ jobs:
           java-version: 17
 
       - name: Setup Android SDK
+        id: setup-android
         uses: android-actions/setup-android@v3
 
       - name: Install Rust stable
@@ -145,12 +146,14 @@ jobs:
         run: cd packages/desktop && npx tauri android init
         env:
           ANDROID_HOME: ${{ steps.setup-android.outputs.android-home }}
+          ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
 
       - name: Build Android
         run: cd packages/desktop && npx tauri android build --release
         env:
           ANDROID_HOME: ${{ steps.setup-android.outputs.android-home }}
           NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
+          ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
 
       - name: Sign Android APK (optional)
         if: github.event.inputs.platform == 'android-signed'

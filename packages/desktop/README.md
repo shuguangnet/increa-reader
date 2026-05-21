@@ -181,8 +181,8 @@ cd packages/scripts
 
 ## CI/CD
 
-项目包含三个 GitHub Actions 工作流：
+项目包含以下 GitHub Actions 工作流：
 
-- **`ci.yml`** — 前端类型检查、lint、构建
+- **`ci.yml`** — 前端/后端检查、测试、Docker 构建校验，以及 GitHub Actions workflow 自检（actionlint）
 - **`cd.yml`** — Docker 镜像构建和推送
 - **`mobile.yml`** — iOS/Android 构建和检查
