@@ -11,6 +11,7 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'workspace/**'
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -124,6 +125,22 @@ jobs:
       - name: Build pdf-reader-mcp package
         if: needs.changes.outputs.mcp == 'true'
         run: python -m build packages/pdf-reader-mcp --sdist --wheel --outdir packages/pdf-reader-mcp/dist-ci
+
+      - name: Smoke install built server wheel
+        if: needs.changes.outputs.server == 'true'
+        run: |
+          python -m venv .ci-server-wheel
+          .ci-server-wheel/bin/pip install --upgrade pip
+          .ci-server-wheel/bin/pip install packages/server/dist-ci/*.whl
+          .ci-server-wheel/bin/python -c "import increa_reader.pdf_processor"
+
+      - name: Smoke install built pdf-reader-mcp wheel
+        if: needs.changes.outputs.mcp == 'true'
+        run: |
+          python -m venv .ci-mcp-wheel
+          .ci-mcp-wheel/bin/pip install --upgrade pip
+          .ci-mcp-wheel/bin/pip install packages/pdf-reader-mcp/dist-ci/*.whl
+          .ci-mcp-wheel/bin/python -c "import pdf_reader_server"
 
       - name: Upload built Python packages
         if: always()
