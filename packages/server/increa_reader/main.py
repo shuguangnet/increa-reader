@@ -22,7 +22,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from .board_routes import create_board_routes
-from .chat import cleanup_active_sessions, create_chat_routes
+from .chat import cleanup_active_sessions, cleanup_openai_client, create_chat_routes
 from .config_routes import create_config_routes
 
 # Import local modules
@@ -151,6 +151,7 @@ async def lifespan(app: FastAPI):
     # Close reusable HTTP clients for AI API calls
     from .ai_routes import close_http_clients
     await close_http_clients()
+    await cleanup_openai_client()
     await cleanup_active_sessions()
     print("✓ Cleanup completed\n")
 

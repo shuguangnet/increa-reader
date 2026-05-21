@@ -56,6 +56,13 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 active_sessions: dict[str, ClaudeSDKClient] = {}
 session_lock = asyncio.Lock()
 
+# Reusable httpx.AsyncClient + AsyncOpenAI instance for connection pooling.
+# Avoids TCP+TLS handshake (~50-100ms) on every OpenAI chat request.
+# Mirrors the pattern already used in ai_routes.py for Anthropic calls.
+_openai_http_client = None  # httpx.AsyncClient | None
+_openai_sdk_client = None   # AsyncOpenAI | None
+_openai_client_config_hash: str = ""
+
 
 async def cleanup_active_sessions():
     """Cleanup all active sessions on shutdown"""
@@ -71,6 +78,58 @@ async def cleanup_active_sessions():
                 if DEBUG:
                     print(f"✗ Failed to interrupt session {session_id}: {e}")
         active_sessions.clear()
+
+
+def _get_openai_sdk_client(api_key: str, base_url: str) -> "AsyncOpenAI":
+    """Get or create a shared AsyncOpenAI instance backed by a pooled httpx client.
+
+    The httpx.AsyncClient underneath reuses TCP connections via HTTP keep-alive,
+    avoiding the ~50-100ms handshake overhead on every chat request.
+
+    The client is invalidated (recreated) if api_key or base_url changes at runtime.
+    """
+    global _openai_http_client, _openai_sdk_client, _openai_client_config_hash
+    config_hash = f"{api_key}|{base_url}"
+
+    if _openai_sdk_client is not None and _openai_client_config_hash == config_hash:
+        return _openai_sdk_client
+
+    # Config changed — close old client before creating a new one
+    if _openai_http_client is not None:
+        # Schedule close on the running event loop if one exists
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_openai_http_client.aclose())
+        except RuntimeError:
+            pass  # no running loop, client will be GC'd
+    _openai_http_client = None
+    _openai_sdk_client = None
+
+    import httpx
+    _openai_http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(120.0),
+        limits=httpx.Limits(max_keepalive_connections=5, max_connections=20),
+    )
+    _openai_sdk_client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        http_client=_openai_http_client,
+    )
+    _openai_client_config_hash = config_hash
+    return _openai_sdk_client
+
+
+async def cleanup_openai_client() -> None:
+    """Close the shared OpenAI httpx client on shutdown."""
+    global _openai_http_client, _openai_sdk_client, _openai_client_config_hash
+    if _openai_http_client is not None:
+        try:
+            await _openai_http_client.aclose()
+        except Exception:
+            pass
+    _openai_http_client = None
+    _openai_sdk_client = None
+    _openai_client_config_hash = ""
 
 
 def create_chat_routes(app, workspace_config: WorkspaceConfig):
@@ -379,11 +438,8 @@ User Question:
                 # 确保 base_url 格式正确
                 base_url = config["base_url"].rstrip("/")
 
-                # 创建 OpenAI 客户端并请求流式响应
-                client = AsyncOpenAI(
-                    api_key=api_key,
-                    base_url=base_url,
-                )
+                # 复用共享的 AsyncOpenAI 客户端（连接池复用，避免每次请求创建新的 TCP 连接）
+                client = _get_openai_sdk_client(api_key, base_url)
 
                 # 构建 messages 列表（支持多轮上下文）
                 messages = [{"role": "system", "content": system_prompt}]
