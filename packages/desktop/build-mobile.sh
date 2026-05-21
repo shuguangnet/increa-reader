@@ -26,6 +26,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 DESKTOP_DIR="$(cd "$(dirname "$0")" && pwd)"
+SRC_TAURI_DIR="$DESKTOP_DIR/src-tauri"
+GEN_ANDROID_DIR="$SRC_TAURI_DIR/gen/android"
+PNPM_CMD="${PNPM_CMD:-}"
+TAURI_CMD="${TAURI_CMD:-}"
 
 cd "$ROOT_DIR"
 
@@ -38,6 +42,117 @@ NC='\033[0m' # No Color
 info()  { echo -e "${GREEN}✓${NC} $1"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $1"; }
 error() { echo -e "${RED}✗${NC} $1" >&2; exit 1; }
+
+resolve_pnpm() {
+  if [[ -n "$PNPM_CMD" ]]; then
+    return 0
+  fi
+
+  if command -v pnpm >/dev/null 2>&1; then
+    PNPM_CMD="pnpm"
+    return 0
+  fi
+
+  local corepack_pnpm
+  corepack_pnpm="$(python3 - <<'PY'
+from pathlib import Path
+root = Path.home() / '.cache/node/corepack/pnpm/10.17.1/bin/pnpm.cjs'
+print(root if root.exists() else '')
+PY
+)"
+
+  if [[ -n "$corepack_pnpm" ]]; then
+    PNPM_CMD="node $corepack_pnpm"
+    return 0
+  fi
+
+  error "pnpm not found. Install pnpm or prepare corepack pnpm@10.17.1 first."
+}
+
+pnpm_run() {
+  resolve_pnpm
+  bash -lc "$PNPM_CMD $*"
+}
+
+resolve_tauri() {
+  if [[ -n "$TAURI_CMD" ]]; then
+    return 0
+  fi
+
+  if [[ -x "$DESKTOP_DIR/node_modules/.bin/tauri" ]]; then
+    TAURI_CMD="$DESKTOP_DIR/node_modules/.bin/tauri"
+    return 0
+  fi
+
+  if command -v tauri >/dev/null 2>&1; then
+    TAURI_CMD="tauri"
+    return 0
+  fi
+
+  if command -v npx >/dev/null 2>&1; then
+    TAURI_CMD="npx tauri"
+    return 0
+  fi
+
+  error "Tauri CLI not found. Run dependency installation first."
+}
+
+tauri_run() {
+  resolve_tauri
+  bash -lc "$TAURI_CMD $*"
+}
+
+prepare_android_keystore() {
+  local keystore_b64="${INCREA_ANDROID_KEYSTORE_B64:-${ANDROID_KEYSTORE_B64:-}}"
+  local store_password="${INCREA_ANDROID_KEYSTORE_PASSWORD:-${ANDROID_KEYSTORE_PASSWORD:-}}"
+  local key_alias="${INCREA_ANDROID_KEY_ALIAS:-${ANDROID_KEY_ALIAS:-}}"
+  local key_password="${INCREA_ANDROID_KEY_PASSWORD:-${ANDROID_KEY_PASSWORD:-}}"
+
+  if [[ -z "$keystore_b64" ]]; then
+    if [[ -f "$SRC_TAURI_DIR/keystore.properties" ]]; then
+      info "Using existing Android keystore.properties"
+    else
+      warn "No Android release signing env detected; release build may require manual signing for distribution"
+    fi
+    return 0
+  fi
+
+  [[ -n "$store_password" ]] || error "ANDROID_KEYSTORE_PASSWORD is required when ANDROID_KEYSTORE_B64 is set"
+  [[ -n "$key_alias" ]] || error "ANDROID_KEY_ALIAS is required when ANDROID_KEYSTORE_B64 is set"
+  [[ -n "$key_password" ]] || error "ANDROID_KEY_PASSWORD is required when ANDROID_KEYSTORE_B64 is set"
+
+  local keystore_path="$SRC_TAURI_DIR/release.keystore"
+  printf '%s' "$keystore_b64" | base64 --decode > "$keystore_path"
+
+  cat > "$SRC_TAURI_DIR/keystore.properties" <<EOF
+storeFile=$keystore_path
+storePassword=$store_password
+keyAlias=$key_alias
+keyPassword=$key_password
+EOF
+
+  info "Prepared Android release keystore metadata"
+}
+
+sync_android_support_files() {
+  if [[ ! -d "$GEN_ANDROID_DIR" ]]; then
+    warn "Android project not initialized yet; skipping gen/android support-file sync"
+    return 0
+  fi
+
+  cp "$SRC_TAURI_DIR/gradle.properties" "$GEN_ANDROID_DIR/gradle.properties"
+
+  if [[ -f "$SRC_TAURI_DIR/keystore.properties" ]]; then
+    cp "$SRC_TAURI_DIR/keystore.properties" "$GEN_ANDROID_DIR/keystore.properties"
+  fi
+
+  info "Synced Android support files into src-tauri/gen/android"
+}
+
+prepare_android_project() {
+  prepare_android_keystore
+  sync_android_support_files
+}
 
 # ── Prerequisite Checks ───────────────────────────────────────────
 check_rust_targets() {
@@ -68,12 +183,12 @@ check_android_prereqs() {
 
 # ── Install frontend dependencies ─────────────────────────────────
 echo "📦 Installing frontend dependencies..."
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
 
 # ── Install desktop package dependencies ───────────────────────────
 echo "📦 Installing desktop dependencies..."
 cd "$DESKTOP_DIR"
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
 
 # ── Command dispatcher ────────────────────────────────────────────
 case "${1:-help}" in
@@ -91,21 +206,27 @@ case "${1:-help}" in
     check_ios_prereqs
     echo "🔧 Initializing iOS project..."
     cd "$DESKTOP_DIR"
-    npx tauri ios init
+    tauri_run "ios init"
     info "iOS project initialized. Check src-tauri/gen/apple/ for the Xcode project."
     ;;
   init:android)
     check_android_prereqs
     echo "🔧 Initializing Android project..."
     cd "$DESKTOP_DIR"
-    npx tauri android init
+    tauri_run "android init"
+    prepare_android_project
     info "Android project initialized. Check src-tauri/gen/android/ for the Gradle project."
+    ;;
+  prepare:android)
+    echo "🛠️  Preparing Android support files..."
+    cd "$DESKTOP_DIR"
+    prepare_android_project
     ;;
   ios)
     check_ios_prereqs
     echo "📱 Building iOS release..."
     cd "$DESKTOP_DIR"
-    npx tauri ios build --release
+    tauri_run "ios build --release"
     echo ""
     info "iOS build complete! IPA in src-tauri/target/ios/release/"
     ;;
@@ -113,7 +234,8 @@ case "${1:-help}" in
     check_android_prereqs
     echo "📱 Building Android release..."
     cd "$DESKTOP_DIR"
-    npx tauri android build --release
+    prepare_android_project
+    tauri_run "android build --release"
     echo ""
     info "Android build complete! APK/AAB in src-tauri/target/android/release/"
     ;;
@@ -121,13 +243,14 @@ case "${1:-help}" in
     check_ios_prereqs
     echo "📱 Starting iOS dev server (simulator)..."
     cd "$DESKTOP_DIR"
-    npx tauri ios dev
+    tauri_run "ios dev"
     ;;
   dev:android)
     check_android_prereqs
     echo "📱 Starting Android dev server (emulator)..."
     cd "$DESKTOP_DIR"
-    npx tauri android dev
+    prepare_android_project
+    tauri_run "android dev"
     ;;
   sign:android)
     # Sign an unsigned APK with a debug keystore for testing
@@ -154,7 +277,7 @@ case "${1:-help}" in
     if [ ! -f "src-tauri/icons/icon.png" ]; then
       error "No source icon found at src-tauri/icons/icon.png — place a 1024x1024+ PNG there and re-run."
     fi
-    npx @tauri-apps/cli icon src-tauri/icons/icon.png
+    tauri_run "icon src-tauri/icons/icon.png"
     info "Icons generated for all platforms."
     ;;
   all)
@@ -170,6 +293,7 @@ case "${1:-help}" in
     echo "  check          Check all prerequisites (Rust targets, env vars)"
     echo "  init:ios       Initialize iOS project (first time only, requires macOS + Xcode)"
     echo "  init:android   Initialize Android project (first time only, requires Android SDK)"
+    echo "  prepare:android Sync gradle/signing files into src-tauri/gen/android"
     echo "  ios            Build iOS release (requires macOS + Xcode)"
     echo "  android        Build Android release (requires Android SDK)"
     echo "  dev:ios        Start iOS dev server (simulator)"
@@ -183,6 +307,8 @@ case "${1:-help}" in
     echo "  Android:   Needs Android NDK 25+, ANDROID_NDK_HOME set, JDK 17+"
     echo "  ANDROID_HOME  — Android SDK root directory"
     echo "  ANDROID_NDK_HOME — Android NDK root directory"
+    echo "  ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD"
+    echo "               Optional Android release signing credentials (CI-friendly)"
     exit 0
     ;;
 esac

@@ -9,6 +9,9 @@ src-tauri/binaries/python-server-*
 # Android signing (never commit real keystore passwords)
 src-tauri/keystore.properties
 src-tauri/debug.keystore
+src-tauri/release.keystore
+src-tauri/gen/android/keystore.properties
+src-tauri/gen/android/gradle.properties
 
 # Vite output
 dist/

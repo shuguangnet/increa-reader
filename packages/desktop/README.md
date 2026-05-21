@@ -135,6 +135,8 @@ pnpm install
 - **自适应图标**：使用蓝色背景 + 居中图标前景
 - **ABI 过滤**：仅构建 `aarch64` / `arm64-v8a`
 - **Deep Link**：`increa.reader://open`
+- **发布签名**：支持通过 `INCREA_ANDROID_KEYSTORE_B64`、`INCREA_ANDROID_KEYSTORE_PASSWORD`、`INCREA_ANDROID_KEY_ALIAS`、`INCREA_ANDROID_KEY_PASSWORD` 在 CI 中自动注入签名信息
+- **Gradle 文件同步**：`build-mobile.sh init:android` / `android` / `dev:android` 会自动把 `src-tauri/gradle.properties` 和 `keystore.properties` 同步到 `src-tauri/gen/android/`，避免生成后的 Android 工程漏掉签名与内存配置
 
 ## 工作原理
 
@@ -186,3 +188,5 @@ cd packages/scripts
 - **`ci.yml`** — 前端/后端检查、测试、Docker 构建校验，以及 GitHub Actions workflow 自检（actionlint）
 - **`cd.yml`** — Docker 镜像构建和推送
 - **`mobile.yml`** — iOS/Android 构建和检查
+
+其中 Android 工作流已改为复用 `build-mobile.sh`，从而保证本地与 CI 的签名、Gradle 参数和构建步骤一致。

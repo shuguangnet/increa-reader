@@ -79,10 +79,12 @@ src-tauri/
 3. **发布构建**: `./build-mobile.sh android`
    - 生成 APK/AAB 到 `src-tauri/target/android/release/`
    - ProGuard 规则在 `src-tauri/proguard-rules.pro`
+   - 会自动同步 `src-tauri/gradle.properties` / `keystore.properties` 到 `src-tauri/gen/android/`
 
 4. **签名**: `./build-mobile.sh sign:android`
    - 使用 debug keystore 签名（测试用）
    - 生产签名需配置自己的 keystore
+   - CI 可直接使用 `INCREA_ANDROID_KEYSTORE_B64`、`INCREA_ANDROID_KEYSTORE_PASSWORD`、`INCREA_ANDROID_KEY_ALIAS`、`INCREA_ANDROID_KEY_PASSWORD` 自动落盘为 `keystore.properties`
 
 ### Android 配置要点
 
@@ -92,6 +94,7 @@ src-tauri/
 - **自适应图标**: 前景/背景图层分离
 - **备份**: 禁用 `allowBackup`（避免数据泄露）
 - **Split modules**: 禁用 `splitModulesEnabled`（保持单 APK 简化分发）
+- **构建稳定性**: 统一通过 `build-mobile.sh` 准备签名文件与 `gradle.properties`，避免 Tauri 重新生成 `gen/android/` 后丢失配置
 
 ## 权限配置
 

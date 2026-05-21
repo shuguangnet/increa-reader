@@ -143,17 +143,25 @@ jobs:
         run: cd packages/desktop && pnpm install --frozen-lockfile
 
       - name: Init Android project
-        run: cd packages/desktop && npx tauri android init
+        run: cd packages/desktop && bash build-mobile.sh init:android
         env:
           ANDROID_HOME: ${{ steps.setup-android.outputs.android-home }}
           ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
+          INCREA_ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          INCREA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          INCREA_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          INCREA_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Build Android
-        run: cd packages/desktop && npx tauri android build --release
+        run: cd packages/desktop && bash build-mobile.sh android
         env:
           ANDROID_HOME: ${{ steps.setup-android.outputs.android-home }}
           NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
           ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
+          INCREA_ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          INCREA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          INCREA_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          INCREA_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Sign Android APK (optional)
         if: github.event.inputs.platform == 'android-signed'
