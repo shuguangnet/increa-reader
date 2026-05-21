@@ -1,0 +1,185 @@
+name: Bundle Size — Track & Compare
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'packages/ui/**'
+      - '.github/actions/setup-pnpm/**'
+      - '.github/workflows/bundle-size.yml'
+      - 'scripts/ci/bundle-size.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: bundle-size-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  bundle-size:
+    runs-on: ubuntu-latest
+    steps:
+      # ── PR head ──
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup pnpm (PR head)
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Build UI (PR head)
+        run: pnpm --filter @increa-reader/ui build
+
+      - name: Compute bundle size (PR head)
+        run: bash scripts/ci/bundle-size.sh packages/ui/dist pr-bundle.json
+
+      - name: Upload PR bundle report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-bundle-report
+          path: pr-bundle.json
+          retention-days: 3
+
+      # ── Base branch ──
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base-checkout
+
+      - name: Setup Node.js (base)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm (base)
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10.18.3'
+
+      - name: Install deps & build (base)
+        working-directory: base-checkout
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @increa-reader/ui build
+
+      - name: Compute bundle size (base)
+        working-directory: base-checkout
+        run: bash scripts/ci/bundle-size.sh packages/ui/dist base-bundle.json
+
+      - name: Upload base bundle report
+        uses: actions/upload-artifact@v4
+        with:
+          name: base-bundle-report
+          path: base-checkout/base-bundle.json
+          retention-days: 3
+
+      # ── Compare & comment ──
+      - name: Compare bundle sizes & comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            function loadReport(path) {
+              if (!fs.existsSync(path)) return null;
+              return JSON.parse(fs.readFileSync(path, 'utf-8'));
+            }
+
+            const pr = loadReport('pr-bundle.json');
+            const base = loadReport('base-checkout/base-bundle.json');
+
+            if (!pr || !base) {
+              core.setFailed('Missing bundle report');
+              return;
+            }
+
+            function fmt(bytes) {
+              if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MiB';
+              if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KiB';
+              return bytes + ' B';
+            }
+
+            function delta(current, previous) {
+              const diff = current - previous;
+              const pct = previous > 0 ? ((diff / previous) * 100).toFixed(1) : '0.0';
+              const sign = diff > 0 ? '+' : '';
+              const emoji = Math.abs(diff) > 1024 * 10 ? (diff > 0 ? '🔴' : '🟢') : '⚪';
+              return `${emoji} ${sign}${fmt(diff)} (${sign}${pct}%)`;
+            }
+
+            // Top-level summary
+            let body = '## 📦 Bundle Size Report\n\n';
+            body += '| Metric | Base | PR | Delta |\n';
+            body += '|--------|------|----|-------|\n';
+            body += `| Raw    | ${fmt(base.total.raw)} | ${fmt(pr.total.raw)} | ${delta(pr.total.raw, base.total.raw)} |\n`;
+            body += `| Gzip   | ${fmt(base.total.gzip)} | ${fmt(pr.total.gzip)} | ${delta(pr.total.gzip, base.total.gzip)} |\n`;
+            if (pr.total.brotli > 0 && base.total.brotli > 0) {
+              body += `| Brotli | ${fmt(base.total.brotli)} | ${fmt(pr.total.brotli)} | ${delta(pr.total.brotli, base.total.brotli)} |\n`;
+            }
+
+            // Chunk-level comparison
+            body += '\n<details><summary>📋 Per-chunk comparison</summary>\n\n';
+            body += '| Chunk | Base | PR | Delta |\n';
+            body += '|-------|------|----|-------|\n';
+
+            const allNames = new Set();
+            for (const c of pr.chunks) allNames.add(c.name);
+            for (const c of base.chunks) allNames.add(c.name);
+
+            const sorted = [...allNames].sort();
+            for (const name of sorted) {
+              const prChunk = pr.chunks.find(c => c.name === name);
+              const baseChunk = base.chunks.find(c => c.name === name);
+
+              if (prChunk && baseChunk) {
+                body += `| \`${name}\` | ${fmt(baseChunk.gzip)} | ${fmt(prChunk.gzip)} | ${delta(prChunk.gzip, baseChunk.gzip)} |\n`;
+              } else if (prChunk) {
+                body += `| \`${name}\` | — | ${fmt(prChunk.gzip)} | 🆕 new chunk |\n`;
+              } else {
+                body += `| \`${name}\` | ${fmt(baseChunk.gzip)} | — | ❌ removed |\n`;
+              }
+            }
+
+            body += '\n</details>\n';
+
+            // Warning for large increases
+            const gzipIncrease = pr.total.gzip - base.total.gzip;
+            if (gzipIncrease > 50 * 1024) {
+              body += '\n⚠️ **Gzip bundle size increased by more than 50 KiB.** Consider reviewing new dependencies.\n';
+            }
+
+            // Find existing comment and update or create new
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Bundle Size Report')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

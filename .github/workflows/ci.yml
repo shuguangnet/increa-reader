@@ -33,6 +33,7 @@ jobs:
       security: ${{ steps.filter.outputs.security }}
       workflows: ${{ steps.filter.outputs.workflows }}
       server_smoke: ${{ steps.filter.outputs.server_smoke }}
+      bundle_size: ${{ steps.filter.outputs.bundle_size }}
     steps:
       - uses: actions/checkout@v4
       - name: Detect changed areas
@@ -101,6 +102,15 @@ jobs:
               - 'scripts/ci/smoke-test-server.sh'
               - 'packages/server/**'
               - 'Dockerfile'
+            bundle_size:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/actions/setup-pnpm/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/bundle-size.yml'
+              - 'scripts/ci/bundle-size.sh'
+              - 'packages/ui/**'
 
   # ── Workflow validation ──
   workflow-lint:
@@ -344,7 +354,7 @@ jobs:
             --cov=increa_reader \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=50
+            --cov-fail-under=60
 
       - name: Upload coverage report (server)
         if: always()
