@@ -96,7 +96,7 @@ pnpm --filter @increa-reader/desktop build
 # 先配置 iOS Team ID（示例）
 export INCREA_IOS_TEAM_ID=ABCDE12345
 
-# 初始化移动端项目（首次）
+# 初始化移动端项目（首次；若跳过，Android 的 prepare/dev/build 也会自动补一次 init）
 ./build-mobile.sh init:ios
 ./build-mobile.sh init:android
 
@@ -148,6 +148,7 @@ export INCREA_IOS_TEAM_ID=ABCDE12345
 - **Deep Link**：`increa.reader://open`
 - **发布签名**：支持通过 `INCREA_ANDROID_KEYSTORE_B64`、`INCREA_ANDROID_KEYSTORE_PASSWORD`、`INCREA_ANDROID_KEY_ALIAS`、`INCREA_ANDROID_KEY_PASSWORD` 在 CI 中自动注入签名信息
 - **Gradle 文件同步**：`build-mobile.sh init:android` / `android` / `dev:android` 会自动把 `src-tauri/gradle.properties` 和 `keystore.properties` 同步到 `src-tauri/gen/android/`，避免生成后的 Android 工程漏掉签名与内存配置
+- **自动补齐初始化**：如果 `src-tauri/gen/android/` 被清理或 CI 是全新工作目录，`build-mobile.sh prepare:android` / `dev:android` / `android` 会先自动执行一次 `tauri android init`，再同步 Gradle/签名文件，减少“忘记 init 导致构建中断”的发包风险
 
 ## 工作原理
 
@@ -200,4 +201,4 @@ cd packages/scripts
 - **`cd.yml`** — Docker 镜像构建和推送
 - **`mobile.yml`** — iOS/Android 构建和检查
 
-其中 Android 工作流已改为复用 `build-mobile.sh`，从而保证本地与 CI 的签名、Gradle 参数和构建步骤一致；iOS 也统一改为通过同一脚本注入 Team ID 并在构建后自动还原模板，减少签名配置漂移。
+其中 Android 工作流已改为复用 `build-mobile.sh`，从而保证本地与 CI 的签名、Gradle 参数和构建步骤一致；并且在 `gen/android` 缺失时会自动补一次 `tauri android init`，避免全新环境或 clean 后因漏初始化而失败。iOS 也统一改为通过同一脚本注入 Team ID 并在构建后自动还原模板，减少签名配置漂移。

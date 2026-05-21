@@ -226,6 +226,22 @@ prepare_android_project() {
   sync_android_support_files
 }
 
+ensure_android_project_initialized() {
+  if [[ -d "$GEN_ANDROID_DIR" ]]; then
+    return 0
+  fi
+
+  warn "Android Gradle project missing at src-tauri/gen/android; running 'tauri android init' automatically"
+  cd "$DESKTOP_DIR"
+  tauri_run "android init"
+  info "Android project initialized automatically"
+}
+
+prepare_android_build_inputs() {
+  ensure_android_project_initialized
+  prepare_android_project
+}
+
 # ── Prerequisite Checks ───────────────────────────────────────────
 check_rust_targets() {
   local target="$1"
@@ -302,7 +318,7 @@ case "${1:-help}" in
   prepare:android)
     echo "🛠️  Preparing Android support files..."
     cd "$DESKTOP_DIR"
-    prepare_android_project
+    prepare_android_build_inputs
     ;;
   ios)
     check_ios_prereqs
@@ -317,8 +333,9 @@ case "${1:-help}" in
     check_android_prereqs
     echo "📱 Building Android release..."
     cd "$DESKTOP_DIR"
-    prepare_android_project
+    prepare_android_build_inputs
     tauri_run "android build --release"
+    sync_android_support_files
     echo ""
     info "Android build complete! APK/AAB in src-tauri/target/android/release/"
     ;;
@@ -333,7 +350,7 @@ case "${1:-help}" in
     check_android_prereqs
     echo "📱 Starting Android dev server (emulator)..."
     cd "$DESKTOP_DIR"
-    prepare_android_project
+    prepare_android_build_inputs
     tauri_run "android dev"
     ;;
   sign:android)
@@ -378,7 +395,7 @@ case "${1:-help}" in
     echo "  init:ios       Initialize iOS project (first time only, requires macOS + Xcode)"
     echo "  init:android   Initialize Android project (first time only, requires Android SDK)"
     echo "  prepare:ios    Inject Team ID into iOS build templates for the current run"
-    echo "  prepare:android Sync gradle/signing files into src-tauri/gen/android"
+    echo "  prepare:android Auto-init Android project when missing, then sync gradle/signing files"
     echo "  ios            Build iOS release (requires macOS + Xcode)"
     echo "  android        Build Android release (requires Android SDK)"
     echo "  dev:ios        Start iOS dev server (simulator)"
@@ -396,6 +413,7 @@ case "${1:-help}" in
     echo "  ANDROID_NDK_HOME — Android NDK root directory"
     echo "  ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD"
     echo "               Optional Android release signing credentials (CI-friendly)"
+    echo "               Android init is auto-triggered before prepare/dev/build when gen/android is missing"
     exit 0
     ;;
 esac
