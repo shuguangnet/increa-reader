@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to publish, for example v1.2.3'
+        required: true
+      prerelease:
+        description: 'Mark the release as a prerelease'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-${{ github.event.inputs.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            tag_name="${{ github.event.inputs.tag_name }}"
+            prerelease="${{ github.event.inputs.prerelease }}"
+          else
+            tag_name="${GITHUB_REF_NAME}"
+            if [[ "${tag_name}" == *-* ]]; then
+              prerelease=true
+            else
+              prerelease=false
+            fi
+          fi
+
+          if [[ ! "${tag_name}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid tag format: ${tag_name}" >&2
+            echo "Expected examples: v1.2.3 or v1.2.3-rc.1" >&2
+            exit 1
+          fi
+
+          echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag for manual release
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          tag_name="${{ steps.meta.outputs.tag_name }}"
+          if git rev-parse "refs/tags/${tag_name}" >/dev/null 2>&1; then
+            echo "Tag ${tag_name} already exists locally."
+          else
+            git tag -a "${tag_name}" -m "Release ${tag_name}" "${GITHUB_SHA}"
+          fi
+          git push origin "refs/tags/${tag_name}"
+
+      - name: Create release body
+        shell: bash
+        run: |
+          cat > RELEASE_BODY.md <<EOF
+          ## 发布摘要
+
+          - 版本标签：\`${{ steps.meta.outputs.tag_name }}\`
+          - Docker 镜像：\`ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.tag_name }}\`
+          - 提交 SHA：\`${GITHUB_SHA}\`
+
+          > Docker 镜像由 \`.github/workflows/cd.yml\` 自动构建并推送到 GHCR。
+          EOF
+
+      - name: Publish GitHub Release
+        shell: bash
+        run: |
+          tag_name="${{ steps.meta.outputs.tag_name }}"
+          prerelease_flag=()
+          if [[ "${{ steps.meta.outputs.prerelease }}" == "true" ]]; then
+            prerelease_flag+=(--prerelease)
+          fi
+
+          if gh release view "${tag_name}" >/dev/null 2>&1; then
+            gh release edit "${tag_name}" \
+              --notes-file RELEASE_BODY.md \
+              "${prerelease_flag[@]}"
+          else
+            gh release create "${tag_name}" \
+              --verify-tag \
+              --generate-notes \
+              --notes-file RELEASE_BODY.md \
+              "${prerelease_flag[@]}"
+          fi
