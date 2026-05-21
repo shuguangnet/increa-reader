@@ -56,6 +56,42 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 active_sessions: dict[str, ClaudeSDKClient] = {}
 session_lock = asyncio.Lock()
 
+# Lazily-initialized MCP server instances.
+# Created once on first use and reused across all chat requests, avoiding
+# per-request create_sdk_mcp_server() overhead (tool registration, internal
+# data structures, etc.).  The wrapped tools are stateless function references
+# so sharing a single MCP server instance is safe.
+_pdf_mcp_server = None
+_frontend_mcp_server = None
+
+
+def _get_mcp_servers():
+    """Return (pdf_server, frontend_server), creating them on first call."""
+    global _pdf_mcp_server, _frontend_mcp_server
+
+    if _pdf_mcp_server is None and create_sdk_mcp_server is not None:
+        _pdf_mcp_server = create_sdk_mcp_server(
+            name="pdf-reader",
+            version="1.0.0",
+            tools=[
+                open_pdf,
+                page_count,
+                extract_text,
+                render_page_png,
+                search_text,
+                close_pdf,
+            ],
+        )
+
+    if _frontend_mcp_server is None and create_sdk_mcp_server is not None:
+        _frontend_mcp_server = create_sdk_mcp_server(
+            name="frontend",
+            version="1.0.0",
+            tools=FRONTEND_TOOLS,
+        )
+
+    return _pdf_mcp_server, _frontend_mcp_server
+
 # Reusable httpx.AsyncClient + AsyncOpenAI instance for connection pooling.
 # Avoids TCP+TLS handshake (~50-100ms) on every OpenAI chat request.
 # Mirrors the pattern already used in ai_routes.py for Anthropic calls.
@@ -561,25 +597,7 @@ User Question:
                 cwd = workspace_config.repos[0].root
 
         # Configure MCP servers and default tools
-        pdf_server = create_sdk_mcp_server(
-            name="pdf-reader",
-            version="1.0.0",
-            tools=[
-                open_pdf,
-                page_count,
-                extract_text,
-                render_page_png,
-                search_text,
-                close_pdf,
-            ],
-        )
-
-        # Frontend tools MCP server
-        frontend_server = create_sdk_mcp_server(
-            name="frontend",
-            version="1.0.0",
-            tools=FRONTEND_TOOLS,
-        )
+        pdf_server, frontend_server = _get_mcp_servers()
 
         default_tools = [
             "Read",
