@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { TreeNode } from './api'
-import { filterTree } from './tree-filter'
+import { createTreeFilter, filterTree } from './tree-filter'
 
 const sampleTree: TreeNode[] = [
   {
@@ -117,5 +117,14 @@ describe('filterTree', () => {
     expect(result.nodes).toEqual([])
     expect(result.forcedOpenPaths.size).toBe(0)
     expect(result.matchCount).toBe(0)
+  })
+
+  it('reuses cached results for repeated queries on the same tree', () => {
+    const filter = createTreeFilter(sampleTree, 'increa-reader')
+
+    const first = filter('left-panel')
+    const second = filter('left-panel')
+
+    expect(second).toBe(first)
   })
 })

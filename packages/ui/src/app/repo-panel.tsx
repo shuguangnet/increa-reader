@@ -1,10 +1,10 @@
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { fetchRepoTree, type TreeNode } from './api'
 import { FileTree } from './file-tree'
-import { filterTree, type TreeFilterResult } from './tree-filter'
+import { createTreeFilter, type TreeFilterResult } from './tree-filter'
 
 type RepoPanelProps = {
   repoName: string
@@ -31,6 +31,7 @@ export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
   const { repoName: currentRepo, '*': filePath } = useParams<{ repoName?: string; '*': string }>()
   const currentPath = currentRepo && filePath ? `${currentRepo}/${filePath}` : null
   const searchActive = searchQuery.trim().length > 0
+  const filterTree = useMemo(() => createTreeFilter(files, repoName), [files, repoName])
 
   const loadTree = useCallback(async () => {
     setLoading(true)
@@ -68,9 +69,9 @@ export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
     }
 
     startFilteringTree(() => {
-      setFilterResult(filterTree(files, searchQuery, repoName))
+      setFilterResult(filterTree(searchQuery))
     })
-  }, [files, repoName, searchActive, searchQuery, startFilteringTree])
+  }, [filterTree, searchActive, searchQuery, startFilteringTree])
 
   const toggleCollapse = () => {
     if (searchActive) return
