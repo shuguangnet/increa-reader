@@ -9,6 +9,7 @@ import { createTreeFilter, type TreeFilterResult } from './tree-filter'
 type RepoPanelProps = {
   repoName: string
   searchQuery: string
+  initialFiles?: TreeNode[]
 }
 
 const storageKey = (repoName: string) => `repo-panel-collapsed-${repoName}`
@@ -18,9 +19,9 @@ const emptyFilterResult = (): TreeFilterResult => ({
   matchCount: 0,
 })
 
-export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
-  const [files, setFiles] = useState<TreeNode[]>([])
-  const [loading, setLoading] = useState(true)
+export function RepoPanel({ repoName, searchQuery, initialFiles }: RepoPanelProps) {
+  const [files, setFiles] = useState<TreeNode[]>(() => initialFiles ?? [])
+  const [loading, setLoading] = useState(() => !initialFiles)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const stored = localStorage.getItem(storageKey(repoName))
     return stored === 'true'
@@ -32,6 +33,13 @@ export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
   const currentPath = currentRepo && filePath ? `${currentRepo}/${filePath}` : null
   const searchActive = searchQuery.trim().length > 0
   const filterTree = useMemo(() => createTreeFilter(files, repoName), [files, repoName])
+
+  useEffect(() => {
+    if (initialFiles) {
+      setFiles(initialFiles)
+      setLoading(false)
+    }
+  }, [initialFiles])
 
   const loadTree = useCallback(async () => {
     setLoading(true)
@@ -46,8 +54,10 @@ export function RepoPanel({ repoName, searchQuery }: RepoPanelProps) {
   }, [repoName])
 
   useEffect(() => {
-    loadTree()
-  }, [loadTree])
+    if (!initialFiles) {
+      loadTree()
+    }
+  }, [initialFiles, loadTree])
 
   // Listen for pull-to-refresh signal from Layout
   const loadTreeRef = useRef(loadTree)

@@ -53,6 +53,8 @@ type RepoTreeData = {
   files: TreeNode[]
 }
 
+export type WorkspaceTreeData = RepoTreeData[]
+
 type PreviewResponse =
   | { type: 'markdown'; body: string }
   | { type: 'code'; lang: string; body: string }
@@ -67,6 +69,12 @@ export async function fetchRepos(): Promise<RepoInfo[]> {
 
 export async function fetchRepoTree(repoName: string): Promise<RepoTreeData> {
   const response = await apiFetch(`/api/workspace/repos/${encodeURIComponent(repoName)}/tree`)
+  const data = await response.json()
+  return data.data
+}
+
+export async function fetchWorkspaceTree(): Promise<WorkspaceTreeData> {
+  const response = await apiFetch('/api/workspace/tree')
   const data = await response.json()
   return data.data
 }

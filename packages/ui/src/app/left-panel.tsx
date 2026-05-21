@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTheme } from '@/hooks/use-theme'
-import { createFile, fetchRepos, type RepoInfo } from './api'
+import { createFile, fetchRepos, fetchWorkspaceTree, type RepoInfo, type WorkspaceTreeData } from './api'
 import { CalendarView } from './calendar_view'
 import { FavoritesPanel } from './favorites-panel'
 import { getLeftPanelSearchStatus } from './left-panel-search-status'
@@ -21,6 +21,7 @@ type LeftTab = 'files' | 'favorites' | 'recent' | 'tags' | 'calendar'
 export function LeftPanel() {
   const { theme, toggle: toggleTheme } = useTheme()
   const [repos, setRepos] = useState<RepoInfo[]>([])
+  const [repoTrees, setRepoTrees] = useState<WorkspaceTreeData>([])
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -30,10 +31,15 @@ export function LeftPanel() {
   const isFiltering = searchQuery !== deferredSearchQuery
   const searchStatusText = getLeftPanelSearchStatus(deferredSearchQuery, isFiltering)
   const navigate = useNavigate()
+  const repoFilesMap = new Map(repoTrees.map(repo => [repo.name, repo.files]))
 
   const loadRepos = useCallback(() => {
-    fetchRepos()
-      .then(setRepos)
+    setLoading(true)
+    Promise.all([fetchRepos(), fetchWorkspaceTree()])
+      .then(([nextRepos, nextRepoTrees]) => {
+        setRepos(nextRepos)
+        setRepoTrees(nextRepoTrees)
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
@@ -122,7 +128,12 @@ export function LeftPanel() {
 
           <div className="flex-1 overflow-auto">
             {repos.map(repo => (
-              <RepoPanel key={repo.name} repoName={repo.name} searchQuery={deferredSearchQuery} />
+              <RepoPanel
+                key={repo.name}
+                repoName={repo.name}
+                searchQuery={deferredSearchQuery}
+                initialFiles={repoFilesMap.get(repo.name)}
+              />
             ))}
           </div>
         </>
