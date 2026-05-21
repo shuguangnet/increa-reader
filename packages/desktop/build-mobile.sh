@@ -601,9 +601,11 @@ case "${1:-help}" in
     prepare_android_build_inputs
     ;;
   ios)
+    export INCREA_SKIP_SIDECAR_BUILD=1
     install_desktop_deps
     check_ios_prereqs
     echo "📱 Building iOS release..."
+    echo "   (Python sidecar skipped — mobile connects to remote server)"
     cd "$DESKTOP_DIR"
     prepare_ios_signing
     tauri_run "ios build --release"
@@ -613,9 +615,11 @@ case "${1:-help}" in
     info "iOS build complete! IPA in src-tauri/target/ios/release/"
     ;;
   android)
+    export INCREA_SKIP_SIDECAR_BUILD=1
     install_desktop_deps
     check_android_prereqs
     echo "📱 Building Android release..."
+    echo "   (Python sidecar skipped — mobile connects to remote server)"
     cd "$DESKTOP_DIR"
     prepare_android_build_inputs
     tauri_run "android build --release"
@@ -638,17 +642,21 @@ case "${1:-help}" in
     verify_staged_manifest "android" "$ANDROID_RELEASE_DIR"
     ;;
   dev:ios)
+    export INCREA_SKIP_SIDECAR_BUILD=1
     install_desktop_deps
     check_ios_prereqs
     echo "📱 Starting iOS dev server (simulator)..."
+    echo "   (Python sidecar skipped — mobile dev connects to remote server)"
     cd "$DESKTOP_DIR"
     prepare_ios_signing
     tauri_run "ios dev"
     ;;
   dev:android)
+    export INCREA_SKIP_SIDECAR_BUILD=1
     install_desktop_deps
     check_android_prereqs
     echo "📱 Starting Android dev server (emulator)..."
+    echo "   (Python sidecar skipped — mobile dev connects to remote server)"
     cd "$DESKTOP_DIR"
     prepare_android_build_inputs
     tauri_run "android dev"
@@ -682,8 +690,10 @@ case "${1:-help}" in
     info "Icons generated for all platforms."
     ;;
   all)
+    export INCREA_SKIP_SIDECAR_BUILD=1
     install_desktop_deps
     echo "📱 Building all mobile platforms..."
+    echo "   (Python sidecar skipped — mobile connects to remote server)"
     bash "$0" ios
     bash "$0" android
     ;;

@@ -60,8 +60,10 @@ jobs:
         run: cd packages/desktop && bash build-mobile.sh check
 
   # ── iOS Build ──
+  # Only runs on manual trigger (workflow_dispatch), not on every push.
+  # iOS builds require macOS + Xcode + valid signing credentials.
   ios:
-    if: github.event.inputs.platform == 'ios' || github.event_name == 'push'
+    if: github.event.inputs.platform == 'ios' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +97,7 @@ jobs:
       - name: Build iOS
         run: cd packages/desktop && bash build-mobile.sh ios
         env:
+          INCREA_SKIP_SIDECAR_BUILD: "1"
           INCREA_IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
 
       - name: Upload iOS artifact
@@ -107,8 +110,10 @@ jobs:
           retention-days: 7
 
   # ── Android Build ──
+  # Only runs on manual trigger (workflow_dispatch), not on every push.
+  # Android builds require SDK + NDK + valid signing credentials.
   android:
-    if: github.event.inputs.platform == 'android' || github.event.inputs.platform == 'android-signed' || github.event_name == 'push'
+    if: github.event.inputs.platform == 'android' || github.event.inputs.platform == 'android-signed' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -157,6 +162,7 @@ jobs:
       - name: Build Android
         run: cd packages/desktop && bash build-mobile.sh android
         env:
+          INCREA_SKIP_SIDECAR_BUILD: "1"
           ANDROID_HOME: ${{ steps.setup-android.outputs.android-home }}
           NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
           ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}

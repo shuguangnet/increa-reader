@@ -20,6 +20,8 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 DESKTOP_DIR="$(cd "$(dirname "$0")" && pwd)"
 SIDECAR_BUILD_SCRIPT="$ROOT_DIR/packages/scripts/build_sidecar.sh"
 SRC_TAURI_DIR="$DESKTOP_DIR/src-tauri"
+BINARIES_DIR="$SRC_TAURI_DIR/binaries"
+SERVER_DIR="$ROOT_DIR/packages/server"
 DESKTOP_RELEASE_DIR="$SRC_TAURI_DIR/target/release"
 DESKTOP_DISTRIBUTE_DIR="$DESKTOP_RELEASE_DIR/distribute"
 PNPM_CMD="${PNPM_CMD:-}"
@@ -31,6 +33,7 @@ cd "$ROOT_DIR"
 build_sidecar() {
     if [[ "${INCREA_SKIP_SIDECAR_BUILD:-0}" == "1" ]]; then
         echo "⏭️  Skipping sidecar build because INCREA_SKIP_SIDECAR_BUILD=1"
+        verify_sidecar_exists "skipped"
         return 0
     fi
 
@@ -41,6 +44,31 @@ build_sidecar() {
 
     echo "🐍 Building Python sidecar for current platform..."
     "$SIDECAR_BUILD_SCRIPT"
+}
+
+verify_sidecar_exists() {
+    local mode="${1:-built}"
+    local found=false
+    for candidate in "$BINARIES_DIR"/python-server-*; do
+        if [[ -f "$candidate" ]]; then
+            found=true
+            echo "✅ Sidecar binary found: $(basename "$candidate")"
+            break
+        fi
+    done
+    if [[ "$found" != true ]]; then
+        if [[ "$mode" == "skipped" ]]; then
+            echo "❌ Sidecar binary not found in $BINARIES_DIR"
+            echo "   The sidecar was skipped (INCREA_SKIP_SIDECAR_BUILD=1),"
+            echo "   but Tauri requires a sidecar binary for desktop builds."
+            echo "   Run './build_sidecar.sh' first or unset INCREA_SKIP_SIDECAR_BUILD."
+        else
+            echo "❌ Sidecar binary not found in $BINARIES_DIR after build"
+            echo "   The PyInstaller build may have failed silently."
+            echo "   Check $SERVER_DIR/dist/ for build artifacts."
+        fi
+        exit 1
+    fi
 }
 
 stage_desktop_artifacts() {

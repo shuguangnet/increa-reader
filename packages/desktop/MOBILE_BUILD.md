@@ -34,10 +34,11 @@ src-tauri/
 | `nsis`     | Windows | NSIS 安装程序       |
 | `deb`      | Linux   | Debian/Ubuntu 包    |
 | `appimage` | Linux   | AppImage 便携包     |
-| `updater`  | 全平台  | 增量更新元数据      |
 | `ios`      | iOS     | .ipa 应用包         |
 | `apk`      | Android | APK 安装包（调试用） |
 | `aab`      | Android | AAB 发布包（Play Store） |
+
+> ⚠️ `updater` target 已从列表中移除，因为 updater 插件当前处于禁用状态 (`active: false`)。
 
 > ⚠️ 移动端构建依赖本机 SDK（Xcode / Android Studio），
 > 在没有对应 SDK 的机器上 `tauri build` 会自动跳过移动端 target。
@@ -52,7 +53,9 @@ src-tauri/
 - `pnpm --filter @increa-reader/desktop build`
 - `pnpm --filter @increa-reader/desktop build:desktop`
 
-这些命令都会先走 `build.sh`，从而自动补齐 sidecar 构建与前置检查，避免直接执行 `tauri dev/build` 时出现“应用壳能启动，但安装包里漏掉 Python sidecar”的交付漂移。
+这些命令都会先走 `build.sh`，从而自动补齐 sidecar 构建与前置检查，避免直接执行 `tauri dev/build` 时出现"应用壳能启动，但安装包里漏掉 Python sidecar"的交付漂移。构建完成后会验证 sidecar 二进制文件是否存在，不存在则提前失败并给出明确错误信息。
+
+移动端构建（iOS/Android）会自动设置 `INCREA_SKIP_SIDECAR_BUILD=1` 跳过 sidecar 构建，因为移动端连接到远程服务器而非本地 Python 后端。
 
 另外，`build.sh` / `build-mobile.sh` 里的 pnpm 解析逻辑现在会优先读取仓库 `packageManager` 声明，并回退扫描本机 Corepack 缓存中的可用 pnpm 版本，不再写死某个历史版本号。这样当仓库升级 pnpm、CI 预装版本变化、或开发机只缓存了新版本 pnpm 时，打包脚本仍能稳定找到正确的 CLI。
 
