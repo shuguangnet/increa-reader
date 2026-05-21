@@ -18,23 +18,73 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 DESKTOP_DIR="$(cd "$(dirname "$0")" && pwd)"
+SIDECAR_BUILD_SCRIPT="$ROOT_DIR/packages/scripts/build_sidecar.sh"
+PNPM_CMD="${PNPM_CMD:-}"
 
 cd "$ROOT_DIR"
 
+build_sidecar() {
+    if [[ "${INCREA_SKIP_SIDECAR_BUILD:-0}" == "1" ]]; then
+        echo "⏭️  Skipping sidecar build because INCREA_SKIP_SIDECAR_BUILD=1"
+        return 0
+    fi
+
+    if [[ ! -x "$SIDECAR_BUILD_SCRIPT" ]]; then
+        echo "❌ Sidecar build script not found: $SIDECAR_BUILD_SCRIPT"
+        exit 1
+    fi
+
+    echo "🐍 Building Python sidecar for current platform..."
+    "$SIDECAR_BUILD_SCRIPT"
+}
+
+resolve_pnpm() {
+    if [[ -n "$PNPM_CMD" ]]; then
+        return 0
+    fi
+
+    if command -v pnpm >/dev/null 2>&1; then
+        PNPM_CMD="pnpm"
+        return 0
+    fi
+
+    local corepack_pnpm
+    corepack_pnpm="$(python3 - <<'PY'
+from pathlib import Path
+root = Path.home() / '.cache/node/corepack/pnpm/10.17.1/bin/pnpm.cjs'
+print(root if root.exists() else '')
+PY
+)"
+
+    if [[ -n "$corepack_pnpm" ]]; then
+        PNPM_CMD="node $corepack_pnpm"
+        return 0
+    fi
+
+    echo "❌ pnpm not found. Install pnpm or prepare corepack pnpm@10.17.1 first."
+    exit 1
+}
+
+pnpm_run() {
+    resolve_pnpm
+    bash -lc "$PNPM_CMD $*"
+}
+
+require_cargo() {
+    if ! command -v cargo &> /dev/null; then
+        echo "❌ Rust/Cargo not found. Install from https://rustup.rs"
+        exit 1
+    fi
+}
+
 # ── Install frontend dependencies ──────────────────────────────────────
 echo "📦 Installing frontend dependencies..."
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
 
 # ── Install desktop package dependencies ──────────────────────────────
 echo "📦 Installing desktop dependencies..."
 cd "$DESKTOP_DIR"
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-
-# ── Check Rust toolchain ───────────────────────────────────────────────
-if ! command -v cargo &> /dev/null; then
-    echo "❌ Rust/Cargo not found. Install from https://rustup.rs"
-    exit 1
-fi
+pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
 
 # ── Ensure icons exist ─────────────────────────────────────────────────
 ICONS_DIR="$DESKTOP_DIR/src-tauri/icons"
@@ -52,11 +102,15 @@ case "${1:-build}" in
         echo "🚀 Starting development mode..."
         echo "   Frontend dev server will start on http://localhost:5177"
         echo "   Tauri window will open automatically."
+        require_cargo
+        build_sidecar
         cd "$DESKTOP_DIR"
         npx tauri dev
         ;;
     build)
         echo "🔨 Building desktop app..."
+        require_cargo
+        build_sidecar
         cd "$DESKTOP_DIR"
         npx tauri build
         echo ""
@@ -64,6 +118,8 @@ case "${1:-build}" in
         ;;
     build:debug)
         echo "🔨 Building desktop app (debug)..."
+        require_cargo
+        build_sidecar
         cd "$DESKTOP_DIR"
         npx tauri build --debug
         echo ""

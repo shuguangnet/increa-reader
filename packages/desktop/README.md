@@ -51,6 +51,8 @@ pnpm install
 ./packages/desktop/build.sh build
 ```
 
+该命令现在会先自动构建当前平台的 Python sidecar，再执行 `tauri build`，避免安装包生成成功但运行时缺少后端二进制。
+
 构建产物在 `src-tauri/target/release/bundle/` 中：
 - **Linux**: `.deb` 和 `.AppImage`
 - **macOS**: `.dmg`
@@ -160,15 +162,22 @@ pnpm install
 
 ## 打包 Python Sidecar
 
-构建桌面版前，需要将 Python 后端打包为独立可执行文件：
+桌面版依赖 Python sidecar 承载本地 FastAPI 后端。当前推荐方式：
 
 ```bash
-cd packages/server
-pip install pyinstaller
-pyinstaller --onefile server.py --name increa-server
+cd packages/scripts
+./build_sidecar.sh
 ```
 
-将生成的 `dist/increa-server` 放入 `src-tauri/sidecar/` 目录。
+脚本会自动：
+
+1. 创建/复用 `packages/server/.venv`
+2. 安装 `requirements.txt` 与 `pyinstaller`
+3. 构建独立二进制
+4. 复制到 `packages/desktop/src-tauri/binaries/python-server-<target-triple>`
+
+同时，`packages/desktop/build.sh` 在 `dev/build/build:debug` 前会自动执行这一步；
+`tauri.conf.json` 也已通过 `bundle.externalBin` 显式声明 sidecar，确保桌面安装包真正包含该后端二进制，而不仅是开发环境可运行。
 
 ## CI/CD
 

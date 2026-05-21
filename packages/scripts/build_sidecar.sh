@@ -35,6 +35,9 @@ SERVER_DIR="$PACKAGES_DIR/server"
 DESKTOP_DIR="$PACKAGES_DIR/desktop"
 BINARIES_DIR="$DESKTOP_DIR/src-tauri/binaries"
 
+PYTHON_BIN=""
+UV_BIN="$(command -v uv 2>/dev/null || true)"
+
 # ── Colorized output helpers ───────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -46,6 +49,64 @@ info()  { echo -e "${BLUE}ℹ️  $*${NC}"; }
 ok()    { echo -e "${GREEN}✅ $*${NC}"; }
 warn()  { echo -e "${YELLOW}⚠️  $*${NC}"; }
 error() { echo -e "${RED}❌ $*${NC}" >&2; }
+
+find_python() {
+    if command -v python3 >/dev/null 2>&1; then
+        command -v python3
+    elif command -v python >/dev/null 2>&1; then
+        command -v python
+    else
+        return 1
+    fi
+}
+
+setup_python_env() {
+    local VENV_DIR="$SERVER_DIR/.venv"
+
+    if [[ -x "$VENV_DIR/bin/python" ]]; then
+        PYTHON_BIN="$VENV_DIR/bin/python"
+        return 0
+    fi
+
+    if [[ -x "$VENV_DIR/Scripts/python.exe" ]]; then
+        PYTHON_BIN="$VENV_DIR/Scripts/python.exe"
+        return 0
+    fi
+
+    if [[ -n "$UV_BIN" ]]; then
+        info "Creating Python virtual environment with uv..."
+        "$UV_BIN" venv "$VENV_DIR"
+    else
+        local SYSTEM_PYTHON
+        SYSTEM_PYTHON="$(find_python)" || {
+            error "Python 3 is required to build the sidecar"
+            return 1
+        }
+
+        info "Creating Python virtual environment with $SYSTEM_PYTHON..."
+        "$SYSTEM_PYTHON" -m venv "$VENV_DIR"
+    fi
+
+    if [[ -x "$VENV_DIR/bin/python" ]]; then
+        PYTHON_BIN="$VENV_DIR/bin/python"
+    elif [[ -x "$VENV_DIR/Scripts/python.exe" ]]; then
+        PYTHON_BIN="$VENV_DIR/Scripts/python.exe"
+    else
+        error "Could not locate Python interpreter in virtual environment: $VENV_DIR"
+        return 1
+    fi
+}
+
+install_python_dependencies() {
+    if [[ -n "$UV_BIN" ]]; then
+        info "Installing Python dependencies with uv..."
+        "$UV_BIN" pip install --python "$PYTHON_BIN" -r "$SERVER_DIR/requirements.txt" pyinstaller
+    else
+        info "Installing Python dependencies with pip..."
+        "$PYTHON_BIN" -m pip install --upgrade pip
+        "$PYTHON_BIN" -m pip install -r "$SERVER_DIR/requirements.txt" pyinstaller
+    fi
+}
 
 # ── Supported targets ──────────────────────────────────────────────────────
 SUPPORTED_TARGETS=(
@@ -102,28 +163,9 @@ build_target() {
     # ── Ensure binaries directory exists ──────────────────────────────────
     mkdir -p "$BINARIES_DIR"
 
-    # ── Set up Python venv ─────────────────────────────────────────────────
-    local VENV_DIR="$SERVER_DIR/.venv"
-    if [[ ! -d "$VENV_DIR" ]]; then
-        info "Creating Python virtual environment..."
-        python3 -m venv "$VENV_DIR" || python -m venv "$VENV_DIR"
-    fi
-
-    # ── Activate venv ──────────────────────────────────────────────────────
-    if [[ -f "$VENV_DIR/bin/activate" ]]; then
-        source "$VENV_DIR/bin/activate"
-    elif [[ -f "$VENV_DIR/Scripts/activate" ]]; then
-        source "$VENV_DIR/Scripts/activate"
-    else
-        error "Could not find virtual environment activation script"
-        return 1
-    fi
-
-    # ── Install dependencies ───────────────────────────────────────────────
-    info "Installing Python dependencies..."
-    pip install --upgrade pip --quiet
-    pip install -r "$SERVER_DIR/requirements.txt" --quiet
-    pip install pyinstaller --quiet
+    # ── Set up Python environment & dependencies ───────────────────────────
+    setup_python_env
+    install_python_dependencies
 
     # ── Build with PyInstaller ─────────────────────────────────────────────
     info "Running PyInstaller..."
@@ -132,7 +174,7 @@ build_target() {
     # Clean previous builds
     rm -rf build/ dist/
 
-    pyinstaller server_pyinstaller.spec --noconfirm --clean
+    "$PYTHON_BIN" -m PyInstaller server_pyinstaller.spec --noconfirm --clean
 
     # ── Verify output ──────────────────────────────────────────────────────
     local BINARY_NAME="server${BINARY_EXT}"
@@ -214,7 +256,7 @@ done
 if [[ "$CLEAN" == true ]]; then
     info "Cleaning build artifacts..."
     rm -rf "$SERVER_DIR/build" "$SERVER_DIR/dist"
-    rm -f "$BINARIES_DIR"/server-*
+    rm -f "$BINARIES_DIR"/python-server-*
     ok "Clean complete."
     exit 0
 fi

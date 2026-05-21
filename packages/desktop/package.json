@@ -8,6 +8,7 @@
     "dev:vite": "vite",
     "dev:ios": "tauri ios dev",
     "dev:android": "tauri android dev",
+    "build:sidecar": "bash ../scripts/build_sidecar.sh",
     "build": "tauri build",
     "build:debug": "tauri build --debug",
     "build:ios": "tauri ios build --release",
