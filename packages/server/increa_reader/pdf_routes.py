@@ -1,17 +1,40 @@
-"""
-PDF viewing and processing API routes
-"""
+"""PDF viewing and processing API routes"""
 
+import json
 import tempfile
+from email.utils import formatdate
 from pathlib import Path
 from typing import Any, Dict
 
 import fitz  # PyMuPDF
-from fastapi import HTTPException
-from fastapi.responses import Response
+from fastapi import HTTPException, Request
+from fastapi.responses import FileResponse, Response
 
 from .models import WorkspaceConfig
 from .pdf_processor import extract_page_markdown, render_page_svg
+
+
+def _build_pdf_cache_headers(file_path: Path, page: int, variant: str) -> dict[str, str]:
+    stat = file_path.stat()
+    etag = f'W/"{variant}:{page}:{stat.st_mtime_ns}:{stat.st_size}"'
+    return {
+        "ETag": etag,
+        "Cache-Control": "private, max-age=0, must-revalidate",
+        "Last-Modified": formatdate(stat.st_mtime, usegmt=True),
+    }
+
+
+def _client_has_fresh_copy(request: Request, headers: dict[str, str]) -> bool:
+    if_none_match = request.headers.get("if-none-match")
+    return if_none_match == headers["ETag"]
+
+
+def _json_response(payload: dict[str, Any], headers: dict[str, str]) -> Response:
+    return Response(
+        content=json.dumps(payload, ensure_ascii=False),
+        media_type="application/json",
+        headers=headers,
+    )
 
 
 async def get_pdf_metadata(file_path: Path, path: str) -> Dict[str, Any]:
@@ -50,7 +73,7 @@ def create_pdf_routes(app, workspace_config: WorkspaceConfig):
     """Create PDF-related API routes"""
 
     @app.get("/api/pdf/page")
-    async def get_pdf_page_content(repo: str, path: str, page: int):
+    async def get_pdf_page_content(request: Request, repo: str, path: str, page: int):
         """获取PDF指定页面的Markdown内容"""
         # Find repository
         repo_config = next((r for r in workspace_config.repos if r.name == repo), None)
@@ -72,18 +95,28 @@ def create_pdf_routes(app, workspace_config: WorkspaceConfig):
         if page < 1:
             raise HTTPException(status_code=400, detail="Page number must be >= 1")
 
+        headers = _build_pdf_cache_headers(file_path, page, "markdown")
+        if _client_has_fresh_copy(request, headers):
+            return Response(status_code=304, headers=headers)
+
         try:
             # 使用PDF处理器提取页面内容
             result = extract_page_markdown(str(file_path), page)
 
-            return {
-                "type": "markdown",
-                "body": result["markdown"],
-                "page": result["page"],
-                "has_tables": result["has_tables"],
-                "has_images": result["has_images"],
-                "estimated_reading_time": result["estimated_reading_time"],
-            }
+            return Response(
+                content=(
+                    "{"
+                    f'"type":"markdown",'
+                    f'"body":{__import__("json").dumps(result["markdown"], ensure_ascii=False)},'
+                    f'"page":{result["page"]},'
+                    f'"has_tables":{str(result["has_tables"]).lower()},'
+                    f'"has_images":{str(result["has_images"]).lower()},'
+                    f'"estimated_reading_time":{result["estimated_reading_time"]}'
+                    "}"
+                ),
+                media_type="application/json",
+                headers=headers,
+            )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
@@ -92,7 +125,7 @@ def create_pdf_routes(app, workspace_config: WorkspaceConfig):
             )
 
     @app.get("/api/pdf/page-render")
-    async def get_pdf_page_render(repo: str, path: str, page: int):
+    async def get_pdf_page_render(request: Request, repo: str, path: str, page: int):
         """渲染PDF页面为SVG矢量图"""
         # Find repository
         repo_config = next((r for r in workspace_config.repos if r.name == repo), None)
@@ -114,9 +147,17 @@ def create_pdf_routes(app, workspace_config: WorkspaceConfig):
         if page < 1:
             raise HTTPException(status_code=400, detail="Page number must be >= 1")
 
+        headers = _build_pdf_cache_headers(file_path, page, "svg")
+        if _client_has_fresh_copy(request, headers):
+            return Response(status_code=304, headers=headers)
+
         try:
             svg_content = render_page_svg(str(file_path), page)
-            return Response(content=svg_content, media_type="image/svg+xml")
+            return Response(
+                content=svg_content,
+                media_type="image/svg+xml",
+                headers=headers,
+            )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
@@ -199,9 +240,11 @@ def create_pdf_routes(app, workspace_config: WorkspaceConfig):
 
         # 读取并返回图片
         try:
-            with open(img_path, "rb") as f:
-                image_data = f.read()
-            return Response(content=image_data, media_type="image/png")
+            return FileResponse(
+                img_path,
+                media_type="image/png",
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Failed to read image: {str(e)}"

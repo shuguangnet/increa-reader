@@ -43,7 +43,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.18.3
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -74,7 +74,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.18.3
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -121,7 +121,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.18.3
 
       - name: Setup Java
         uses: actions/setup-java@v4

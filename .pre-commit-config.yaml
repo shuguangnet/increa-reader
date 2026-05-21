@@ -1,0 +1,90 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  # ── Generic checks ──
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple]
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # ── Shell scripts ──
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  # ── JavaScript / TypeScript (Biome) ──
+  - repo: https://github.com/biomejs/pre-commit
+    rev: v0.6.1
+    hooks:
+      - id: biome-check
+        additional_dependencies: ["@biomejs/biome@2.3.12"]
+        files: ^packages/ui/
+        args: [--write, --no-errors-on-unmatched]
+
+  # ── Python — black (server) ──
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 25.1.0
+    hooks:
+      - id: black
+        files: ^packages/server/
+        args: [--line-length=88]
+
+  # ── Python — isort (server) ──
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+        files: ^packages/server/
+        args: [--profile=black, --line-length=88]
+
+  # ── Python — ruff (pdf-reader-mcp) ──
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.8
+    hooks:
+      - id: ruff
+        files: ^packages/pdf-reader-mcp/
+        args: [--fix]
+      - id: ruff-format
+        files: ^packages/pdf-reader-mcp/
+
+  # ── GitHub Actions ──
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.7
+    hooks:
+      - id: actionlint
+        args: [-ignore, 'SC2155:', -ignore, 'SC2086:']
+
+  # ── Pre-push: run tests ──
+  - repo: local
+    hooks:
+      - id: typecheck-ui
+        name: Type check UI
+        entry: pnpm --filter @increa-reader/ui typecheck
+        language: system
+        pass_filenames: false
+        files: ^packages/ui/
+        stages: [pre-push]
+      - id: test-python
+        name: Run Python tests
+        entry: bash -c 'cd packages/server && python -m pytest tests/ -x -q && cd ../../packages/pdf-reader-mcp && python -m pytest tests/ -x -q'
+        language: system
+        pass_filenames: false
+        files: ^packages/(server|pdf-reader-mcp)/
+        stages: [pre-push]

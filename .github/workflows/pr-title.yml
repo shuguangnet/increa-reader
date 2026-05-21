@@ -1,0 +1,58 @@
+name: PR Title — Conventional Commits
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  check-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title follows conventional commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          # Conventional Commits regex:
+          #   type(scope): description
+          #   type: description
+          #   Merge ... (auto-generated)
+          #
+          # Allowed types:
+          #   feat fix docs style refactor perf test build ci chore revert
+          #
+          title="${PR_TITLE}"
+
+          # Allow GitHub auto-generated merge commits
+          if [[ "${title}" =~ ^Merge\  ]]; then
+            echo "✓ Auto-generated merge commit — accepted"
+            exit 0
+          fi
+
+          # Conventional commit pattern:
+          #   type(optional-scope): description
+          #   type must be one of the allowed types
+          #   description must exist
+          pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .+'
+          breaking_pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!: .+'
+
+          if [[ "${title}" =~ ${pattern} ]]; then
+            echo "✓ PR title follows conventional commits: ${title}"
+            if [[ "${title}" =~ ${breaking_pattern} ]]; then
+              echo "⚠  Breaking change detected — remember to bump MAJOR version"
+            fi
+            exit 0
+          fi
+
+          echo "::error::PR title must follow conventional commits format: type(scope): description"
+          echo "::error::Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+          echo "::error::Examples:"
+          echo "::error::  feat(ui): add dark mode toggle"
+          echo "::error::  fix: resolve PDF rendering crash"
+          echo "::error::  chore(deps): bump dependencies"
+          echo ""
+          echo "::error::Current title: ${title}"
+          exit 1
