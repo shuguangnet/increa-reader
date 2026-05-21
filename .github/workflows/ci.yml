@@ -3,17 +3,89 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'workspace/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'workspace/**'
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      ui: ${{ steps.filter.outputs.ui }}
+      server: ${{ steps.filter.outputs.server }}
+      mcp: ${{ steps.filter.outputs.mcp }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+      docker: ${{ steps.filter.outputs.docker }}
+      security: ${{ steps.filter.outputs.security }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect changed areas
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ui:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/actions/setup-pnpm/**'
+              - '.github/workflows/ci.yml'
+              - 'packages/ui/**'
+            server:
+              - '.github/workflows/ci.yml'
+              - 'packages/server/**'
+            mcp:
+              - '.github/workflows/ci.yml'
+              - 'packages/pdf-reader-mcp/**'
+            desktop:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/actions/setup-pnpm/**'
+              - '.github/workflows/ci.yml'
+              - 'packages/desktop/**'
+              - 'packages/ui/**'
+            docker:
+              - 'Dockerfile'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/actions/setup-pnpm/**'
+              - '.github/workflows/ci.yml'
+              - 'packages/ui/**'
+              - 'packages/server/**'
+              - 'packages/pdf-reader-mcp/**'
+            security:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/actions/setup-pnpm/**'
+              - '.github/workflows/ci.yml'
+              - 'packages/ui/package.json'
+              - 'packages/server/requirements.txt'
+              - 'packages/server/pyproject.toml'
+              - 'packages/pdf-reader-mcp/requirements.txt'
+              - 'packages/pdf-reader-mcp/pyproject.toml'
+
   # ── Frontend: typecheck ──
   frontend-typecheck:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm
@@ -22,7 +94,11 @@ jobs:
 
   # ── Frontend: lint + build ──
   frontend-lint-build:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm
@@ -33,7 +109,11 @@ jobs:
 
   # ── Frontend: tests (vitest) ──
   frontend-test:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm
@@ -42,7 +122,11 @@ jobs:
 
   # ── Python server: lint + typecheck + test + coverage ──
   python-server:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -95,7 +179,11 @@ jobs:
 
   # ── Python MCP: lint + test + coverage ──
   python-mcp:
+    needs: changes
+    if: needs.changes.outputs.mcp == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -135,18 +223,24 @@ jobs:
 
   # ── Desktop (Tauri): typecheck ──
   desktop:
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm
-      - name: Install desktop dependencies
-        run: cd packages/desktop && pnpm install --frozen-lockfile
       - name: Type check (desktop)
         run: pnpm --filter @increa-reader/desktop typecheck
 
   # ── Security audit ──
   security:
+    needs: changes
+    if: needs.changes.outputs.security == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm
@@ -174,8 +268,11 @@ jobs:
 
   # ── Docker build check ──
   docker:
+    needs: [changes, frontend-typecheck, frontend-lint-build]
+    if: needs.changes.outputs.docker == 'true'
     runs-on: ubuntu-latest
-    needs: [frontend-typecheck, frontend-lint-build]
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
