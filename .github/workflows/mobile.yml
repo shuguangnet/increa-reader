@@ -138,6 +138,8 @@ jobs:
       - name: Setup Android SDK
         id: setup-android
         uses: android-actions/setup-android@v3
+        with:
+          ndk: true
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -153,8 +155,8 @@ jobs:
       - name: Init Android project
         run: cd packages/desktop && bash build-mobile.sh init:android
         env:
-          ANDROID_HOME: ${{ steps.setup-android.outputs.android-home }}
-          ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
+          ANDROID_HOME: ${{ steps.setup-android.outputs.sdk-path }}
+          ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-path }}
           INCREA_ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           INCREA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           INCREA_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -164,9 +166,9 @@ jobs:
         run: cd packages/desktop && bash build-mobile.sh android
         env:
           INCREA_SKIP_SIDECAR_BUILD: "1"
-          ANDROID_HOME: ${{ steps.setup-android.outputs.android-home }}
-          NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
-          ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-home }}
+          ANDROID_HOME: ${{ steps.setup-android.outputs.sdk-path }}
+          NDK_HOME: ${{ steps.setup-android.outputs.ndk-path }}
+          ANDROID_NDK_HOME: ${{ steps.setup-android.outputs.ndk-path }}
           INCREA_ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           INCREA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           INCREA_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
