@@ -165,19 +165,42 @@ def load_workspace_config() -> WorkspaceConfig:
 
 
 def is_text_file(content: bytes) -> bool:
-    """Check if file content is text-based"""
+    """Check if file content is text-based.
+
+    Binary detection is done on the leading bytes only (callers pass a head
+    sample, not the full file), so we check signatures FIRST — many binary
+    formats have valid UTF-8 in their leading bytes that would otherwise
+    trick the decoder.
+    """
+    binary_signatures = [
+        b"\x89PNG",          # PNG
+        b"\xff\xd8\xff",      # JPEG
+        b"%PDF",               # PDF
+        b"GIF8",               # GIF
+        b"\x1f\x8b",           # GZIP
+        b"PK\x03\x04",         # ZIP / DOCX / JAR / etc.
+        b"Rar!\x1a\x07",       # RAR
+        b"\x00\x00\x01\x00",   # ICO (Windows icon)
+        b"BM",                 # BMP
+        b"\x00\x00\x01\xBA",   # MPEG
+        b"\x00\x00\x01\xB3",   # MPEG
+        b"RIFF",               # AVI / WAV / WebP
+        b"\x1a\x45\xdf\xa3",   # MKV/WebM (EBML)
+        b"\x00\x00\x00\x18ftyp",  # MP4 / MOV
+        b"SQLite format 3",    # SQLite database
+        b"\x7fELF",            # ELF executable (Linux)
+        b"\xca\xfe\xba\xbe",   # Mach-O (macOS)
+        b"\xfe\xed\xfa\xce",   # Mach-O (macOS, reversed)
+        b"MZ",                 # PE executable (Windows)
+    ]
+    if any(content.startswith(sig) for sig in binary_signatures):
+        return False
+
     try:
         content.decode("utf-8")
         return True
     except UnicodeDecodeError:
-        # Check for common binary file signatures
-        binary_signatures = [
-            b"\x89PNG",  # PNG
-            b"\xff\xd8\xff",  # JPEG
-            b"%PDF",  # PDF
-            b"GIF8",  # GIF
-        ]
-        return not any(content.startswith(sig) for sig in binary_signatures)
+        return False
 
 
 def _is_excluded(name: str, excludes: List[str]) -> bool:

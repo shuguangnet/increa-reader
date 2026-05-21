@@ -140,6 +140,10 @@ def create_file_routes(app, workspace_config: WorkspaceConfig):
             filename=file_path.name,
         )
 
+    # Threshold for binary detection — read this many bytes to classify the file
+    # before deciding whether to load the entire content into memory.
+    _BINARY_DETECT_BYTES = 8192
+
     @app.get("/api/views/{repo}/{path:path}")
     async def get_file_content(repo: str, path: str):
         """Get file content"""
@@ -155,9 +159,27 @@ def create_file_routes(app, workspace_config: WorkspaceConfig):
         if not file_path.exists() or not file_path.is_file():
             raise HTTPException(status_code=404, detail="File not found")
 
-        # Read file content
-        async with aiofiles.open(file_path, "rb") as f:
-            content = await f.read()
+        # Read only the first chunk for binary detection — avoids loading
+        # multi-GB binary files (PDFs, images, videos) into memory just to
+        # return "[Binary file - preview not available]".
+        file_size = file_path.stat().st_size
+        if file_size <= _BINARY_DETECT_BYTES:
+            # Small file — read everything in one shot
+            async with aiofiles.open(file_path, "rb") as f:
+                content = await f.read()
+        else:
+            async with aiofiles.open(file_path, "rb") as f:
+                head = await f.read(_BINARY_DETECT_BYTES)
+
+            if not is_text_file(head):
+                return ViewResponse(
+                    type="binary",
+                    content="[Binary file - preview not available]",
+                    filename=Path(path).name,
+                )
+
+            # It's a text file — read the remaining content
+            content = head + await f.read()
 
         if is_text_file(content):
             return ViewResponse(
@@ -249,7 +271,13 @@ def create_file_routes(app, workspace_config: WorkspaceConfig):
 
         # MIME is text/* or unknown, verify with content detection
         async with aiofiles.open(file_path, "rb") as f:
-            content_bytes = await f.read()
+            head = await f.read(_BINARY_DETECT_BYTES)
+
+        if not is_text_file(head):
+            return {"type": "unsupported", "path": path}
+
+        # Read remaining content
+        content_bytes = head + await f.read()
 
         if is_text_file(content_bytes):
             content = content_bytes.decode("utf-8", errors="replace")
