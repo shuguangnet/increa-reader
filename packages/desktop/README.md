@@ -64,6 +64,18 @@ pnpm --filter @increa-reader/desktop build
 - **macOS**: `.dmg`
 - **Windows**: `.msi` 和 `.exe`（NSIS 安装器）
 
+为了让分发、CI 上传和人工验收都只依赖一个稳定入口，`build.sh build` / `build:debug` 现在会在 Tauri 原始 bundle 输出完成后，自动把安装包归档到 `src-tauri/target/{release,debug}/distribute/`，并额外生成：
+- `manifest.json`：记录每个安装包的来源路径、文件大小、SHA256 与构建模式
+- `SHA256SUMS.txt`：供发布页、下载站或运维脚本直接校验完整性
+
+如果只是想在现有 bundle 基础上重新生成这份分发目录，而不重复跑整次打包，可执行：
+
+```bash
+pnpm --filter @increa-reader/desktop build:desktop:stage
+# 或
+./packages/desktop/build.sh stage:artifacts
+```
+
 ### 清理构建产物
 
 ```bash

@@ -19,6 +19,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 DESKTOP_DIR="$(cd "$(dirname "$0")" && pwd)"
 SIDECAR_BUILD_SCRIPT="$ROOT_DIR/packages/scripts/build_sidecar.sh"
+SRC_TAURI_DIR="$DESKTOP_DIR/src-tauri"
+DESKTOP_RELEASE_DIR="$SRC_TAURI_DIR/target/release"
+DESKTOP_DISTRIBUTE_DIR="$DESKTOP_RELEASE_DIR/distribute"
 PNPM_CMD="${PNPM_CMD:-}"
 
 cd "$ROOT_DIR"
@@ -36,6 +39,135 @@ build_sidecar() {
 
     echo "🐍 Building Python sidecar for current platform..."
     "$SIDECAR_BUILD_SCRIPT"
+}
+
+stage_desktop_artifacts() {
+    local mode="${1:-release}"
+    local bundle_dir
+    local destination_dir
+
+    case "$mode" in
+        release)
+            bundle_dir="$SRC_TAURI_DIR/target/release/bundle"
+            destination_dir="$DESKTOP_DISTRIBUTE_DIR"
+            ;;
+        debug)
+            bundle_dir="$SRC_TAURI_DIR/target/debug/bundle"
+            destination_dir="$SRC_TAURI_DIR/target/debug/distribute"
+            ;;
+        *)
+            echo "❌ Unsupported artifact staging mode: $mode"
+            exit 1
+            ;;
+    esac
+
+    mkdir -p "$destination_dir"
+
+    BUNDLE_DIR="$bundle_dir" DEST_DIR="$destination_dir" BUILD_MODE="$mode" python3 - <<'PY'
+import hashlib
+import json
+import os
+import shutil
+from pathlib import Path
+
+bundle_dir = Path(os.environ["BUNDLE_DIR"])
+destination_dir = Path(os.environ["DEST_DIR"])
+build_mode = os.environ["BUILD_MODE"]
+allowed_suffixes = {
+    ".app",
+    ".appimage",
+    ".deb",
+    ".dmg",
+    ".exe",
+    ".msi",
+    ".nsis.zip",
+    ".rpm",
+    ".sig",
+    ".tar.gz",
+    ".zip",
+}
+
+if not bundle_dir.exists():
+    print(f"missing_bundle_dir={bundle_dir}")
+    print("count=0")
+    raise SystemExit(0)
+
+for existing in destination_dir.iterdir():
+    if existing.is_dir():
+        shutil.rmtree(existing)
+    else:
+        existing.unlink()
+
+def is_allowed(path: Path) -> bool:
+    if path.is_dir() and path.suffix == ".app":
+        return True
+    name = path.name.lower()
+    return any(name.endswith(suffix) for suffix in allowed_suffixes)
+
+def sha256_for(path: Path) -> str:
+    digest = hashlib.sha256()
+    if path.is_dir():
+        for child in sorted(p for p in path.rglob("*") if p.is_file()):
+            digest.update(str(child.relative_to(path)).encode("utf-8"))
+            with child.open("rb") as fh:
+                for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                    digest.update(chunk)
+    else:
+        with path.open("rb") as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
+
+artifacts = []
+seen_sources = set()
+for path in sorted(bundle_dir.rglob("*")):
+    if not is_allowed(path):
+        continue
+    resolved = path.resolve()
+    if resolved in seen_sources:
+        continue
+    seen_sources.add(resolved)
+
+    target = destination_dir / path.name
+    if path.is_dir():
+        shutil.copytree(path, target)
+    else:
+        shutil.copy2(path, target)
+
+    size = sum(child.stat().st_size for child in target.rglob("*") if child.is_file()) if target.is_dir() else target.stat().st_size
+    artifacts.append(
+        {
+            "name": target.name,
+            "sha256": sha256_for(target),
+            "size": size,
+            "source": str(path.relative_to(bundle_dir.parent.parent)),
+            "type": "directory" if target.is_dir() else "file",
+        }
+    )
+
+checksum_lines = [f"{item['sha256']}  {item['name']}" for item in artifacts]
+(destination_dir / "SHA256SUMS.txt").write_text("\n".join(checksum_lines) + ("\n" if checksum_lines else ""), encoding="utf-8")
+(destination_dir / "manifest.json").write_text(
+    json.dumps(
+        {
+            "buildMode": build_mode,
+            "bundleDir": str(bundle_dir),
+            "artifactCount": len(artifacts),
+            "artifacts": artifacts,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+
+print(f"bundle_dir={bundle_dir}")
+print(f"destination={destination_dir}")
+print(f"count={len(artifacts)}")
+for item in artifacts:
+    print(item["name"])
+PY
 }
 
 resolve_pnpm() {
@@ -113,8 +245,11 @@ case "${1:-build}" in
         build_sidecar
         cd "$DESKTOP_DIR"
         npx tauri build
+        stage_output="$(stage_desktop_artifacts release)"
         echo ""
+        echo "$stage_output"
         echo "✅ Build complete! Check src-tauri/target/release/bundle/ for installers."
+        echo "📦 Staged distribution files in src-tauri/target/release/distribute/"
         ;;
     build:debug)
         echo "🔨 Building desktop app (debug)..."
@@ -122,8 +257,23 @@ case "${1:-build}" in
         build_sidecar
         cd "$DESKTOP_DIR"
         npx tauri build --debug
+        stage_output="$(stage_desktop_artifacts debug)"
         echo ""
+        echo "$stage_output"
         echo "✅ Debug build complete! Check src-tauri/target/debug/bundle/"
+        echo "📦 Staged distribution files in src-tauri/target/debug/distribute/"
+        ;;
+    stage:artifacts)
+        echo "📦 Staging desktop build artifacts into a stable distribution directory..."
+        cd "$DESKTOP_DIR"
+        stage_output="$(stage_desktop_artifacts release)"
+        echo "$stage_output"
+        ;;
+    stage:artifacts:debug)
+        echo "📦 Staging debug desktop build artifacts into a stable distribution directory..."
+        cd "$DESKTOP_DIR"
+        stage_output="$(stage_desktop_artifacts debug)"
+        echo "$stage_output"
         ;;
     clean)
         echo "🧹 Cleaning build artifacts..."
@@ -133,7 +283,7 @@ case "${1:-build}" in
         echo "✅ Clean complete."
         ;;
     *)
-        echo "Usage: $0 {dev|build|build:debug|clean}"
+        echo "Usage: $0 {dev|build|build:debug|stage:artifacts|stage:artifacts:debug|clean}"
         exit 1
         ;;
 esac

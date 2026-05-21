@@ -14,6 +14,7 @@
     "build": "bash ./build.sh build",
     "build:desktop": "bash ./build.sh build",
     "build:desktop:raw": "tauri build",
+    "build:desktop:stage": "bash ./build.sh stage:artifacts",
     "build:debug": "bash ./build.sh build:debug",
     "build:ios": "bash ./build-mobile.sh ios",
     "build:android": "bash ./build-mobile.sh android",
