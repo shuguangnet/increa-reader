@@ -1,4 +1,4 @@
-import { apiFetch } from '@/app/api'
+import { apiFetch, fetchRepos } from '@/app/api'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, BarChart3, Clock, FolderOpen, Hash, Keyboard, MessageSquare, Network, Search, Star } from 'lucide-react'
@@ -37,9 +37,7 @@ function HomePage() {
 
   const loadRepoCount = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/repos')
-      const data = await res.json()
-      const repos = data.repos ?? data.data ?? data
+      const repos = await fetchRepos()
       setRepoCount(Array.isArray(repos) ? repos.length : 0)
     } catch {
       setRepoCount(0)

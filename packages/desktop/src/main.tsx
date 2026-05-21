@@ -15,7 +15,7 @@
 
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import App from '../../ui/src/app/app.tsx'
+import App from '../../ui/src/app/app'
 import { initPlatform } from './tauri'
 import '../../ui/src/style.css'
 

@@ -41,6 +41,7 @@ export {
   type PlatformCapabilities,
   type ServerInfo,
 } from '@/lib/platform'
+import { platform } from '@/lib/platform'
 
 /**
  * Convenience helper for desktop entry points.
@@ -53,5 +54,5 @@ export {
  * In web/PWA mode this is a no-op, so it's safe to call unconditionally.
  */
 export async function initDesktop(): Promise<void> {
-  await initPlatform()
+  await platform.init()
 }

@@ -1,12 +1,9 @@
 import type { DocumentNote, NotePosition } from '@/types/notes'
+import { getApiBase as getPlatformApiBase } from '@/lib/platform'
 
 /** Get the API base URL — uses Tauri local server in desktop mode */
 export function getApiBase(): string {
-  if (typeof window !== 'undefined' && (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
-    const port = localStorage.getItem('increa-server-port') || '3002'
-    return `http://127.0.0.1:${port}`
-  }
-  return '' // Web mode: relative URL (proxied by Vite)
+  return getPlatformApiBase()
 }
 
 /** Async toast helper — lazy-loads toast module */
@@ -63,20 +60,20 @@ type PreviewResponse =
   | { type: 'unsupported'; path: string }
 
 export async function fetchRepos(): Promise<RepoInfo[]> {
-  const response = await fetch(getApiBase() + '/api/workspace/repos')
+  const response = await apiFetch('/api/workspace/repos')
   const data = await response.json()
   return data.data
 }
 
 export async function fetchRepoTree(repoName: string): Promise<RepoTreeData> {
-  const response = await fetch(getApiBase() + `/api/workspace/repos/${encodeURIComponent(repoName)}/tree`)
+  const response = await apiFetch(`/api/workspace/repos/${encodeURIComponent(repoName)}/tree`)
   const data = await response.json()
   return data.data
 }
 
 export async function fetchPreview(repo: string, path: string): Promise<PreviewResponse> {
   const params = new URLSearchParams({ repo, path })
-  const response = await fetch(getApiBase() + `/api/preview?${params}`)
+  const response = await apiFetch(`/api/preview?${params}`)
   const data = await response.json()
   return data
 }
@@ -161,7 +158,7 @@ type RepoConfigInfo = {
 }
 
 export async function fetchConfigRepos(): Promise<RepoConfigInfo[]> {
-  const response = await fetch(getApiBase() + '/api/config/repos')
+  const response = await apiFetch('/api/config/repos')
   const data = await response.json()
   return data.data
 }
@@ -187,7 +184,7 @@ export type ApiSettings = {
 }
 
 export async function fetchApiSettings(): Promise<ApiSettings> {
-  const response = await fetch(getApiBase() + '/api/config/api-settings')
+  const response = await apiFetch('/api/config/api-settings')
   return response.json()
 }
 
@@ -270,7 +267,7 @@ export type TemplateDetail = {
 }
 
 export async function fetchTemplates(): Promise<TemplateInfo[]> {
-  const response = await fetch(getApiBase() + '/api/templates')
+  const response = await apiFetch('/api/templates')
   const data = await response.json()
   return data.templates
 }

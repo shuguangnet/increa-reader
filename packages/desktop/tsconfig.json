@@ -17,6 +17,6 @@
       "@/*": ["../ui/src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "../ui/src/lib/platform.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "../ui/src/lib/platform.ts", "../ui/src/vite-env.d.ts", "../ui/src/components/error-boundary.tsx"],
   "exclude": ["node_modules", "src-tauri"]
 }
