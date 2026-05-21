@@ -402,14 +402,16 @@ require_cargo() {
     fi
 }
 
-# ── Install frontend dependencies ──────────────────────────────────────
-echo "📦 Installing frontend dependencies..."
-pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
+# ── Helper: install frontend + desktop dependencies ──────────────────
+install_desktop_deps() {
+    echo "📦 Installing frontend dependencies..."
+    pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
 
-# ── Install desktop package dependencies ──────────────────────────────
-echo "📦 Installing desktop dependencies..."
-cd "$DESKTOP_DIR"
-pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
+    echo "📦 Installing desktop dependencies..."
+    cd "$DESKTOP_DIR"
+    pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
+    cd "$ROOT_DIR"
+}
 
 # ── Ensure icons exist ─────────────────────────────────────────────────
 ICONS_DIR="$DESKTOP_DIR/src-tauri/icons"
@@ -424,6 +426,7 @@ cd "$ROOT_DIR"
 # ── Command dispatcher ────────────────────────────────────────────────
 case "${1:-build}" in
     dev)
+        install_desktop_deps
         echo "🚀 Starting development mode..."
         echo "   Frontend dev server will start on http://localhost:5177"
         echo "   Tauri window will open automatically."
@@ -433,6 +436,7 @@ case "${1:-build}" in
         tauri_run "dev"
         ;;
     build)
+        install_desktop_deps
         echo "🔨 Building desktop app..."
         require_cargo
         build_sidecar
@@ -447,6 +451,7 @@ case "${1:-build}" in
         echo "📦 Staged distribution files in src-tauri/target/release/distribute/"
         ;;
     build:debug)
+        install_desktop_deps
         echo "🔨 Building desktop app (debug)..."
         require_cargo
         build_sidecar

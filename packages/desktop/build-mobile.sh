@@ -551,14 +551,16 @@ check_android_prereqs() {
   info "Android prerequisites OK"
 }
 
-# ── Install frontend dependencies ─────────────────────────────────
-echo "📦 Installing frontend dependencies..."
-pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
+# ── Helper: install frontend + desktop dependencies ──────────────────
+install_desktop_deps() {
+    echo "📦 Installing frontend dependencies..."
+    pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
 
-# ── Install desktop package dependencies ───────────────────────────
-echo "📦 Installing desktop dependencies..."
-cd "$DESKTOP_DIR"
-pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
+    echo "📦 Installing desktop dependencies..."
+    cd "$DESKTOP_DIR"
+    pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
+    cd "$ROOT_DIR"
+}
 
 # ── Command dispatcher ────────────────────────────────────────────
 case "${1:-help}" in
@@ -599,6 +601,7 @@ case "${1:-help}" in
     prepare_android_build_inputs
     ;;
   ios)
+    install_desktop_deps
     check_ios_prereqs
     echo "📱 Building iOS release..."
     cd "$DESKTOP_DIR"
@@ -610,6 +613,7 @@ case "${1:-help}" in
     info "iOS build complete! IPA in src-tauri/target/ios/release/"
     ;;
   android)
+    install_desktop_deps
     check_android_prereqs
     echo "📱 Building Android release..."
     cd "$DESKTOP_DIR"
@@ -634,6 +638,7 @@ case "${1:-help}" in
     verify_staged_manifest "android" "$ANDROID_RELEASE_DIR"
     ;;
   dev:ios)
+    install_desktop_deps
     check_ios_prereqs
     echo "📱 Starting iOS dev server (simulator)..."
     cd "$DESKTOP_DIR"
@@ -641,6 +646,7 @@ case "${1:-help}" in
     tauri_run "ios dev"
     ;;
   dev:android)
+    install_desktop_deps
     check_android_prereqs
     echo "📱 Starting Android dev server (emulator)..."
     cd "$DESKTOP_DIR"
@@ -676,6 +682,7 @@ case "${1:-help}" in
     info "Icons generated for all platforms."
     ;;
   all)
+    install_desktop_deps
     echo "📱 Building all mobile platforms..."
     bash "$0" ios
     bash "$0" android
