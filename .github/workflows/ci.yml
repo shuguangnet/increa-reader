@@ -247,6 +247,29 @@ jobs:
       - name: UI tests (vitest)
         run: pnpm --filter @increa-reader/ui test
 
+  # ── Frontend: test coverage (vitest) ──
+  frontend-coverage:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-pnpm
+      - name: UI tests with coverage (vitest)
+        run: pnpm --filter @increa-reader/ui test:cov
+      - name: Upload coverage report (ui)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-coverage
+          path: |
+            packages/ui/coverage/coverage-final.json
+            packages/ui/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 7
+
   # ── Python server: startup smoke test ──
   python-server-smoke:
     needs: changes
@@ -312,7 +335,7 @@ jobs:
       - name: Type check — mypy (server)
         run: |
           cd packages/server
-          python -m mypy increa_reader/ --ignore-missing-imports || true
+          python -m mypy increa_reader/ --ignore-missing-imports
 
       - name: Run server tests with coverage (pytest)
         run: |
@@ -321,7 +344,7 @@ jobs:
             --cov=increa_reader \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=0
+            --cov-fail-under=50
 
       - name: Upload coverage report (server)
         if: always()
@@ -364,8 +387,7 @@ jobs:
           python -m pytest tests/ -v \
             --cov=pdf_reader_server \
             --cov-report=term-missing \
-            --cov-report=xml:coverage.xml \
-            --cov-fail-under=0
+            --cov-report=xml:coverage.xml
 
       - name: Upload coverage report (mcp)
         if: always()
@@ -509,6 +531,68 @@ jobs:
 
       - name: Pip audit (pdf-reader-mcp)
         run: cd packages/pdf-reader-mcp && pip-audit || true
+
+  # ── Test Summary ──
+  test-summary:
+    needs:
+      - frontend-test
+      - frontend-coverage
+      - frontend-typecheck
+      - frontend-lint-build
+      - python-server
+      - python-mcp
+      - python-server-smoke
+      - python-package-build
+      - desktop
+      - desktop-distribution
+      - desktop-rust
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Generate test summary
+        run: |
+          echo "## CI Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+
+          declare -A jobs=(
+            ["frontend-test"]="${{ needs.frontend-test.result }}"
+            ["frontend-coverage"]="${{ needs.frontend-coverage.result }}"
+            ["frontend-typecheck"]="${{ needs.frontend-typecheck.result }}"
+            ["frontend-lint-build"]="${{ needs.frontend-lint-build.result }}"
+            ["python-server"]="${{ needs.python-server.result }}"
+            ["python-mcp"]="${{ needs.python-mcp.result }}"
+            ["python-server-smoke"]="${{ needs.python-server-smoke.result }}"
+            ["python-package-build"]="${{ needs.python-package-build.result }}"
+            ["desktop"]="${{ needs.desktop.result }}"
+            ["desktop-distribution"]="${{ needs.desktop-distribution.result }}"
+            ["desktop-rust"]="${{ needs.desktop-rust.result }}"
+          )
+
+          failed=0
+          for job in "${!jobs[@]}"; do
+            result="${jobs[$job]}"
+            icon="✅"
+            if [[ "$result" == "failure" ]]; then
+              icon="❌"
+              failed=1
+            elif [[ "$result" == "skipped" ]]; then
+              icon="⏭️"
+            elif [[ "$result" == "cancelled" ]]; then
+              icon="⚠️"
+            fi
+            echo "| $job | $icon $result |" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ $failed -eq 0 ]]; then
+            echo "**All jobs passed!** ✅" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Some jobs failed** ❌ — check details above." >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ── Docker build check ──
   docker:

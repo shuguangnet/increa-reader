@@ -15,7 +15,7 @@
     "format": "pnpm --filter @increa-reader/ui format",
     "test": "pnpm --filter \"./packages/*\" test",
     "verify:ui": "pnpm --filter @increa-reader/ui test && pnpm --filter @increa-reader/ui build",
-    "verify:python": "pytest packages/server/tests/test_link_index.py packages/server/tests/test_notes_routes.py packages/server/tests/test_pdf_processor.py packages/server/tests/test_frontend_notes_tools.py -q && pytest packages/pdf-reader-mcp/tests -q",
+    "verify:python": "pytest packages/server/tests/ -q && pytest packages/pdf-reader-mcp/tests -q",
     "verify:ci": "pnpm verify:ui && pnpm verify:python"
   },
   "devDependencies": {
