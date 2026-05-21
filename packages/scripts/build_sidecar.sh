@@ -119,8 +119,10 @@ SUPPORTED_TARGETS=(
 
 # ── Detect current platform's target triple ───────────────────────────────
 detect_target() {
-    local OS="$(uname -s)"
-    local ARCH="$(uname -m)"
+    local OS
+    local ARCH
+    OS="$(uname -s)"
+    ARCH="$(uname -m)"
 
     case "$OS" in
         Linux)

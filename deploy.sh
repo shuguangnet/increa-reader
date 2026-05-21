@@ -84,14 +84,13 @@ else
     exit 1
 fi
 
-# 7. 启动后端
+# 启动后端
 echo "🚀 启动后端 (端口 $BACKEND_PORT)..."
 PORT=$BACKEND_PORT $PYTHON packages/server/server.py &
-BACKEND_PID=$!
 
 # 8. 等待后端就绪
 echo "⏳ 等待后端就绪..."
-for i in $(seq 1 30); do
+for _ in $(seq 1 30); do
     if curl -s "http://localhost:$BACKEND_PORT/health" > /dev/null 2>&1; then
         echo "   ✅ 后端就绪!"
         break
@@ -101,8 +100,7 @@ done
 
 # 9. 启动前端
 echo "🚀 启动前端 (端口 $FRONTEND_PORT)..."
-pnpm --filter @increa-reader/ui dev -- --host 0.0.0.0 --port $FRONTEND_PORT &
-FRONTEND_PID=$!
+pnpm --filter @increa-reader/ui dev -- --host 0.0.0.0 --port "$FRONTEND_PORT" &
 
 echo ""
 echo "✨ Increa Reader 已启动!"

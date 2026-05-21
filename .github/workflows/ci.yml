@@ -28,6 +28,7 @@ jobs:
       server: ${{ steps.filter.outputs.server }}
       mcp: ${{ steps.filter.outputs.mcp }}
       desktop: ${{ steps.filter.outputs.desktop }}
+      shell: ${{ steps.filter.outputs.shell }}
       docker: ${{ steps.filter.outputs.docker }}
       security: ${{ steps.filter.outputs.security }}
       workflows: ${{ steps.filter.outputs.workflows }}
@@ -59,6 +60,14 @@ jobs:
               - '.github/workflows/ci.yml'
               - 'packages/desktop/**'
               - 'packages/ui/**'
+            shell:
+              - '.github/workflows/ci.yml'
+              - 'deploy-local.sh'
+              - 'deploy.sh'
+              - 'setup.sh'
+              - 'start.sh'
+              - 'scripts/**/*.sh'
+              - 'packages/**/*.sh'
             docker:
               - 'Dockerfile'
               - 'scripts/ci/**'
@@ -98,6 +107,41 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate GitHub Actions workflows
         uses: rhysd/actionlint@v1
+
+  # ── Shell scripts: lint + syntax check ──
+  shell-lint:
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint shell scripts with ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: .
+          ignore_paths: node_modules .git
+
+      - name: Bash syntax check
+        shell: bash
+        run: |
+          mapfile -d '' files < <(find . \
+            -path './.git' -prune -o \
+            -path './node_modules' -prune -o \
+            -path './packages/server/.venv' -prune -o \
+            -type f -name '*.sh' -print0)
+
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo 'No shell scripts found.'
+            exit 0
+          fi
+
+          printf 'Checking %s shell scripts\n' "${#files[@]}"
+          for file in "${files[@]}"; do
+            bash -n "$file"
+          done
 
   # ── Python package build validation ──
   python-package-build:

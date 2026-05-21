@@ -23,7 +23,7 @@ FRONTEND_PID=$!
 echo "Frontend started (PID: $FRONTEND_PID)"
 
 # Wait for backend
-for i in $(seq 1 15); do
+for _ in $(seq 1 15); do
   if curl -s http://localhost:3002/api/workspace/tree > /dev/null 2>&1; then
     echo "Backend ready!"
     break
@@ -32,7 +32,7 @@ for i in $(seq 1 15); do
 done
 
 # Wait for frontend
-for i in $(seq 1 15); do
+for _ in $(seq 1 15); do
   if curl -s -o /dev/null http://localhost:5177/ 2>/dev/null; then
     echo "Frontend ready!"
     break

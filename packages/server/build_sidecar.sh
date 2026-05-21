@@ -24,6 +24,7 @@ DESKTOP_BINARIES="$PROJECT_ROOT/packages/desktop/src-tauri/binaries"
 
 # ── Parse arguments ────────────────────────────────────────────────────────
 TARGET_TRIPLE=""
+OUTPUT_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -33,6 +34,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --output|-o)
             OUTPUT_DIR="$2"
+            export OUTPUT_DIR
             shift 2
             ;;
         *)
@@ -96,9 +98,11 @@ if [[ ! -d "$VENV_DIR" ]]; then
 fi
 
 # Activate venv
+# shellcheck disable=SC1091
 source "$VENV_DIR/bin/activate" 2>/dev/null || true
 if [[ -f "$VENV_DIR/Scripts/activate" ]]; then
     # Windows Git Bash
+    # shellcheck disable=SC1091
     source "$VENV_DIR/Scripts/activate"
 fi
 
