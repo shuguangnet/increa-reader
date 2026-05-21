@@ -6,6 +6,7 @@ on:
     tags: ['v*']
     paths:
       - 'Dockerfile'
+      - 'scripts/ci/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -62,6 +63,19 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image for smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: increa-reader:cd-smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test Docker image
+        run: bash scripts/ci/smoke-test-server.sh container increa-reader:cd-smoke
 
       - name: Build and push Docker image
         id: build

@@ -61,6 +61,7 @@ jobs:
               - 'packages/ui/**'
             docker:
               - 'Dockerfile'
+              - 'scripts/ci/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
@@ -450,6 +451,10 @@ jobs:
         with:
           context: .
           push: false
+          load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: increa-reader:ci
+
+      - name: Smoke test Docker image
+        run: bash scripts/ci/smoke-test-server.sh container increa-reader:ci
