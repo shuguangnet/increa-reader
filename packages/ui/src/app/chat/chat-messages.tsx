@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Message as MessageType } from '@/types/chat'
 import { Message } from './message'
@@ -8,7 +9,7 @@ type ChatMessagesProps = {
   autoScroll?: boolean
 }
 
-export const ChatMessages = ({ messages, scrollRef, autoScroll = true }: ChatMessagesProps) => {
+export const ChatMessages = memo(function ChatMessages({ messages, scrollRef, autoScroll = true }: ChatMessagesProps) {
   return (
     <ScrollArea className="flex-1 min-h-0 px-2 py-2">
       <div className="">
@@ -19,4 +20,4 @@ export const ChatMessages = ({ messages, scrollRef, autoScroll = true }: ChatMes
       </div>
     </ScrollArea>
   )
-}
+})

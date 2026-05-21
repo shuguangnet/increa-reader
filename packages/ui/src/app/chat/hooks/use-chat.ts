@@ -93,8 +93,6 @@ export const useChat = (getContext: () => ContextData) => {
       if (!directMessage) setInput('')
       setIsStreaming(true)
 
-      let assistantContent = ''
-      let toolCalls: Message['toolCalls'] = []
       const assistantMsg: Message = {
         role: 'assistant',
         content: '',
@@ -106,6 +104,42 @@ export const useChat = (getContext: () => ContextData) => {
         ...prev!,
         messages: [...prev!.messages, assistantMsg],
       }))
+
+      // Refs for throttled streaming updates — accumulate content in refs and
+      // only call setCurrentSession once per animation frame, avoiding the
+      // per-token re-render avalanche (~2000 state updates for a 2000-token
+      // response becomes ~30 updates at 60 fps).
+      const contentRef = { current: '' }
+      const toolCallsRef: { current: Message['toolCalls'] } = { current: [] }
+      const rafPendingRef = { current: false }
+      const mountFlagRef = { current: true }
+
+      const flushStreamState = () => {
+        rafPendingRef.current = false
+        if (!mountFlagRef.current) return
+        setCurrentSession(prev => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            messages: [
+              ...prev.messages.slice(0, -1),
+              {
+                ...assistantMsg,
+                content: contentRef.current,
+                toolCalls: toolCallsRef.current,
+                isStreaming: true,
+              },
+            ],
+          }
+        })
+      }
+
+      const scheduleFlush = () => {
+        if (!rafPendingRef.current) {
+          rafPendingRef.current = true
+          requestAnimationFrame(() => flushStreamState())
+        }
+      }
 
       try {
         const context = getContextEvent()
@@ -163,19 +197,8 @@ export const useChat = (getContext: () => ContextData) => {
 
                   const deltaText = extractTextContent(msg)
                   if (deltaText) {
-                    assistantContent += deltaText
-                    setCurrentSession(prev => ({
-                      ...prev!,
-                      messages: [
-                        ...prev!.messages.slice(0, -1),
-                        {
-                          ...assistantMsg,
-                          content: assistantContent,
-                          toolCalls,
-                          isStreaming: true,
-                        },
-                      ],
-                    }))
+                    contentRef.current += deltaText
+                    scheduleFlush()
                   }
 
                   if (delta?.type === 'input_json_delta') {
@@ -183,30 +206,18 @@ export const useChat = (getContext: () => ContextData) => {
                       const params = JSON.parse(delta.partial_json)
                       const toolName = detectToolFromParams(params)
 
-                      const existingIndex = toolCalls?.findIndex(
+                      const existingIndex = toolCallsRef.current?.findIndex(
                         t => t.name === toolName && t.status === 'running',
                       )
                       if (existingIndex !== undefined && existingIndex >= 0) {
-                        toolCalls![existingIndex].params = params
+                        toolCallsRef.current![existingIndex].params = params
                       } else {
-                        toolCalls = [
-                          ...(toolCalls || []),
+                        toolCallsRef.current = [
+                          ...(toolCallsRef.current || []),
                           { name: toolName, status: 'running', params },
                         ]
                       }
-
-                      setCurrentSession(prev => ({
-                        ...prev!,
-                        messages: [
-                          ...prev!.messages.slice(0, -1),
-                          {
-                            ...assistantMsg,
-                            content: assistantContent,
-                            toolCalls,
-                            isStreaming: true,
-                          },
-                        ],
-                      }))
+                      scheduleFlush()
                     } catch {
                       // Partial JSON may not be parseable yet
                     }
@@ -214,7 +225,8 @@ export const useChat = (getContext: () => ContextData) => {
                 }
 
                 if (msg.type === 'result') {
-                  const completedTools = toolCalls?.map(t => ({ ...t, status: 'done' as const }))
+                  mountFlagRef.current = false
+                  const completedTools = toolCallsRef.current?.map(t => ({ ...t, status: 'done' as const }))
 
                   setCurrentSession(prev => ({
                     ...prev!,
@@ -222,7 +234,7 @@ export const useChat = (getContext: () => ContextData) => {
                       ...prev!.messages.slice(0, -1),
                       {
                         ...assistantMsg,
-                        content: assistantContent,
+                        content: contentRef.current,
                         toolCalls: completedTools,
                         isStreaming: false,
                       },
@@ -239,6 +251,7 @@ export const useChat = (getContext: () => ContextData) => {
                 }
 
                 if (msg.type === 'error') {
+                  mountFlagRef.current = false
                   setCurrentSession(prev => ({
                     ...prev!,
                     messages: prev!.messages.slice(0, -1),

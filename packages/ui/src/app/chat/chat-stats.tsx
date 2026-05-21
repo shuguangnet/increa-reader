@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 type ChatStatsProps = {
   context: {
     repo: string | null
@@ -32,14 +34,14 @@ const formatTokens = (tokens: number): string => {
   return `${(tokens / 1000).toFixed(1)}K`
 }
 
-export const ChatStats = ({
+export const ChatStats = memo(function ChatStats({
   context,
   repos,
   sessionId,
   isStreaming,
   model,
   stats,
-}: ChatStatsProps) => {
+}: ChatStatsProps) {
   const displayRepo = context.repo || (repos.length > 0 ? repos[0].name : 'loading...')
   if (!stats?.sessionId) {
     return null
@@ -161,4 +163,4 @@ export const ChatStats = ({
       </div>
     </div>
   )
-}
+})

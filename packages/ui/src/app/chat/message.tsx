@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
@@ -45,7 +46,7 @@ const formatToolParams = (toolName: string, params?: Record<string, unknown>) =>
 const resolveImageSrc = (src?: string) =>
   src?.includes('.increa/uploads/') ? `/api/uploads/${src.split('/').pop()}` : src
 
-export const Message = ({ role, content, isStreaming, toolCalls }: MessageType) => {
+export const Message = memo(function Message({ role, content, isStreaming, toolCalls }: MessageType) {
   const prefix = role === 'user' ? '$' : role === 'system' ? '>' : role === 'error' ? '!' : '<'
   const textColor =
     role === 'user'
@@ -173,4 +174,4 @@ export const Message = ({ role, content, isStreaming, toolCalls }: MessageType) 
       </div>
     </div>
   )
-}
+})
