@@ -55,7 +55,9 @@ pnpm --filter @increa-reader/desktop build
 
 该命令现在会先自动构建当前平台的 Python sidecar，再执行 `tauri build`，避免安装包生成成功但运行时缺少后端二进制。
 
-另外，`packages/desktop/package.json` 中的 `dev` / `build` / `build:debug` / `build:ios` / `build:android` 已统一改为调用 `build.sh` / `build-mobile.sh`，这样无论是本地开发、CI 还是直接执行 pnpm script，都会复用同一条打包链路，减少“脚本能跑、实际发包漏步骤”的漂移风险。
+另外，`packages/desktop/package.json` 中的 `dev` / `dev:desktop` / `build` / `build:desktop` / `build:debug` / `build:ios` / `build:android` 已统一改为调用 `build.sh` / `build-mobile.sh`，这样无论是本地开发、CI 还是直接执行 pnpm script，都会复用同一条打包链路，减少“脚本能跑、实际发包漏步骤”的漂移风险。
+
+如需绕过统一封装、直接调用 Tauri CLI 进行底层排障，可使用 `dev:desktop:raw` / `build:desktop:raw`。
 
 构建产物在 `src-tauri/target/release/bundle/` 中：
 - **Linux**: `.deb` 和 `.AppImage`

@@ -43,6 +43,19 @@ src-tauri/
 > 在没有对应 SDK 的机器上 `tauri build` 会自动跳过移动端 target。
 > 也可以通过 `tauri ios build` / `tauri android build` 单独构建。
 
+## 桌面端脚本统一说明
+
+桌面端现在也与移动端一样，优先通过统一脚本入口构建：
+
+- `pnpm --filter @increa-reader/desktop dev`
+- `pnpm --filter @increa-reader/desktop dev:desktop`
+- `pnpm --filter @increa-reader/desktop build`
+- `pnpm --filter @increa-reader/desktop build:desktop`
+
+这些命令都会先走 `build.sh`，从而自动补齐 sidecar 构建与前置检查，避免直接执行 `tauri dev/build` 时出现“应用壳能启动，但安装包里漏掉 Python sidecar”的交付漂移。
+
+若只是排查底层 Tauri CLI 行为，可额外使用 `dev:desktop:raw` / `build:desktop:raw`。
+
 ## iOS 构建流程
 
 1. **初始化**（首次）: `./build-mobile.sh init:ios`
