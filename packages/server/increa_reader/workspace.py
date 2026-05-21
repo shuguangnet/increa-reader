@@ -173,38 +173,65 @@ def is_text_file(content: bytes) -> bool:
         return not any(content.startswith(sig) for sig in binary_signatures)
 
 
+def _is_excluded(name: str, excludes: List[str]) -> bool:
+    return any(name.startswith(exclude.rstrip("*")) for exclude in excludes)
+
+
+def _build_file_tree_scandir(
+    dir_path: Path, relative_prefix: str, excludes: List[str]
+) -> List[TreeNode]:
+    """Build file tree with scandir to avoid redundant stat calls on large repos."""
+    dir_nodes: list[TreeNode] = []
+    file_nodes: list[TreeNode] = []
+
+    try:
+        with os.scandir(dir_path) as entries:
+            visible_entries = [
+                entry for entry in entries if not _is_excluded(entry.name, excludes)
+            ]
+    except (FileNotFoundError, NotADirectoryError, PermissionError):
+        return []
+
+    visible_entries.sort(key=lambda entry: entry.name.lower())
+
+    for entry in visible_entries:
+        relative_path = (
+            f"{relative_prefix}/{entry.name}" if relative_prefix else entry.name
+        )
+
+        try:
+            is_dir = entry.is_dir(follow_symlinks=False)
+        except OSError:
+            continue
+
+        if is_dir:
+            children = _build_file_tree_scandir(
+                Path(entry.path), relative_path, excludes
+            )
+            dir_nodes.append(
+                TreeNode(
+                    type="dir",
+                    name=entry.name,
+                    path=relative_path,
+                    children=children,
+                )
+            )
+        else:
+            file_nodes.append(
+                TreeNode(type="file", name=entry.name, path=relative_path)
+            )
+
+    return dir_nodes + file_nodes
+
+
 def build_file_tree(
     dir_path: Path, relative_to: Path, excludes: List[str]
 ) -> List[TreeNode]:
-    """Recursively build file tree"""
-    nodes = []
-
-    try:
-        for item in dir_path.iterdir():
-            # Skip excluded files/directories
-            if any(item.name.startswith(exclude.rstrip("*")) for exclude in excludes):
-                continue
-
-            relative_path = str(item.relative_to(relative_to))
-
-            if item.is_dir():
-                children = build_file_tree(item, relative_to, excludes)
-                nodes.append(
-                    TreeNode(
-                        type="dir",
-                        name=item.name,
-                        path=relative_path,
-                        children=children,
-                    )
-                )
-            else:
-                nodes.append(TreeNode(type="file", name=item.name, path=relative_path))
-    except PermissionError:
-        pass
-
-    # Sort: directories first, then files (both alphabetically)
-    nodes.sort(key=lambda x: (x.type != "dir", x.name.lower()))
-    return nodes
+    """Recursively build file tree."""
+    relative_prefix = ""
+    if dir_path != relative_to:
+        relative_prefix = str(dir_path.relative_to(relative_to))
+    return _build_file_tree_scandir(dir_path, relative_prefix, excludes)
 
 
 class WorkspaceTreeCache:

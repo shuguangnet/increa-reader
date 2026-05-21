@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from increa_reader.main import create_app
+from increa_reader.workspace import build_file_tree
 
 
 def _build_client(tmp_path, monkeypatch):
@@ -202,3 +203,21 @@ def test_workspace_tree_cache_reflects_file_changes(tmp_path, monkeypatch, endpo
     refreshed_docs = next(node for node in refreshed_files if node["path"] == "docs")
     refreshed_child_paths = {child["path"] for child in refreshed_docs["children"]}
     assert "docs/later.md" in refreshed_child_paths
+
+
+def test_build_file_tree_keeps_directories_before_files(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / "b-file.md").write_text("# B\n", encoding="utf-8")
+    (repo_root / "a-dir").mkdir()
+    (repo_root / "c-dir").mkdir()
+    (repo_root / "a-file.md").write_text("# A\n", encoding="utf-8")
+
+    tree = build_file_tree(repo_root, repo_root, ["node_modules", ".*", "*.log"])
+
+    assert [node.path for node in tree] == [
+        "a-dir",
+        "c-dir",
+        "a-file.md",
+        "b-file.md",
+    ]
