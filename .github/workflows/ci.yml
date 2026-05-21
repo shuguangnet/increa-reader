@@ -32,6 +32,7 @@ jobs:
       docker: ${{ steps.filter.outputs.docker }}
       security: ${{ steps.filter.outputs.security }}
       workflows: ${{ steps.filter.outputs.workflows }}
+      server_smoke: ${{ steps.filter.outputs.server_smoke }}
     steps:
       - uses: actions/checkout@v4
       - name: Detect changed areas
@@ -95,6 +96,11 @@ jobs:
             workflows:
               - '.github/actions/**'
               - '.github/workflows/**'
+            server_smoke:
+              - '.github/workflows/ci.yml'
+              - 'scripts/ci/smoke-test-server.sh'
+              - 'packages/server/**'
+              - 'Dockerfile'
 
   # ── Workflow validation ──
   workflow-lint:
@@ -240,6 +246,33 @@ jobs:
       - uses: ./.github/actions/setup-pnpm
       - name: UI tests (vitest)
         run: pnpm --filter @increa-reader/ui test
+
+  # ── Python server: startup smoke test ──
+  python-server-smoke:
+    needs: changes
+    if: needs.changes.outputs.server_smoke == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            packages/server/requirements.txt
+            packages/server/pyproject.toml
+
+      - name: Install Python dependencies (server runtime)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r packages/server/requirements.txt
+
+      - name: Smoke test FastAPI server startup
+        run: bash scripts/ci/smoke-test-server.sh process "${GITHUB_WORKSPACE}"
 
   # ── Python server: lint + typecheck + test + coverage ──
   python-server:

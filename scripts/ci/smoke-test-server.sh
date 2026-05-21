@@ -8,9 +8,29 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LOG_FILE="${ROOT_DIR}/.tmp-ci-smoke.log"
 HEALTH_URL="http://127.0.0.1:${PORT}/health"
 TREE_URL="http://127.0.0.1:${PORT}/api/workspace/tree"
-SERVER_PYTHON="${ROOT_DIR}/packages/server/.venv/bin/python"
+SERVER_PYTHON="${SERVER_PYTHON:-${ROOT_DIR}/packages/server/.venv/bin/python}"
 PID=""
 CONTAINER_ID=""
+
+resolve_server_python() {
+  if [[ -x "${SERVER_PYTHON}" ]]; then
+    printf '%s\n' "${SERVER_PYTHON}"
+    return 0
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    command -v python3
+    return 0
+  fi
+
+  if command -v python >/dev/null 2>&1; then
+    command -v python
+    return 0
+  fi
+
+  echo "No usable Python interpreter found for server smoke test" >&2
+  return 1
+}
 
 cleanup() {
   set +e
@@ -74,17 +94,15 @@ PY
 run_process_mode() {
   local repo_path="${2:-${ROOT_DIR}}"
   local expected_repo
+  local server_python
   expected_repo="$(basename "${repo_path}")"
-
-  if [[ ! -x "${SERVER_PYTHON}" ]]; then
-    echo "Server virtualenv python not found: ${SERVER_PYTHON}" >&2
-    exit 1
-  fi
+  server_python="$(resolve_server_python)"
 
   rm -f "${LOG_FILE}"
   (
     cd "${ROOT_DIR}"
-    "${SERVER_PYTHON}" packages/server/sidecar_entry.py --port "${PORT}" --repo "${repo_path}"
+    PYTHONPATH="${ROOT_DIR}/packages/server${PYTHONPATH:+:${PYTHONPATH}}" \
+      "${server_python}" packages/server/sidecar_entry.py --port "${PORT}" --repo "${repo_path}"
   ) >"${LOG_FILE}" 2>&1 &
   PID="$!"
 
