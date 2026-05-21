@@ -84,12 +84,7 @@ function flattenTree(
   depth: number,
   result: FlatNode[],
 ): void {
-  // Sort: directories first, then files; alphabetical within each group
-  const dirs = nodes.filter(n => n.type === 'dir').sort((a, b) => a.name.localeCompare(b.name))
-  const files = nodes.filter(n => n.type === 'file').sort((a, b) => a.name.localeCompare(b.name))
-  const sorted = [...dirs, ...files]
-
-  for (const node of sorted) {
+  for (const node of nodes) {
     if (node.type === 'dir') {
       const isExpanded = expandedDirs.has(node.path)
       result.push({
@@ -102,15 +97,16 @@ function flattenTree(
       if (isExpanded && node.children) {
         flattenTree(node.children, expandedDirs, depth + 1, result)
       }
-    } else {
-      result.push({
-        type: 'file',
-        name: node.name,
-        path: node.path,
-        depth,
-        hasChildren: false,
-      })
+      continue
     }
+
+    result.push({
+      type: 'file',
+      name: node.name,
+      path: node.path,
+      depth,
+      hasChildren: false,
+    })
   }
 }
 
@@ -532,21 +528,25 @@ export function FileTree({
     setContextMenuState(null)
   }, [])
 
-  // ── Favorites (optimized selectors) ──
+  // ── Favorites ──
+  const favorites = useFavoritesStore(s => s.favorites)
+  const favoritePaths = useMemo(() => {
+    const paths = new Set<string>()
+    for (const favorite of favorites) {
+      if (favorite.repo === repoName) {
+        paths.add(favorite.path)
+      }
+    }
+    return paths
+  }, [favorites, repoName])
+
   const isFavorite = useCallback(
     (nodePath: string) => {
       const cleanPath = nodePath.startsWith('/') ? nodePath.slice(1) : nodePath
-      return useFavoritesStore.getState().favorites.some(
-        f => f.repo === repoName && f.path === cleanPath,
-      )
+      return favoritePaths.has(cleanPath)
     },
-    [repoName],
+    [favoritePaths],
   )
-
-  // We subscribe to favorites count to detect changes — but use getState() in render
-  // to avoid re-rendering all items when one favorite changes
-  const _favCount = useFavoritesStore(s => s.favorites.length)
-  void _favCount // suppress unused warning; subscription needed for reactivity
 
   const addFavorite = useFavoritesStore(s => s.addFavorite)
   const removeFavorite = useFavoritesStore(s => s.removeFavorite)
