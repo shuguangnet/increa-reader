@@ -3,6 +3,7 @@ Full-text search API routes with indexing support
 """
 
 import asyncio
+import os
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -86,16 +87,31 @@ class SearchIndex:
             return []
 
         file_paths: List[Path] = []
-        for fp in repo_root.rglob("*"):
-            if fp.is_dir():
-                continue
-            if any(part.startswith(".") for part in fp.relative_to(repo_root).parts):
-                continue
-            if "node_modules" in fp.parts:
-                continue
-            if fp.suffix.lower() not in TEXT_EXTENSIONS and fp.suffix:
-                continue
-            file_paths.append(fp)
+
+        def walk(dir_path: Path) -> None:
+            """Recursively collect text files, skipping hidden/ignored dirs."""
+            try:
+                with os.scandir(dir_path) as entries:
+                    for entry in entries:
+                        if entry.name.startswith(".") or entry.name == "node_modules":
+                            continue
+                        entry_path = Path(entry.path)
+                        try:
+                            if entry.is_dir(follow_symlinks=False):
+                                walk(entry_path)
+                                continue
+                        except OSError:
+                            continue
+                        if (
+                            entry_path.suffix.lower() not in TEXT_EXTENSIONS
+                            and entry_path.suffix
+                        ):
+                            continue
+                        file_paths.append(entry_path)
+            except (FileNotFoundError, NotADirectoryError, PermissionError):
+                return
+
+        walk(repo_root)
 
         tasks = [self._index_file(fp, repo_root) for fp in file_paths]
         results = await asyncio.gather(*tasks)

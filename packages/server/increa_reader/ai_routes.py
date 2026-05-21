@@ -183,7 +183,10 @@ async def _call_openai(prompt: str, max_tokens: int = 1024) -> str:
 
 def _collect_text_files(repo_root: str, limit: int = 100) -> List[str]:
     """Collect paths of text/markdown files in the repo (relative paths)."""
-    repo_path = Path(repo_root)
+    import os
+    from pathlib import Path as P
+
+    repo_path = P(repo_root)
     text_extensions = {
         ".md", ".markdown", ".txt", ".rst", ".adoc",
         ".py", ".js", ".ts", ".jsx", ".tsx", ".java",
@@ -193,17 +196,32 @@ def _collect_text_files(repo_root: str, limit: int = 100) -> List[str]:
         ".html", ".css", ".scss", ".vue", ".svelte",
     }
     results: List[str] = []
+
+    def walk(dir_path: P) -> None:
+        """Recursively collect text files, skipping hidden/ignored dirs."""
+        if len(results) >= limit:
+            return
+        try:
+            with os.scandir(dir_path) as entries:
+                for entry in entries:
+                    if len(results) >= limit:
+                        return
+                    if entry.name.startswith(".") or entry.name == "node_modules":
+                        continue
+                    entry_path = P(entry.path)
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            walk(entry_path)
+                            continue
+                    except OSError:
+                        continue
+                    if entry_path.suffix.lower() in text_extensions:
+                        results.append(str(entry_path.relative_to(repo_path)))
+        except (FileNotFoundError, NotADirectoryError, PermissionError):
+            return
+
     try:
-        for item in repo_path.rglob("*"):
-            if len(results) >= limit:
-                break
-            # Skip hidden / node_modules
-            if any(part.startswith(".") for part in item.relative_to(repo_path).parts):
-                continue
-            if "node_modules" in item.parts:
-                continue
-            if item.is_file() and item.suffix.lower() in text_extensions:
-                results.append(str(item.relative_to(repo_path)))
+        walk(repo_path)
     except PermissionError:
         pass
     return results
