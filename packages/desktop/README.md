@@ -84,7 +84,7 @@ pnpm --filter @increa-reader/desktop build
 - Android Studio + NDK 25+
 - 环境变量：`ANDROID_HOME` 和 `ANDROID_NDK_HOME`
 - JDK 17+
-- Rust targets: `rustup target add aarch64-linux-android armv7-linux-androideabi`
+- Rust targets: `rustup target add aarch64-linux-android x86_64-linux-android`
 
 ### 构建命令
 
@@ -144,7 +144,7 @@ export INCREA_IOS_TEAM_ID=ABCDE12345
 - **最小 SDK**：26（Android 8.0）
 - **目标 SDK**：34（Android 14）
 - **自适应图标**：使用蓝色背景 + 居中图标前景
-- **ABI 过滤**：仅构建 `aarch64` / `arm64-v8a`
+- **ABI / Rust target 对齐**：Android 安装包配置为 `arm64-v8a` + `x86_64`，构建前会同步检查并自动安装 `aarch64-linux-android` / `x86_64-linux-android` Rust target，避免模拟器或 CI 因 target 缺失而在链接阶段失败
 - **Deep Link**：`increa.reader://open`
 - **发布签名**：支持通过 `INCREA_ANDROID_KEYSTORE_B64`、`INCREA_ANDROID_KEYSTORE_PASSWORD`、`INCREA_ANDROID_KEY_ALIAS`、`INCREA_ANDROID_KEY_PASSWORD` 在 CI 中自动注入签名信息
 - **Gradle 文件同步**：`build-mobile.sh init:android` / `android` / `dev:android` 会自动把 `src-tauri/gradle.properties` 和 `keystore.properties` 同步到 `src-tauri/gen/android/`，避免生成后的 Android 工程漏掉签名与内存配置

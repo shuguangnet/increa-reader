@@ -9,7 +9,7 @@
 #   Android:
 #     - Android Studio with NDK 25+
 #     - ANDROID_HOME / ANDROID_NDK_HOME env vars set
-#     - Rust targets: rustup target add aarch64-linux-android armv7-linux-androideabi
+#     - Rust targets: rustup target add aarch64-linux-android x86_64-linux-android
 #
 # Usage:
 #   ./build-mobile.sh ios            — Build iOS release
@@ -365,6 +365,7 @@ check_android_prereqs() {
   [[ -n "${ANDROID_NDK_HOME:-}" ]] || warn "ANDROID_NDK_HOME not set — default NDK will be used"
   command -v java &>/dev/null || error "Java not found — install JDK 17+ for Android builds"
   check_rust_targets "aarch64-linux-android"
+  check_rust_targets "x86_64-linux-android"
   info "Android prerequisites OK"
 }
 
@@ -526,6 +527,7 @@ case "${1:-help}" in
     echo "  ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD"
     echo "               Optional Android release signing credentials (CI-friendly)"
     echo "               Android init is auto-triggered before prepare/dev/build when gen/android is missing"
+    echo "               Required Rust targets: aarch64-linux-android + x86_64-linux-android"
     exit 0
     ;;
 esac

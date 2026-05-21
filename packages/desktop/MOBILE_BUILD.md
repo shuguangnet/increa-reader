@@ -106,7 +106,7 @@ src-tauri/
 
 - **最低 SDK**: 26 (Android 8.0)
 - **目标 SDK**: 34 (Android 14)
-- **ABI 过滤**: `arm64-v8a`, `x86_64`（排除 32-bit 减小体积）
+- **ABI 过滤**: `arm64-v8a`, `x86_64`（排除 32-bit 减小体积；对应 Rust target 也必须安装 `aarch64-linux-android` 与 `x86_64-linux-android`）
 - **自适应图标**: 前景/背景图层分离
 - **备份**: 禁用 `allowBackup`（避免数据泄露）
 - **Split modules**: 禁用 `splitModulesEnabled`（保持单 APK 简化分发）
