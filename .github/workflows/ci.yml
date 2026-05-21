@@ -11,6 +11,8 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'workspace/**'
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 concurrency:
@@ -24,20 +26,28 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      ui: ${{ steps.filter.outputs.ui }}
-      server: ${{ steps.filter.outputs.server }}
-      mcp: ${{ steps.filter.outputs.mcp }}
-      desktop: ${{ steps.filter.outputs.desktop }}
-      shell: ${{ steps.filter.outputs.shell }}
-      docker: ${{ steps.filter.outputs.docker }}
-      security: ${{ steps.filter.outputs.security }}
-      workflows: ${{ steps.filter.outputs.workflows }}
-      server_smoke: ${{ steps.filter.outputs.server_smoke }}
-      bundle_size: ${{ steps.filter.outputs.bundle_size }}
+      ui: ${{ steps.merge-group.outputs.ui || steps.filter.outputs.ui }}
+      server: ${{ steps.merge-group.outputs.server || steps.filter.outputs.server }}
+      mcp: ${{ steps.merge-group.outputs.mcp || steps.filter.outputs.mcp }}
+      desktop: ${{ steps.merge-group.outputs.desktop || steps.filter.outputs.desktop }}
+      shell: ${{ steps.merge-group.outputs.shell || steps.filter.outputs.shell }}
+      docker: ${{ steps.merge-group.outputs.docker || steps.filter.outputs.docker }}
+      security: ${{ steps.merge-group.outputs.security || steps.filter.outputs.security }}
+      workflows: ${{ steps.merge-group.outputs.workflows || steps.filter.outputs.workflows }}
+      server_smoke: ${{ steps.merge-group.outputs.server_smoke || steps.filter.outputs.server_smoke }}
+      bundle_size: ${{ steps.merge-group.outputs.bundle_size || steps.filter.outputs.bundle_size }}
     steps:
       - uses: actions/checkout@v4
+      - name: Force all areas for merge_group
+        id: merge-group
+        if: github.event_name == 'merge_group'
+        run: |
+          for area in ui server mcp desktop shell docker security workflows server_smoke bundle_size; do
+            echo "${area}=true" >> "$GITHUB_OUTPUT"
+          done
       - name: Detect changed areas
         id: filter
+        if: github.event_name != 'merge_group'
         uses: dorny/paths-filter@v3
         with:
           filters: |
@@ -417,6 +427,52 @@ jobs:
           path: packages/pdf-reader-mcp/coverage.xml
           retention-days: 7
 
+  # ── Python compatibility matrix — test across declared versions ──
+  python-compat-matrix:
+    needs: changes
+    if: needs.changes.outputs.server == 'true' || needs.changes.outputs.mcp == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install server dependencies
+        if: needs.changes.outputs.server == 'true'
+        run: |
+          pip install --upgrade pip
+          cd packages/server
+          pip install -r requirements.txt
+          pip install -e ".[dev]"
+
+      - name: Run server tests (server)
+        if: needs.changes.outputs.server == 'true'
+        run: |
+          cd packages/server
+          python -m pytest tests/ -v --tb=short -x
+
+      - name: Install MCP dependencies
+        if: needs.changes.outputs.mcp == 'true'
+        run: |
+          pip install --upgrade pip
+          cd packages/pdf-reader-mcp
+          pip install -e ".[dev]"
+
+      - name: Run MCP tests (pdf-reader-mcp)
+        if: needs.changes.outputs.mcp == 'true'
+        run: |
+          cd packages/pdf-reader-mcp
+          python -m pytest tests/ -v -x
+
   # ── Desktop (Tauri frontend): typecheck + production bundle ──
   desktop:
     needs: changes
@@ -605,6 +661,7 @@ jobs:
       - frontend-lint-build
       - python-server
       - python-mcp
+      - python-compat-matrix
       - python-server-smoke
       - python-package-build
       - desktop
@@ -630,6 +687,7 @@ jobs:
             ["frontend-lint-build"]="${{ needs.frontend-lint-build.result }}"
             ["python-server"]="${{ needs.python-server.result }}"
             ["python-mcp"]="${{ needs.python-mcp.result }}"
+            ["python-compat-matrix"]="${{ needs.python-compat-matrix.result }}"
             ["python-server-smoke"]="${{ needs.python-server-smoke.result }}"
             ["python-package-build"]="${{ needs.python-package-build.result }}"
             ["desktop"]="${{ needs.desktop.result }}"

@@ -77,6 +77,22 @@ jobs:
       - name: Smoke test Docker image
         run: bash scripts/ci/smoke-test-server.sh container increa-reader:cd-smoke
 
+      - name: Scan Docker image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: increa-reader:cd-smoke
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+      - name: Upload Trivy scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-container
+
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v6
