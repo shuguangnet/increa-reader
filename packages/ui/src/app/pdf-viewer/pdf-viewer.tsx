@@ -1,6 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createDraftPDFNote } from '@/app/notes/note-utils'
 import { useDocumentNotes } from '@/app/notes/use-document-notes'
 import { useNoteToolStore } from '@/stores/note-tool-store'
@@ -92,6 +92,21 @@ function PDFPagination({ currentPage, totalPages, onPageChange }: PDFPaginationP
 
 const ESTIMATED_PAGE_SIZE = 1000
 
+function groupNotesByPage<T extends { position: { page: number } }>(items: T[]) {
+  const grouped = new Map<number, T[]>()
+
+  for (const item of items) {
+    const pageItems = grouped.get(item.position.page)
+    if (pageItems) {
+      pageItems.push(item)
+    } else {
+      grouped.set(item.position.page, [item])
+    }
+  }
+
+  return grouped
+}
+
 export function PDFViewer({ repo, filePath, metadata }: PDFViewerProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const tabId = makeTabId(repo, filePath)
@@ -116,6 +131,8 @@ export function PDFViewer({ repo, filePath, metadata }: PDFViewerProps) {
   })
 
   const items = rowVirtualizer.getVirtualItems()
+  const notesByPage = useMemo(() => groupNotesByPage(notes), [notes])
+  const draftNotesByPage = useMemo(() => groupNotesByPage(draftNotes), [draftNotes])
 
   useEffect(() => {
     if (items.length > 0) {
@@ -128,9 +145,9 @@ export function PDFViewer({ repo, filePath, metadata }: PDFViewerProps) {
     useTabsStore.getState().setPageNumber(tabId, currentPage)
   }, [currentPage, tabId])
 
-  const scrollToPage = (page: number) => {
+  const scrollToPage = useCallback((page: number) => {
     rowVirtualizer.scrollToIndex(page - 1, { align: 'center' })
-  }
+  }, [rowVirtualizer])
 
   const fileName = filePath.split('/').pop() || 'document.pdf'
   const displayTitle = metadata.title || fileName
@@ -159,9 +176,90 @@ export function PDFViewer({ repo, filePath, metadata }: PDFViewerProps) {
     setDraftNotes([])
   }, [repo, filePath])
 
-  const handleCreateDraft = (page: number, xRatio: number, yRatio: number) => {
+  const handleCreateDraft = useCallback((page: number, xRatio: number, yRatio: number) => {
     setDraftNotes(prev => [...prev, createDraftPDFNote('yellow', { page, xRatio, yRatio })])
-  }
+  }, [])
+
+  const handleMoveNote = useCallback(
+    (noteId: string, position: PDFNotePosition) => {
+      const draft = draftNotes.find(note => note.id === noteId)
+      if (draft) {
+        setDraftNotes(prev => prev.map(note => (note.id === noteId ? { ...note, position } : note)))
+        return
+      }
+
+      const existing = notes.find(note => note.id === noteId)
+      if (!existing) return
+
+      void updateNote(noteId, {
+        color: existing.color,
+        content: existing.content,
+        position,
+      })
+    },
+    [draftNotes, notes, updateNote],
+  )
+
+  const handleChangeColor = useCallback(
+    async (noteId: string, color: DraftDocumentNote<PDFNotePosition>['color']) => {
+      const draft = draftNotes.find(note => note.id === noteId)
+      if (draft) {
+        setDraftNotes(prev => prev.map(note => (note.id === noteId ? { ...note, color } : note)))
+        return
+      }
+
+      const existing = notes.find(note => note.id === noteId)
+      if (!existing) return
+
+      await updateNote(noteId, {
+        color,
+        content: existing.content,
+        position: existing.position,
+      })
+    },
+    [draftNotes, notes, updateNote],
+  )
+
+  const handleSaveDraft = useCallback(
+    async (note: DraftDocumentNote<PDFNotePosition>, content: string) => {
+      if (!content.trim()) {
+        setDraftNotes(prev => prev.filter(item => item.id !== note.id))
+        return
+      }
+
+      await createNote({
+        color: note.color,
+        content,
+        position: note.position,
+      })
+      setDraftNotes(prev => prev.filter(item => item.id !== note.id))
+    },
+    [createNote],
+  )
+
+  const handleSaveNote = useCallback(
+    async (note: (typeof notes)[number], content: string) => {
+      await updateNote(note.id, {
+        color: note.color,
+        content,
+        position: note.position,
+      })
+    },
+    [updateNote],
+  )
+
+  const handleDeleteDraft = useCallback((noteId: string) => {
+    setDraftNotes(prev => prev.filter(note => note.id !== noteId))
+  }, [])
+
+  const handlePageHeightChange = useCallback(
+    (pageNum: number) => {
+      rowVirtualizer.measureElement(
+        parentRef.current?.querySelector(`[data-index="${pageNum - 1}"]`) || undefined,
+      )
+    },
+    [rowVirtualizer],
+  )
 
   return (
     <div className="relative h-full flex flex-col">
@@ -194,71 +292,16 @@ export function PDFViewer({ repo, filePath, metadata }: PDFViewerProps) {
                 pageNum={virtualItem.index + 1}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
-                notes={notes.filter(note => note.position.page === virtualItem.index + 1)}
-                draftNotes={draftNotes.filter(note => note.position.page === virtualItem.index + 1)}
+                notes={notesByPage.get(virtualItem.index + 1) ?? []}
+                draftNotes={draftNotesByPage.get(virtualItem.index + 1) ?? []}
                 onCreateDraft={viewMode === 'svg' ? handleCreateDraft : undefined}
-                onMoveNote={(noteId, position) => {
-                  const draft = draftNotes.find(note => note.id === noteId)
-                  if (draft) {
-                    setDraftNotes(prev =>
-                      prev.map(note => (note.id === noteId ? { ...note, position } : note)),
-                    )
-                    return
-                  }
-
-                  const existing = notes.find(note => note.id === noteId)
-                  if (!existing) return
-                  void updateNote(noteId, {
-                    color: existing.color,
-                    content: existing.content,
-                    position,
-                  })
-                }}
-                onChangeColor={async (noteId, color) => {
-                  const draft = draftNotes.find(note => note.id === noteId)
-                  if (draft) {
-                    setDraftNotes(prev =>
-                      prev.map(note => (note.id === noteId ? { ...note, color } : note)),
-                    )
-                    return
-                  }
-
-                  const existing = notes.find(note => note.id === noteId)
-                  if (!existing) return
-                  await updateNote(noteId, {
-                    color,
-                    content: existing.content,
-                    position: existing.position,
-                  })
-                }}
-                onSaveDraft={async (note, content) => {
-                  if (!content.trim()) {
-                    setDraftNotes(prev => prev.filter(item => item.id !== note.id))
-                    return
-                  }
-                  await createNote({
-                    color: note.color,
-                    content,
-                    position: note.position,
-                  })
-                  setDraftNotes(prev => prev.filter(item => item.id !== note.id))
-                }}
-                onSaveNote={async (note, content) => {
-                  await updateNote(note.id, {
-                    color: note.color,
-                    content,
-                    position: note.position,
-                  })
-                }}
-                onDeleteDraft={noteId => {
-                  setDraftNotes(prev => prev.filter(note => note.id !== noteId))
-                }}
+                onMoveNote={handleMoveNote}
+                onChangeColor={handleChangeColor}
+                onSaveDraft={handleSaveDraft}
+                onSaveNote={handleSaveNote}
+                onDeleteDraft={handleDeleteDraft}
                 onDeleteNote={deleteNote}
-                onHeightChange={pageNum => {
-                  rowVirtualizer.measureElement(
-                    parentRef.current?.querySelector(`[data-index="${pageNum - 1}"]`) || undefined,
-                  )
-                }}
+                onHeightChange={handlePageHeightChange}
               />
             </div>
           ))}

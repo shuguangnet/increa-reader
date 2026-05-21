@@ -1,5 +1,5 @@
 import { FileText, Image as ImageIcon, Loader2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import rehypeKatex from 'rehype-katex'
@@ -196,7 +196,7 @@ function MarkdownContent({ pageData, loading, error }: MarkdownContentProps) {
   )
 }
 
-export function PDFPage({
+export const PDFPage = memo(function PDFPage({
   repo,
   filePath,
   pageNum,
@@ -291,4 +291,4 @@ export function PDFPage({
       )}
     </div>
   )
-}
+})
