@@ -95,6 +95,47 @@ jobs:
       - name: Validate GitHub Actions workflows
         uses: rhysd/actionlint@v1
 
+  # ── Python package build validation ──
+  python-package-build:
+    needs: changes
+    if: needs.changes.outputs.server == 'true' || needs.changes.outputs.mcp == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            packages/server/pyproject.toml
+            packages/pdf-reader-mcp/pyproject.toml
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip build
+
+      - name: Build server package
+        if: needs.changes.outputs.server == 'true'
+        run: python -m build packages/server --sdist --wheel --outdir packages/server/dist-ci
+
+      - name: Build pdf-reader-mcp package
+        if: needs.changes.outputs.mcp == 'true'
+        run: python -m build packages/pdf-reader-mcp --sdist --wheel --outdir packages/pdf-reader-mcp/dist-ci
+
+      - name: Upload built Python packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-dists
+          path: |
+            packages/server/dist-ci/*
+            packages/pdf-reader-mcp/dist-ci/*
+          if-no-files-found: ignore
+          retention-days: 7
+
   # ── Frontend: typecheck ──
   frontend-typecheck:
     needs: changes
