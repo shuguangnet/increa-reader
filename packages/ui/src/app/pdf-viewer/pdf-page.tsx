@@ -14,6 +14,71 @@ import { cn } from '@/lib/utils'
 import { RegionSelect } from './region-select'
 import type { PDFPageData, PDFPageProps, ViewMode } from './types'
 
+const MARKDOWN_PAGE_CACHE_LIMIT = 200
+
+type MarkdownPageCacheEntry = {
+  data?: PDFPageData
+  promise?: Promise<PDFPageData>
+}
+
+const markdownPageCache = new Map<string, MarkdownPageCacheEntry>()
+
+function getMarkdownPageCacheKey(repo: string, filePath: string, pageNum: number) {
+  return `${repo}:${filePath}:${pageNum}`
+}
+
+function setMarkdownPageCacheData(cacheKey: string, data: PDFPageData) {
+  markdownPageCache.delete(cacheKey)
+  markdownPageCache.set(cacheKey, { data })
+
+  if (markdownPageCache.size <= MARKDOWN_PAGE_CACHE_LIMIT) {
+    return
+  }
+
+  const oldestKey = markdownPageCache.keys().next().value
+  if (oldestKey) {
+    markdownPageCache.delete(oldestKey)
+  }
+}
+
+async function fetchMarkdownPageData(
+  repo: string,
+  filePath: string,
+  pageNum: number,
+): Promise<PDFPageData> {
+  const cacheKey = getMarkdownPageCacheKey(repo, filePath, pageNum)
+  const cachedEntry = markdownPageCache.get(cacheKey)
+
+  if (cachedEntry?.data) {
+    setMarkdownPageCacheData(cacheKey, cachedEntry.data)
+    return cachedEntry.data
+  }
+
+  if (cachedEntry?.promise) {
+    return cachedEntry.promise
+  }
+
+  const request = fetch(
+    `/api/pdf/page?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(filePath)}&page=${pageNum}`,
+  )
+    .then(async response => {
+      if (!response.ok) {
+        throw new Error(`Failed to load page ${pageNum}`)
+      }
+
+      const data: PDFPageData = await response.json()
+      setMarkdownPageCacheData(cacheKey, data)
+      return data
+    })
+    .catch(error => {
+      markdownPageCache.delete(cacheKey)
+      throw error
+    })
+
+  markdownPageCache.set(cacheKey, { promise: request })
+  return request
+}
+
 type PageToolbarProps = {
   pageNum: number
   viewMode: ViewMode
@@ -213,27 +278,30 @@ export const PDFPage = memo(function PDFPage({
   onDeleteNote,
   onHeightChange,
 }: PDFPageProps) {
-  const [pageData, setPageData] = useState<PDFPageData | null>(null)
+  const cacheKey = getMarkdownPageCacheKey(repo, filePath, pageNum)
+  const cachedPageData = markdownPageCache.get(cacheKey)?.data ?? null
+  const [pageData, setPageData] = useState<PDFPageData | null>(() => cachedPageData)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
   const loadMarkdownData = useCallback(async () => {
-    if (pageData || loading) return
+    if (loading) return
+
+    const cachedData = markdownPageCache.get(cacheKey)?.data
+    if (cachedData) {
+      if (pageData !== cachedData) {
+        setPageData(cachedData)
+      }
+      setError(null)
+      return
+    }
 
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(
-        `/api/pdf/page?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(filePath)}&page=${pageNum}`,
-      )
-
-      if (!response.ok) {
-        throw new Error(`Failed to load page ${pageNum}`)
-      }
-
-      const data: PDFPageData = await response.json()
+      const data = await fetchMarkdownPageData(repo, filePath, pageNum)
       setPageData(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load page')
@@ -241,7 +309,13 @@ export const PDFPage = memo(function PDFPage({
     } finally {
       setLoading(false)
     }
-  }, [repo, filePath, pageNum, pageData, loading])
+  }, [cacheKey, filePath, loading, pageData, pageNum, repo])
+
+  useEffect(() => {
+    setPageData(cachedPageData)
+    setError(null)
+    setLoading(false)
+  }, [cachedPageData, cacheKey])
 
   useEffect(() => {
     if (viewMode === 'markdown') {
