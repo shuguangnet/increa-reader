@@ -295,7 +295,7 @@ jobs:
           path: packages/pdf-reader-mcp/coverage.xml
           retention-days: 7
 
-  # ── Desktop (Tauri): typecheck ──
+  # ── Desktop (Tauri frontend): typecheck + production bundle ──
   desktop:
     needs: changes
     if: needs.changes.outputs.desktop == 'true'
@@ -307,6 +307,16 @@ jobs:
       - uses: ./.github/actions/setup-pnpm
       - name: Type check (desktop)
         run: pnpm --filter @increa-reader/desktop typecheck
+      - name: Build desktop frontend bundle
+        run: cd packages/desktop && pnpm exec vite build
+      - name: Upload desktop frontend bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-frontend-dist
+          path: packages/desktop/dist
+          if-no-files-found: error
+          retention-days: 7
 
   # ── Security audit ──
   security:
