@@ -58,6 +58,8 @@ src-tauri/
 
 ## iOS 构建流程
 
+> `./build-mobile.sh check` 现在不会因为缺少 Apple Team ID 而提前失败；它只做环境体检。真正执行 `init:ios` / `dev:ios` / `ios` 时，脚本才会强制要求 `INCREA_IOS_TEAM_ID` 或 `TAURI_IOS_TEAM_ID`，更适合 CI、自助排障和新机器初始化。
+
 1. **初始化**（首次）: `./build-mobile.sh init:ios`
    - 生成 Xcode 项目到 `src-tauri/gen/apple/`
    - 需要 macOS + Xcode 15+
@@ -76,6 +78,7 @@ src-tauri/
 
 - **最低版本**: iOS 15.0 (`bundle.iOS.minimumSystemVersion`)
 - **开发团队**: 通过环境变量 `INCREA_IOS_TEAM_ID`（或兼容 `TAURI_IOS_TEAM_ID`）注入，避免手动修改 `tauri.conf.json` / `ExportOptions.plist`
+- **前置检查行为**: `./build-mobile.sh check` 不强依赖 Team ID，便于先验证 Xcode/Rust 环境；但 `init:ios` / `dev:ios` / `ios` 仍会强制校验 Team ID，避免真正发包时才发现签名参数缺失
 - **方向支持**: iPhone 竖屏+横屏，iPad 全方向
 - **文件关联**: 支持 PDF 和 Markdown 文件打开
 - **ATS**: 允许本地网络和任意加载（用于连接本地后端）

@@ -101,7 +101,7 @@ pnpm --filter @increa-reader/desktop build:desktop:stage
 ### 构建命令
 
 ```bash
-# 检查构建前提条件
+# 检查构建前提条件（不强制要求先提供 iOS Team ID；真正 init/dev/build iOS 时才需要）
 ./build-mobile.sh check
 # 或 pnpm --filter @increa-reader/desktop check:mobile
 
@@ -151,6 +151,7 @@ pnpm --filter @increa-reader/desktop build:android:stage
 ### iOS 配置说明
 
 - **Team ID**：构建前通过 `INCREA_IOS_TEAM_ID`（或兼容 `TAURI_IOS_TEAM_ID`）传入，`build-mobile.sh` 会在当前构建过程临时注入 `src-tauri/tauri.conf.json` 和 `src-tauri/ExportOptions.plist`，结束后自动还原模板，避免占位符被误提交
+- **前置检查更稳**：`./build-mobile.sh check` 只验证 iOS/Android SDK、Rust target 与基础环境；即使 CI 或新同事机器暂未配置 Apple Team ID，也能先跑完整体移动端环境检查，真正执行 `init:ios` / `dev:ios` / `ios` 时才强制要求 Team ID
 - **启动屏幕**：已配置 `#1e40af` 蓝色背景（与品牌色一致）
 - **方向支持**：iPhone 支持竖屏+横屏，iPad 支持全方向
 - **隐私权限**：已声明相册、相机、文档、本地网络、FaceID 等权限描述

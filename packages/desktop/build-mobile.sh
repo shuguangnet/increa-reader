@@ -260,6 +260,8 @@ tauri_run() {
 }
 
 resolve_ios_team_id() {
+  local require_team_id="${1:-strict}"
+
   if [[ -n "$IOS_TEAM_ID_VALUE" ]]; then
     return 0
   fi
@@ -267,10 +269,14 @@ resolve_ios_team_id() {
   IOS_TEAM_ID_VALUE="${INCREA_IOS_TEAM_ID:-${TAURI_IOS_TEAM_ID:-}}"
 
   if [[ -z "$IOS_TEAM_ID_VALUE" ]]; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-      error "Missing iOS Team ID. Set INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID before init/dev/build iOS."
+    if [[ "$require_team_id" == "strict" ]]; then
+      if [[ "$(uname)" == "Darwin" ]]; then
+        error "Missing iOS Team ID. Set INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID before init/dev/build iOS."
+      fi
+      warn "No iOS Team ID env found. Non-macOS checks can continue, but iOS init/dev/build requires INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID."
+      return 0
     fi
-    warn "No iOS Team ID env found. Non-macOS checks can continue, but iOS init/dev/build requires INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID."
+
     return 0
   fi
 
@@ -395,11 +401,22 @@ check_rust_targets() {
 }
 
 check_ios_prereqs() {
+  local require_team_id="${1:-strict}"
+
   echo "🔍 Checking iOS prerequisites..."
   [[ "$(uname)" == "Darwin" ]] || error "iOS builds require macOS (current: $(uname))"
   command -v xcodebuild &>/dev/null || error "Xcode command line tools not found. Install with: xcode-select --install"
-  resolve_ios_team_id
-  [[ -n "$IOS_TEAM_ID_VALUE" ]] || error "Missing iOS Team ID. Set INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID before building iOS."
+
+  if [[ "$require_team_id" == "strict" ]]; then
+    resolve_ios_team_id strict
+    [[ -n "$IOS_TEAM_ID_VALUE" ]] || error "Missing iOS Team ID. Set INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID before building iOS."
+  else
+    resolve_ios_team_id optional
+    if [[ -z "$IOS_TEAM_ID_VALUE" ]]; then
+      warn "iOS Team ID not set; generic environment checks passed, but init/dev/build iOS still requires INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID."
+    fi
+  fi
+
   check_rust_targets "aarch64-apple-ios"
   info "iOS prerequisites OK"
 }
@@ -427,9 +444,8 @@ pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
 case "${1:-help}" in
   check)
     echo "🔍 Checking all prerequisites..."
-    resolve_ios_team_id
     if [[ "$(uname)" == "Darwin" ]]; then
-      check_ios_prereqs
+      check_ios_prereqs optional
     else
       warn "Skipping iOS checks (not on macOS)"
     fi
