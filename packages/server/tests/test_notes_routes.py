@@ -272,3 +272,37 @@ def test_workspace_tree_cache_apply_file_changes_removes_empty_directories(tmp_p
     cache.apply_file_changes("repo", repo_root, deleted={"docs/guide.md"})
 
     assert tree == []
+
+
+def test_workspace_tree_route_returns_304_for_matching_etag(tmp_path, monkeypatch):
+    client, _ = _build_client(tmp_path, monkeypatch)
+
+    first_response = client.get("/api/workspace/tree")
+    assert first_response.status_code == 200
+    etag = first_response.headers.get("etag")
+    assert etag
+
+    second_response = client.get(
+        "/api/workspace/tree",
+        headers={"If-None-Match": etag},
+    )
+    assert second_response.status_code == 304
+    assert second_response.content == b""
+
+
+def test_repo_tree_route_etag_changes_after_invalidation(tmp_path, monkeypatch):
+    client, repo_root = _build_client(tmp_path, monkeypatch)
+
+    first_response = client.get("/api/workspace/repos/demo-repo/tree")
+    assert first_response.status_code == 200
+    first_etag = first_response.headers.get("etag")
+    assert first_etag
+
+    (repo_root / "docs" / "later.md").write_text("# Later\n", encoding="utf-8")
+    client.app.state.workspace_tree_cache.invalidate_repo("demo-repo")
+
+    second_response = client.get("/api/workspace/repos/demo-repo/tree")
+    assert second_response.status_code == 200
+    second_etag = second_response.headers.get("etag")
+    assert second_etag
+    assert second_etag != first_etag

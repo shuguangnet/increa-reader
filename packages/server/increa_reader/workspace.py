@@ -240,7 +240,11 @@ class WorkspaceTreeCache:
     def __init__(self, excludes: List[str]):
         self.excludes = excludes
         self._repo_trees: dict[str, List[TreeNode]] = {}
+        self._repo_versions: dict[str, int] = {}
+        self._repo_payloads: dict[str, tuple[int, bytes]] = {}
         self._workspace_tree: list[dict[str, object]] | None = None
+        self._workspace_version = 0
+        self._workspace_payload: tuple[int, bytes] | None = None
         self._lock = Lock()
 
     def get_repo_tree(self, repo_name: str, repo_root: Path) -> List[TreeNode]:
@@ -256,8 +260,34 @@ class WorkspaceTreeCache:
             if existing is not None:
                 return existing
             self._repo_trees[repo_name] = files
-            self._workspace_tree = None
+            if repo_name not in self._repo_versions:
+                self._repo_versions[repo_name] = 1
+            self._invalidate_workspace_payload_locked()
             return files
+
+    def get_repo_tree_payload(self, repo_name: str, repo_root: Path) -> tuple[bytes, str]:
+        files = self.get_repo_tree(repo_name, repo_root)
+
+        with self._lock:
+            version = self._repo_versions.get(repo_name, 1)
+            cached_payload = self._repo_payloads.get(repo_name)
+            if cached_payload is not None and cached_payload[0] == version:
+                payload = cached_payload[1]
+            else:
+                payload = json.dumps(
+                    {
+                        "data": {
+                            "name": repo_name,
+                            "files": [
+                                node.model_dump(exclude_none=True) for node in files
+                            ],
+                        }
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8")
+                self._repo_payloads[repo_name] = (version, payload)
+
+        return payload, f'W/"repo-tree:{repo_name}:{version}"'
 
     def get_workspace_tree(self, repos: List[RepoItem]) -> List[dict[str, object]]:
         with self._lock:
@@ -275,15 +305,48 @@ class WorkspaceTreeCache:
             self._workspace_tree = result
             return result
 
+    def get_workspace_tree_payload(self, repos: List[RepoItem]) -> tuple[bytes, str]:
+        tree = self.get_workspace_tree(repos)
+
+        with self._lock:
+            version = self._workspace_version
+            cached_payload = self._workspace_payload
+            if cached_payload is not None and cached_payload[0] == version:
+                payload = cached_payload[1]
+            else:
+                payload = json.dumps(
+                    {
+                        "data": [
+                            {
+                                "name": repo_data["name"],
+                                "files": [
+                                    node.model_dump(exclude_none=True)
+                                    for node in repo_data["files"]
+                                ],
+                            }
+                            for repo_data in tree
+                        ]
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8")
+                self._workspace_payload = (version, payload)
+
+        return payload, f'W/"workspace-tree:{version}"'
+
     def invalidate_repo(self, repo_name: str) -> None:
         with self._lock:
             self._repo_trees.pop(repo_name, None)
-            self._workspace_tree = None
+            self._repo_payloads.pop(repo_name, None)
+            self._repo_versions[repo_name] = self._repo_versions.get(repo_name, 0) + 1
+            self._invalidate_workspace_payload_locked()
 
     def invalidate_all(self) -> None:
         with self._lock:
             self._repo_trees.clear()
-            self._workspace_tree = None
+            self._repo_payloads.clear()
+            for repo_name in list(self._repo_versions):
+                self._repo_versions[repo_name] += 1
+            self._invalidate_workspace_payload_locked()
 
     def apply_file_changes(
         self,
@@ -307,7 +370,14 @@ class WorkspaceTreeCache:
             for file_path in sorted(added):
                 self._insert_path(tree, repo_root, file_path)
 
-            self._workspace_tree = None
+            self._repo_versions[repo_name] = self._repo_versions.get(repo_name, 0) + 1
+            self._repo_payloads.pop(repo_name, None)
+            self._invalidate_workspace_payload_locked()
+
+    def _invalidate_workspace_payload_locked(self) -> None:
+        self._workspace_tree = None
+        self._workspace_version += 1
+        self._workspace_payload = None
 
     def _remove_path(self, tree: List[TreeNode], relative_path: str) -> bool:
         parts = [part for part in relative_path.split("/") if part]
