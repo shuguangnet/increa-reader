@@ -30,6 +30,8 @@ SRC_TAURI_DIR="$DESKTOP_DIR/src-tauri"
 GEN_ANDROID_DIR="$SRC_TAURI_DIR/gen/android"
 TAURI_CONFIG_PATH="$SRC_TAURI_DIR/tauri.conf.json"
 EXPORT_OPTIONS_PATH="$SRC_TAURI_DIR/ExportOptions.plist"
+IOS_RELEASE_DIR="$SRC_TAURI_DIR/target/ios/release"
+ANDROID_RELEASE_DIR="$SRC_TAURI_DIR/target/android/release"
 PNPM_CMD="${PNPM_CMD:-}"
 TAURI_CMD="${TAURI_CMD:-}"
 IOS_TEAM_ID_VALUE=""
@@ -46,6 +48,100 @@ NC='\033[0m' # No Color
 info()  { echo -e "${GREEN}✓${NC} $1"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $1"; }
 error() { echo -e "${RED}✗${NC} $1" >&2; exit 1; }
+
+stage_mobile_artifacts() {
+  local platform="$1"
+  shift
+  local destination_dir="$1"
+  shift
+
+  mkdir -p "$destination_dir"
+
+  if [[ $# -eq 0 ]]; then
+    error "stage_mobile_artifacts requires at least one search pattern"
+  fi
+
+  PLATFORM="$platform" DEST_DIR="$destination_dir" python3 - "$@" <<'PY'
+import os
+import shutil
+import sys
+from pathlib import Path
+
+platform = os.environ["PLATFORM"]
+destination = Path(os.environ["DEST_DIR"])
+patterns = sys.argv[1:]
+
+matches = []
+seen = set()
+for pattern in patterns:
+    for path in Path('.').glob(pattern):
+        if not path.is_file():
+            continue
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        matches.append(path)
+
+matches.sort(key=lambda p: (p.stat().st_mtime, str(p)))
+
+staged = []
+for path in matches:
+    target = destination / path.name
+    shutil.copy2(path, target)
+    staged.append(target)
+
+print(f"platform={platform}")
+print(f"destination={destination}")
+print(f"count={len(staged)}")
+for item in staged:
+    print(item)
+PY
+}
+
+collect_ios_artifacts() {
+  local staged_output
+  staged_output="$({
+    stage_mobile_artifacts "ios" "$IOS_RELEASE_DIR" \
+      "packages/desktop/src-tauri/gen/apple/build/outputs/ipa/**/*.ipa" \
+      "packages/desktop/src-tauri/gen/apple/build/outputs/ipa/*.ipa" \
+      "packages/desktop/src-tauri/target/ios/**/*.ipa" \
+      "packages/desktop/src-tauri/target/ios/*.ipa"
+  })"
+
+  local count
+  count="$(printf '%s\n' "$staged_output" | awk -F= '/^count=/{print $2; exit}')"
+
+  if [[ "${count:-0}" == "0" ]]; then
+    warn "No iOS IPA artifacts found to stage into $IOS_RELEASE_DIR"
+    return 1
+  fi
+
+  printf '%s\n' "$staged_output"
+  info "Staged iOS artifacts into $IOS_RELEASE_DIR"
+}
+
+collect_android_artifacts() {
+  local staged_output
+  staged_output="$({
+    stage_mobile_artifacts "android" "$ANDROID_RELEASE_DIR" \
+      "packages/desktop/src-tauri/gen/android/app/build/outputs/**/*.apk" \
+      "packages/desktop/src-tauri/gen/android/app/build/outputs/**/*.aab" \
+      "packages/desktop/src-tauri/target/android/**/*.apk" \
+      "packages/desktop/src-tauri/target/android/**/*.aab"
+  })"
+
+  local count
+  count="$(printf '%s\n' "$staged_output" | awk -F= '/^count=/{print $2; exit}')"
+
+  if [[ "${count:-0}" == "0" ]]; then
+    warn "No Android APK/AAB artifacts found to stage into $ANDROID_RELEASE_DIR"
+    return 1
+  fi
+
+  printf '%s\n' "$staged_output"
+  info "Staged Android artifacts into $ANDROID_RELEASE_DIR"
+}
 
 cleanup_ios_config() {
   if [[ -n "$IOS_CONFIG_BACKUP_DIR" && -d "$IOS_CONFIG_BACKUP_DIR" ]]; then
@@ -326,6 +422,8 @@ case "${1:-help}" in
     cd "$DESKTOP_DIR"
     prepare_ios_signing
     tauri_run "ios build --release"
+    cd "$ROOT_DIR"
+    collect_ios_artifacts
     echo ""
     info "iOS build complete! IPA in src-tauri/target/ios/release/"
     ;;
@@ -336,8 +434,20 @@ case "${1:-help}" in
     prepare_android_build_inputs
     tauri_run "android build --release"
     sync_android_support_files
+    cd "$ROOT_DIR"
+    collect_android_artifacts
     echo ""
     info "Android build complete! APK/AAB in src-tauri/target/android/release/"
+    ;;
+  stage:ios-artifacts)
+    echo "📦 Staging iOS artifacts into stable release directory..."
+    cd "$ROOT_DIR"
+    collect_ios_artifacts
+    ;;
+  stage:android-artifacts)
+    echo "📦 Staging Android artifacts into stable release directory..."
+    cd "$ROOT_DIR"
+    collect_android_artifacts
     ;;
   dev:ios)
     check_ios_prereqs
@@ -398,6 +508,8 @@ case "${1:-help}" in
     echo "  prepare:android Auto-init Android project when missing, then sync gradle/signing files"
     echo "  ios            Build iOS release (requires macOS + Xcode)"
     echo "  android        Build Android release (requires Android SDK)"
+    echo "  stage:ios-artifacts     Collect generated IPA files into src-tauri/target/ios/release/"
+    echo "  stage:android-artifacts Collect generated APK/AAB files into src-tauri/target/android/release/"
     echo "  dev:ios        Start iOS dev server (simulator)"
     echo "  dev:android    Start Android dev server (emulator)"
     echo "  sign:android   Sign Android APK with debug keystore"

@@ -68,6 +68,7 @@ src-tauri/
 
 3. **发布构建**: `./build-mobile.sh ios`
    - 生成 .ipa 到 `src-tauri/target/ios/release/`
+   - 脚本会额外从 Xcode/Tauri 默认输出目录自动归档 IPA 到上述稳定目录
    - 使用 `ExportOptions.plist` 配置导出选项
    - 需通过 `INCREA_IOS_TEAM_ID` 或 `TAURI_IOS_TEAM_ID` 提供 Team ID，脚本会临时注入签名配置并自动还原
 
@@ -92,6 +93,7 @@ src-tauri/
 
 3. **发布构建**: `./build-mobile.sh android`
    - 生成 APK/AAB 到 `src-tauri/target/android/release/`
+   - 脚本会额外从 `src-tauri/gen/android/app/build/outputs/` 自动归档 APK/AAB 到上述稳定目录
    - ProGuard 规则在 `src-tauri/proguard-rules.pro`
    - 会自动同步 `src-tauri/gradle.properties` / `keystore.properties` 到 `src-tauri/gen/android/`
 
@@ -109,6 +111,7 @@ src-tauri/
 - **备份**: 禁用 `allowBackup`（避免数据泄露）
 - **Split modules**: 禁用 `splitModulesEnabled`（保持单 APK 简化分发）
 - **构建稳定性**: 统一通过 `build-mobile.sh` 准备签名文件与 `gradle.properties`，避免 Tauri 重新生成 `gen/android/` 后丢失配置
+- **产物路径稳定性**: 统一把原生输出目录中的安装包归档到 `src-tauri/target/{ios,android}/release/`，便于 CI 上传、人工分发和后续脚本复用
 
 ## 权限配置
 
