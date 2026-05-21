@@ -3,8 +3,10 @@ Link index for wiki-links and markdown links — cached, with rebuild support.
 """
 
 import asyncio
+import os
 import re
 import time
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
@@ -18,6 +20,34 @@ WIKI_LINK_RE = re.compile(r"\[\[([^\]|]+?)(?:\|[^\]]+?)?\]\]")
 MD_LINK_RE = re.compile(r"\[(?:[^\]]+)\]\(([^)]+)\)")
 
 MD_EXTENSIONS = {".md", ".markdown"}
+SCAN_CONCURRENCY = 16
+
+
+def _iter_markdown_files(repo_root: Path) -> Iterable[Path]:
+    """Yield markdown files while skipping hidden directories and node_modules."""
+
+    def walk(dir_path: Path):
+        try:
+            with os.scandir(dir_path) as entries:
+                for entry in entries:
+                    if entry.name.startswith(".") or entry.name == "node_modules":
+                        continue
+
+                    entry_path = Path(entry.path)
+
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            yield from walk(entry_path)
+                            continue
+                    except OSError:
+                        continue
+
+                    if entry_path.suffix.lower() in MD_EXTENSIONS:
+                        yield entry_path
+        except OSError:
+            return
+
+    yield from walk(repo_root)
 
 
 async def _parse_links(file_path: Path) -> List[str]:
@@ -63,21 +93,40 @@ async def _scan_repo_links(repo_config) -> Dict[str, List[str]]:
     repo_root = Path(repo_config.root).resolve()
     if not repo_root.exists():
         return {}
+
+    markdown_files = sorted(_iter_markdown_files(repo_root))
+    if not markdown_files:
+        return {}
+
+    concurrency = min(SCAN_CONCURRENCY, len(markdown_files))
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def scan_file(md_file: Path) -> tuple[str, list[str]]:
+        async with semaphore:
+            rel = str(md_file.relative_to(repo_root))
+            raw_links = await _parse_links(md_file)
+            resolved = []
+            for link in raw_links:
+                r = _resolve_link(md_file.parent, link, repo_root)
+                if r:
+                    resolved.append(r)
+            return rel, resolved
+
+    scanned_files = await asyncio.gather(*(scan_file(md_file) for md_file in markdown_files))
+
     link_map: Dict[str, List[str]] = {}
-    for md_file in repo_root.rglob("*.md"):
-        if any(part.startswith(".") for part in md_file.relative_to(repo_root).parts):
-            continue
-        if "node_modules" in md_file.parts:
-            continue
-        rel = str(md_file.relative_to(repo_root))
-        raw_links = await _parse_links(md_file)
-        resolved = []
-        for link in raw_links:
-            r = _resolve_link(md_file.parent, link, repo_root)
-            if r:
-                resolved.append(r)
+    for rel, resolved in scanned_files:
         link_map[rel] = resolved
+
     return link_map
+
+
+def _build_backlinks(link_map: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    backlinks: Dict[str, List[str]] = {}
+    for src, targets in link_map.items():
+        for tgt in targets:
+            backlinks.setdefault(tgt, []).append(src)
+    return backlinks
 
 
 class LinkIndex:
@@ -107,13 +156,7 @@ class LinkIndex:
             repo_name = repo_config.name
             link_map = await _scan_repo_links(repo_config)
             self.outgoing_links[repo_name] = link_map
-
-            # Build reverse index (backlinks)
-            backlinks: Dict[str, List[str]] = {}
-            for src, targets in link_map.items():
-                for tgt in targets:
-                    backlinks.setdefault(tgt, []).append(src)
-            self.backlinks_cache[repo_name] = backlinks
+            self.backlinks_cache[repo_name] = _build_backlinks(link_map)
             self._build_time[repo_name] = time.time()
 
     async def rebuild_repo(self, repo_name: str):
@@ -126,12 +169,7 @@ class LinkIndex:
                 return
             link_map = await _scan_repo_links(repo_config)
             self.outgoing_links[repo_name] = link_map
-
-            backlinks: Dict[str, List[str]] = {}
-            for src, targets in link_map.items():
-                for tgt in targets:
-                    backlinks.setdefault(tgt, []).append(src)
-            self.backlinks_cache[repo_name] = backlinks
+            self.backlinks_cache[repo_name] = _build_backlinks(link_map)
             self._build_time[repo_name] = time.time()
 
     def get_outgoing(self, repo_name: str, path: str) -> List[str]:
@@ -203,8 +241,6 @@ class LinkIndex:
 
     def _rebuild_backlinks(self, repo_name: str) -> None:
         """Rebuild backlinks cache for a repo."""
-        backlinks: Dict[str, List[str]] = {}
-        for src, targets in self.outgoing_links.get(repo_name, {}).items():
-            for tgt in targets:
-                backlinks.setdefault(tgt, []).append(src)
-        self.backlinks_cache[repo_name] = backlinks
+        self.backlinks_cache[repo_name] = _build_backlinks(
+            self.outgoing_links.get(repo_name, {})
+        )

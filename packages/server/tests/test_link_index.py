@@ -1,7 +1,15 @@
 """Tests for link_index module — wiki-link and markdown link parsing/resolution."""
-import pytest
+
 from pathlib import Path
-from increa_reader.link_index import WIKI_LINK_RE, MD_LINK_RE, _resolve_link
+
+import pytest
+
+from increa_reader.link_index import (
+    MD_LINK_RE,
+    WIKI_LINK_RE,
+    _iter_markdown_files,
+    _resolve_link,
+)
 
 
 class TestWikiLinkRegex:
@@ -87,3 +95,26 @@ class TestResolveLink:
         repo.mkdir()
         result = _resolve_link(repo, "#heading-only", repo)
         assert result is None
+
+
+class TestIterMarkdownFiles:
+    def test_skips_hidden_directories_and_node_modules(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+
+        (repo / "visible.md").write_text("ok")
+        hidden_dir = repo / ".obsidian"
+        hidden_dir.mkdir()
+        (hidden_dir / "hidden.md").write_text("skip")
+
+        node_modules_dir = repo / "node_modules"
+        node_modules_dir.mkdir()
+        (node_modules_dir / "package.md").write_text("skip")
+
+        nested_dir = repo / "docs"
+        nested_dir.mkdir()
+        (nested_dir / "guide.markdown").write_text("ok")
+
+        files = sorted(str(path.relative_to(repo)) for path in _iter_markdown_files(repo))
+
+        assert files == ["docs/guide.markdown", "visible.md"]
