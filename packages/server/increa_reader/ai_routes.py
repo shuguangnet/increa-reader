@@ -15,6 +15,12 @@ from .ai_cache import _make_key, get_cached, set_cached, invalidate_prefix, clea
 from .models import WorkspaceConfig
 from .workspace import build_sdk_env
 
+# Reusable httpx.AsyncClient instances for connection pooling.
+# Created once at startup, shared across all AI API calls, closed on shutdown.
+# This avoids TCP+TLS handshake overhead (~50-100ms) on every request.
+_anthropic_client: httpx.AsyncClient | None = None
+_openai_client: httpx.AsyncClient | None = None
+
 
 # --- Request models ---
 
@@ -89,8 +95,43 @@ async def _call_claude(prompt: str, max_tokens: int = 1024) -> str:
         return await _call_anthropic(prompt, max_tokens)
 
 
+async def _get_anthropic_client() -> httpx.AsyncClient:
+    """Get or create the shared httpx.AsyncClient for Anthropic API calls.
+
+    Connection pooling avoids TCP+TLS handshake on every request.
+    """
+    global _anthropic_client
+    if _anthropic_client is None or _anthropic_client.is_closed:
+        _anthropic_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(60.0),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=20),
+        )
+    return _anthropic_client
+
+
+async def _get_openai_http_client() -> httpx.AsyncClient:
+    """Get or create the shared httpx.AsyncClient for OpenAI API calls."""
+    global _openai_client
+    if _openai_client is None or _openai_client.is_closed:
+        _openai_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(60.0),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=20),
+        )
+    return _openai_client
+
+
+async def close_http_clients() -> None:
+    """Close shared httpx.AsyncClients on app shutdown."""
+    global _anthropic_client, _openai_client
+    for client in (_anthropic_client, _openai_client):
+        if client is not None and not client.is_closed:
+            await client.aclose()
+    _anthropic_client = None
+    _openai_client = None
+
+
 async def _call_anthropic(prompt: str, max_tokens: int = 1024) -> str:
-    """调用 Anthropic Claude API 并返回文本响应"""
+    """调用 Anthropic Claude API 并返回文本响应（复用 httpx 连接池）"""
     env = build_sdk_env()
     api_key = env.get("ANTHROPIC_API_KEY", "")
     if not api_key:
@@ -109,16 +150,15 @@ async def _call_anthropic(prompt: str, max_tokens: int = 1024) -> str:
     }
 
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{base_url}/v1/messages",
-                headers=headers,
-                json=body,
-                timeout=30,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["content"][0]["text"]
+        client = await _get_anthropic_client()
+        resp = await client.post(
+            f"{base_url}/v1/messages",
+            headers=headers,
+            json=body,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["content"][0]["text"]
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=502,
@@ -129,7 +169,7 @@ async def _call_anthropic(prompt: str, max_tokens: int = 1024) -> str:
 
 
 async def _call_openai(prompt: str, max_tokens: int = 1024) -> str:
-    """调用 OpenAI API 并返回文本响应（使用 httpx 直接请求）"""
+    """调用 OpenAI API 并返回文本响应（复用 httpx 连接池）"""
     from .workspace import get_openai_config
 
     config = get_openai_config()
@@ -137,11 +177,7 @@ async def _call_openai(prompt: str, max_tokens: int = 1024) -> str:
     if not api_key:
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured")
 
-    # 确保 base_url 格式正确：去除尾斜杠，保证 /chat/completions 拼接正确
     base_url = config["base_url"].rstrip("/")
-    # 如果用户填的 base_url 不包含 /v1 后缀，且不像已包含完整路径，自动补 /v1
-    if not any(base_url.endswith(suffix) for suffix in ("/v1", "/v1/chat/completions")):
-        base_url = base_url.rstrip("/") + "/v1"
     model = config["model"]
 
     headers = {
@@ -156,18 +192,16 @@ async def _call_openai(prompt: str, max_tokens: int = 1024) -> str:
 
     url = f"{base_url}/chat/completions"
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                url,
-                headers=headers,
-                json=body,
-                timeout=60,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+        client = await _get_openai_http_client()
+        resp = await client.post(
+            url,
+            headers=headers,
+            json=body,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
     except httpx.HTTPStatusError as exc:
-        # 尝试提取更详细的错误信息
         try:
             error_body = exc.response.json()
             error_msg = error_body.get("error", {}).get("message", str(error_body))

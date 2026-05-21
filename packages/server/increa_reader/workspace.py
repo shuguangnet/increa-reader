@@ -90,19 +90,26 @@ def get_openai_config() -> dict[str, str]:
     """获取 OpenAI API 配置（环境变量优先于 config.json）
 
     返回:
-        dict: 包含 api_key, base_url, model 的配置字典
+        dict: 包含 api_key, base_url, model 的配置字典。
+        base_url 已标准化（去除尾斜杠，自动补 /v1 后缀）。
     """
     api_settings = load_api_settings()
+    base_url = (
+        api_settings.get("openai_base_url")
+        or os.getenv("OPENAI_BASE_URL")
+        or "https://api.openai.com/v1"
+    ).rstrip("/")
+    # 自动补 /v1 后缀（Ollama / LiteLLM 等兼容 API 经常省略）
+    if not any(
+        base_url.endswith(suffix) for suffix in ("/v1", "/v1/chat/completions")
+    ):
+        base_url = base_url.rstrip("/") + "/v1"
     return {
         "api_key": (
             api_settings.get("openai_api_key")
             or os.getenv("OPENAI_API_KEY", "")
         ),
-        "base_url": (
-            api_settings.get("openai_base_url")
-            or os.getenv("OPENAI_BASE_URL")
-            or "https://api.openai.com/v1"
-        ),
+        "base_url": base_url,
         "model": (
             api_settings.get("openai_model")
             or os.getenv("OPENAI_MODEL")

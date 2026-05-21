@@ -148,6 +148,9 @@ async def lifespan(app: FastAPI):
     watcher = getattr(app.state, 'index_watcher', None)
     if watcher:
         watcher.stop()
+    # Close reusable HTTP clients for AI API calls
+    from .ai_routes import close_http_clients
+    await close_http_clients()
     await cleanup_active_sessions()
     print("✓ Cleanup completed\n")
 
