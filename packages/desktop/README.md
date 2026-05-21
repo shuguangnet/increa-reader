@@ -49,9 +49,13 @@ pnpm install
 
 ```bash
 ./packages/desktop/build.sh build
+# 或直接使用 workspace script（同样会先构建 sidecar）
+pnpm --filter @increa-reader/desktop build
 ```
 
 该命令现在会先自动构建当前平台的 Python sidecar，再执行 `tauri build`，避免安装包生成成功但运行时缺少后端二进制。
+
+另外，`packages/desktop/package.json` 中的 `dev` / `build` / `build:debug` / `build:ios` / `build:android` 已统一改为调用 `build.sh` / `build-mobile.sh`，这样无论是本地开发、CI 还是直接执行 pnpm script，都会复用同一条打包链路，减少“脚本能跑、实际发包漏步骤”的漂移风险。
 
 构建产物在 `src-tauri/target/release/bundle/` 中：
 - **Linux**: `.deb` 和 `.AppImage`
@@ -85,6 +89,7 @@ pnpm install
 ```bash
 # 检查构建前提条件
 ./build-mobile.sh check
+# 或 pnpm --filter @increa-reader/desktop check:mobile
 
 # 先配置 iOS Team ID（示例）
 export INCREA_IOS_TEAM_ID=ABCDE12345
@@ -102,6 +107,7 @@ export INCREA_IOS_TEAM_ID=ABCDE12345
 # 发布构建
 ./build-mobile.sh ios
 ./build-mobile.sh android
+# 或 pnpm --filter @increa-reader/desktop build:ios / build:android
 
 # 同时构建两个平台
 ./build-mobile.sh all

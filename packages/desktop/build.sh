@@ -44,7 +44,7 @@ resolve_pnpm() {
     fi
 
     if command -v pnpm >/dev/null 2>&1; then
-        PNPM_CMD="pnpm"
+        PNPM_CMD="$(command -v pnpm)"
         return 0
     fi
 

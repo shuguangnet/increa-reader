@@ -65,7 +65,7 @@ resolve_pnpm() {
   fi
 
   if command -v pnpm >/dev/null 2>&1; then
-    PNPM_CMD="pnpm"
+    PNPM_CMD="$(command -v pnpm)"
     return 0
   fi
 
@@ -229,6 +229,7 @@ prepare_android_project() {
 # ── Prerequisite Checks ───────────────────────────────────────────
 check_rust_targets() {
   local target="$1"
+  command -v rustup &>/dev/null || error "rustup not found — install Rust toolchain manager from https://rustup.rs"
   if ! rustup target list --installed | grep -q "$target"; then
     warn "Rust target '$target' not installed. Installing..."
     rustup target add "$target"
@@ -250,8 +251,8 @@ check_android_prereqs() {
   echo "🔍 Checking Android prerequisites..."
   [[ -n "${ANDROID_HOME:-}" ]] || warn "ANDROID_HOME not set — Gradle may fail to find SDK"
   [[ -n "${ANDROID_NDK_HOME:-}" ]] || warn "ANDROID_NDK_HOME not set — default NDK will be used"
-  check_rust_targets "aarch64-linux-android"
   command -v java &>/dev/null || error "Java not found — install JDK 17+ for Android builds"
+  check_rust_targets "aarch64-linux-android"
   info "Android prerequisites OK"
 }
 
