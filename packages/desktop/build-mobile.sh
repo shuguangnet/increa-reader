@@ -28,8 +28,12 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 DESKTOP_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_TAURI_DIR="$DESKTOP_DIR/src-tauri"
 GEN_ANDROID_DIR="$SRC_TAURI_DIR/gen/android"
+TAURI_CONFIG_PATH="$SRC_TAURI_DIR/tauri.conf.json"
+EXPORT_OPTIONS_PATH="$SRC_TAURI_DIR/ExportOptions.plist"
 PNPM_CMD="${PNPM_CMD:-}"
 TAURI_CMD="${TAURI_CMD:-}"
+IOS_TEAM_ID_VALUE=""
+IOS_CONFIG_BACKUP_DIR=""
 
 cd "$ROOT_DIR"
 
@@ -42,6 +46,18 @@ NC='\033[0m' # No Color
 info()  { echo -e "${GREEN}✓${NC} $1"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $1"; }
 error() { echo -e "${RED}✗${NC} $1" >&2; exit 1; }
+
+cleanup_ios_config() {
+  if [[ -n "$IOS_CONFIG_BACKUP_DIR" && -d "$IOS_CONFIG_BACKUP_DIR" ]]; then
+    cp "$IOS_CONFIG_BACKUP_DIR/tauri.conf.json" "$TAURI_CONFIG_PATH"
+    cp "$IOS_CONFIG_BACKUP_DIR/ExportOptions.plist" "$EXPORT_OPTIONS_PATH"
+    rm -rf "$IOS_CONFIG_BACKUP_DIR"
+    IOS_CONFIG_BACKUP_DIR=""
+    info "Restored iOS signing templates"
+  fi
+}
+
+trap cleanup_ios_config EXIT
 
 resolve_pnpm() {
   if [[ -n "$PNPM_CMD" ]]; then
@@ -100,6 +116,62 @@ resolve_tauri() {
 tauri_run() {
   resolve_tauri
   bash -lc "$TAURI_CMD $*"
+}
+
+resolve_ios_team_id() {
+  if [[ -n "$IOS_TEAM_ID_VALUE" ]]; then
+    return 0
+  fi
+
+  IOS_TEAM_ID_VALUE="${INCREA_IOS_TEAM_ID:-${TAURI_IOS_TEAM_ID:-}}"
+
+  if [[ -z "$IOS_TEAM_ID_VALUE" ]]; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+      error "Missing iOS Team ID. Set INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID before init/dev/build iOS."
+    fi
+    warn "No iOS Team ID env found. Non-macOS checks can continue, but iOS init/dev/build requires INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID."
+    return 0
+  fi
+
+  if [[ ! "$IOS_TEAM_ID_VALUE" =~ ^[A-Z0-9]{10}$ ]]; then
+    error "Invalid iOS Team ID '$IOS_TEAM_ID_VALUE'. Expected 10 uppercase letters/digits."
+  fi
+}
+
+prepare_ios_signing() {
+  resolve_ios_team_id
+  [[ -n "$IOS_TEAM_ID_VALUE" ]] || return 0
+
+  if [[ -n "$IOS_CONFIG_BACKUP_DIR" ]]; then
+    return 0
+  fi
+
+  IOS_CONFIG_BACKUP_DIR="$(mktemp -d)"
+  cp "$TAURI_CONFIG_PATH" "$IOS_CONFIG_BACKUP_DIR/tauri.conf.json"
+  cp "$EXPORT_OPTIONS_PATH" "$IOS_CONFIG_BACKUP_DIR/ExportOptions.plist"
+
+  IOS_TEAM_ID_VALUE="$IOS_TEAM_ID_VALUE" TAURI_CONFIG_PATH="$TAURI_CONFIG_PATH" EXPORT_OPTIONS_PATH="$EXPORT_OPTIONS_PATH" python3 - <<'PY'
+import json
+import os
+import plistlib
+from pathlib import Path
+
+team_id = os.environ['IOS_TEAM_ID_VALUE']
+ta_path = Path(os.environ['TAURI_CONFIG_PATH'])
+export_path = Path(os.environ['EXPORT_OPTIONS_PATH'])
+
+config = json.loads(ta_path.read_text())
+config.setdefault('bundle', {}).setdefault('iOS', {})['developmentTeam'] = team_id
+ta_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n')
+
+with export_path.open('rb') as fh:
+    export_options = plistlib.load(fh)
+export_options['teamID'] = team_id
+with export_path.open('wb') as fh:
+    plistlib.dump(export_options, fh, sort_keys=False)
+PY
+
+  info "Prepared iOS signing config with Team ID $IOS_TEAM_ID_VALUE"
 }
 
 prepare_android_keystore() {
@@ -168,6 +240,8 @@ check_ios_prereqs() {
   echo "🔍 Checking iOS prerequisites..."
   [[ "$(uname)" == "Darwin" ]] || error "iOS builds require macOS (current: $(uname))"
   command -v xcodebuild &>/dev/null || error "Xcode command line tools not found. Install with: xcode-select --install"
+  resolve_ios_team_id
+  [[ -n "$IOS_TEAM_ID_VALUE" ]] || error "Missing iOS Team ID. Set INCREA_IOS_TEAM_ID or TAURI_IOS_TEAM_ID before building iOS."
   check_rust_targets "aarch64-apple-ios"
   info "iOS prerequisites OK"
 }
@@ -194,6 +268,7 @@ pnpm_run "install --frozen-lockfile" 2>/dev/null || pnpm_run "install"
 case "${1:-help}" in
   check)
     echo "🔍 Checking all prerequisites..."
+    resolve_ios_team_id
     if [[ "$(uname)" == "Darwin" ]]; then
       check_ios_prereqs
     else
@@ -206,6 +281,7 @@ case "${1:-help}" in
     check_ios_prereqs
     echo "🔧 Initializing iOS project..."
     cd "$DESKTOP_DIR"
+    prepare_ios_signing
     tauri_run "ios init"
     info "iOS project initialized. Check src-tauri/gen/apple/ for the Xcode project."
     ;;
@@ -217,6 +293,11 @@ case "${1:-help}" in
     prepare_android_project
     info "Android project initialized. Check src-tauri/gen/android/ for the Gradle project."
     ;;
+  prepare:ios)
+    echo "🛠️  Preparing iOS signing files..."
+    cd "$DESKTOP_DIR"
+    prepare_ios_signing
+    ;;
   prepare:android)
     echo "🛠️  Preparing Android support files..."
     cd "$DESKTOP_DIR"
@@ -226,6 +307,7 @@ case "${1:-help}" in
     check_ios_prereqs
     echo "📱 Building iOS release..."
     cd "$DESKTOP_DIR"
+    prepare_ios_signing
     tauri_run "ios build --release"
     echo ""
     info "iOS build complete! IPA in src-tauri/target/ios/release/"
@@ -243,6 +325,7 @@ case "${1:-help}" in
     check_ios_prereqs
     echo "📱 Starting iOS dev server (simulator)..."
     cd "$DESKTOP_DIR"
+    prepare_ios_signing
     tauri_run "ios dev"
     ;;
   dev:android)
@@ -293,6 +376,7 @@ case "${1:-help}" in
     echo "  check          Check all prerequisites (Rust targets, env vars)"
     echo "  init:ios       Initialize iOS project (first time only, requires macOS + Xcode)"
     echo "  init:android   Initialize Android project (first time only, requires Android SDK)"
+    echo "  prepare:ios    Inject Team ID into iOS build templates for the current run"
     echo "  prepare:android Sync gradle/signing files into src-tauri/gen/android"
     echo "  ios            Build iOS release (requires macOS + Xcode)"
     echo "  android        Build Android release (requires Android SDK)"
@@ -304,6 +388,8 @@ case "${1:-help}" in
     echo ""
     echo "Environment:"
     echo "  iOS:        Needs Xcode 15+, rustup target add aarch64-apple-ios"
+    echo "  INCREA_IOS_TEAM_ID / TAURI_IOS_TEAM_ID"
+    echo "               Required for iOS init/dev/build; injected into tauri.conf.json and ExportOptions.plist at runtime"
     echo "  Android:   Needs Android NDK 25+, ANDROID_NDK_HOME set, JDK 17+"
     echo "  ANDROID_HOME  — Android SDK root directory"
     echo "  ANDROID_NDK_HOME — Android NDK root directory"

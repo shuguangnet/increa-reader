@@ -88,14 +88,14 @@ jobs:
         run: cd packages/desktop && pnpm install --frozen-lockfile
 
       - name: Init iOS project
-        run: cd packages/desktop && npx tauri ios init
+        run: cd packages/desktop && bash build-mobile.sh init:ios
         env:
-          TAURI_IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          INCREA_IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
 
       - name: Build iOS
-        run: cd packages/desktop && npx tauri ios build --release
+        run: cd packages/desktop && bash build-mobile.sh ios
         env:
-          TAURI_IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          INCREA_IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4

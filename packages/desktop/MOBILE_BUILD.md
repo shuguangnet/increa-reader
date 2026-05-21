@@ -56,11 +56,12 @@ src-tauri/
 3. **发布构建**: `./build-mobile.sh ios`
    - 生成 .ipa 到 `src-tauri/target/ios/release/`
    - 使用 `ExportOptions.plist` 配置导出选项
+   - 需通过 `INCREA_IOS_TEAM_ID` 或 `TAURI_IOS_TEAM_ID` 提供 Team ID，脚本会临时注入签名配置并自动还原
 
 ### iOS 配置要点
 
 - **最低版本**: iOS 15.0 (`bundle.iOS.minimumSystemVersion`)
-- **开发团队**: 需替换 `DEVELOPMENT_TEAM_ID` 为实际 Team ID
+- **开发团队**: 通过环境变量 `INCREA_IOS_TEAM_ID`（或兼容 `TAURI_IOS_TEAM_ID`）注入，避免手动修改 `tauri.conf.json` / `ExportOptions.plist`
 - **方向支持**: iPhone 竖屏+横屏，iPad 全方向
 - **文件关联**: 支持 PDF 和 Markdown 文件打开
 - **ATS**: 允许本地网络和任意加载（用于连接本地后端）

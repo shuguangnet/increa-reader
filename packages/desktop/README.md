@@ -72,7 +72,7 @@ pnpm install
 - Xcode 15+
 - Rust targets: `rustup target add aarch64-apple-ios x86_64-apple-ios`
 - Apple Developer 账号 + Team ID
-- 在 `tauri.conf.json` 中设置 `bundle.iOS.developmentTeam` 为你的 Team ID
+- 通过环境变量 `INCREA_IOS_TEAM_ID`（或兼容 `TAURI_IOS_TEAM_ID`）传入 Team ID，避免手改仓库内配置文件
 
 **Android：**
 - Android Studio + NDK 25+
@@ -85,6 +85,9 @@ pnpm install
 ```bash
 # 检查构建前提条件
 ./build-mobile.sh check
+
+# 先配置 iOS Team ID（示例）
+export INCREA_IOS_TEAM_ID=ABCDE12345
 
 # 初始化移动端项目（首次）
 ./build-mobile.sh init:ios
@@ -123,7 +126,7 @@ pnpm install
 
 ### iOS 配置说明
 
-- **Team ID**：编辑 `src-tauri/tauri.conf.json` 中 `bundle.iOS.developmentTeam`，将 `DEVELOPMENT_TEAM_ID` 替换为你的 Apple Developer Team ID
+- **Team ID**：构建前通过 `INCREA_IOS_TEAM_ID`（或兼容 `TAURI_IOS_TEAM_ID`）传入，`build-mobile.sh` 会在当前构建过程临时注入 `src-tauri/tauri.conf.json` 和 `src-tauri/ExportOptions.plist`，结束后自动还原模板，避免占位符被误提交
 - **启动屏幕**：已配置 `#1e40af` 蓝色背景（与品牌色一致）
 - **方向支持**：iPhone 支持竖屏+横屏，iPad 支持全方向
 - **隐私权限**：已声明相册、相机、文档、本地网络、FaceID 等权限描述
@@ -189,4 +192,4 @@ cd packages/scripts
 - **`cd.yml`** — Docker 镜像构建和推送
 - **`mobile.yml`** — iOS/Android 构建和检查
 
-其中 Android 工作流已改为复用 `build-mobile.sh`，从而保证本地与 CI 的签名、Gradle 参数和构建步骤一致。
+其中 Android 工作流已改为复用 `build-mobile.sh`，从而保证本地与 CI 的签名、Gradle 参数和构建步骤一致；iOS 也统一改为通过同一脚本注入 Team ID 并在构建后自动还原模板，减少签名配置漂移。
