@@ -102,7 +102,7 @@ jobs:
         with:
           name: ios-build
           path: |
-            packages/desktop/src-tauri/target/ios/release/*.ipa
+            packages/desktop/src-tauri/target/ios/release
             packages/desktop/src-tauri/gen/apple/build/outputs/ipa/**/*.ipa
           retention-days: 7
 
@@ -174,8 +174,7 @@ jobs:
         with:
           name: android-build
           path: |
-            packages/desktop/src-tauri/target/android/release/*.apk
-            packages/desktop/src-tauri/target/android/release/*.aab
+            packages/desktop/src-tauri/target/android/release
             packages/desktop/src-tauri/gen/android/app/build/outputs/**/*.apk
             packages/desktop/src-tauri/gen/android/app/build/outputs/**/*.aab
           retention-days: 7

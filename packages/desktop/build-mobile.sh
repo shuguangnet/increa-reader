@@ -62,6 +62,8 @@ stage_mobile_artifacts() {
   fi
 
   PLATFORM="$platform" DEST_DIR="$destination_dir" python3 - "$@" <<'PY'
+import hashlib
+import json
 import os
 import shutil
 import sys
@@ -70,12 +72,21 @@ from pathlib import Path
 platform = os.environ["PLATFORM"]
 destination = Path(os.environ["DEST_DIR"])
 patterns = sys.argv[1:]
+allowed_suffixes = {
+    ".ipa",
+    ".apk",
+    ".aab",
+    ".sig",
+    ".zip",
+}
 
 matches = []
 seen = set()
 for pattern in patterns:
     for path in Path('.').glob(pattern):
         if not path.is_file():
+            continue
+        if not any(path.name.lower().endswith(suffix) for suffix in allowed_suffixes):
             continue
         resolved = path.resolve()
         if resolved in seen:
@@ -85,17 +96,51 @@ for pattern in patterns:
 
 matches.sort(key=lambda p: (p.stat().st_mtime, str(p)))
 
+for existing in destination.iterdir():
+    if existing.is_dir():
+        shutil.rmtree(existing)
+    else:
+        existing.unlink()
+
 staged = []
 for path in matches:
     target = destination / path.name
     shutil.copy2(path, target)
-    staged.append(target)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    staged.append(
+        {
+            "name": target.name,
+            "path": str(target),
+            "source": str(path),
+            "sha256": digest,
+            "size": target.stat().st_size,
+        }
+    )
+
+(destination / "SHA256SUMS.txt").write_text(
+    "".join(f"{item['sha256']}  {item['name']}\n" for item in staged),
+    encoding="utf-8",
+)
+(destination / "manifest.json").write_text(
+    json.dumps(
+        {
+            "platform": platform,
+            "destination": str(destination),
+            "artifactCount": len(staged),
+            "artifacts": staged,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
 
 print(f"platform={platform}")
 print(f"destination={destination}")
 print(f"count={len(staged)}")
 for item in staged:
-    print(item)
+    print(item["name"])
 PY
 }
 

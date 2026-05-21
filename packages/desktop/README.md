@@ -123,6 +123,10 @@ export INCREA_IOS_TEAM_ID=ABCDE12345
 ./build-mobile.sh android
 # 或 pnpm --filter @increa-reader/desktop build:ios / build:android
 
+# 仅重新归档已有移动端产物（不重新编译）
+pnpm --filter @increa-reader/desktop build:ios:stage
+pnpm --filter @increa-reader/desktop build:android:stage
+
 # 同时构建两个平台
 ./build-mobile.sh all
 
@@ -162,6 +166,7 @@ export INCREA_IOS_TEAM_ID=ABCDE12345
 - **Gradle 文件同步**：`build-mobile.sh init:android` / `android` / `dev:android` 会自动把 `src-tauri/gradle.properties` 和 `keystore.properties` 同步到 `src-tauri/gen/android/`，避免生成后的 Android 工程漏掉签名与内存配置
 - **自动补齐初始化**：如果 `src-tauri/gen/android/` 被清理或 CI 是全新工作目录，`build-mobile.sh prepare:android` / `dev:android` / `android` 会先自动执行一次 `tauri android init`，再同步 Gradle/签名文件，减少“忘记 init 导致构建中断”的发包风险
 - **产物归档稳定化**：`build-mobile.sh ios` / `android` 会在 Tauri 构建后自动把 IPA / APK / AAB 从原生工程输出目录归档到 `src-tauri/target/{ios,android}/release/`；即使 Tauri CLI 在不同版本里更换底层输出路径，CI 上传与人工分发入口仍保持不变
+- **分发校验补齐**：移动端归档目录现在也会自动生成 `manifest.json` 与 `SHA256SUMS.txt`，并支持 `build:ios:stage` / `build:android:stage` 对已有构建结果重复归档，方便发布页上传、镜像同步和安装包完整性校验
 
 ## 工作原理
 
@@ -217,3 +222,5 @@ cd packages/scripts
 其中 Android 工作流已改为复用 `build-mobile.sh`，从而保证本地与 CI 的签名、Gradle 参数和构建步骤一致；并且在 `gen/android` 缺失时会自动补一次 `tauri android init`，避免全新环境或 clean 后因漏初始化而失败。iOS 也统一改为通过同一脚本注入 Team ID 并在构建后自动还原模板，减少签名配置漂移。
 
 另外，移动端构建脚本现在会在构建完成后，把 IPA / APK / AAB 统一归档到 `src-tauri/target/{ios,android}/release/`，GitHub Actions 上传逻辑则同时兼容归档目录和原生工程默认输出目录，从而降低 Tauri CLI 版本升级后“构建成功但 CI 没抓到安装包”的风险。
+
+在此基础上，归档目录也会附带生成 `manifest.json` 与 `SHA256SUMS.txt`，并可通过 `pnpm --filter @increa-reader/desktop build:ios:stage` / `build:android:stage` 对已有产物单独重建分发清单，便于后续发布、镜像同步与完整性校验。

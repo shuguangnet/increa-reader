@@ -19,6 +19,8 @@
     "build:ios": "bash ./build-mobile.sh ios",
     "build:android": "bash ./build-mobile.sh android",
     "build:mobile": "bash ./build-mobile.sh all",
+    "build:ios:stage": "bash ./build-mobile.sh stage:ios-artifacts",
+    "build:android:stage": "bash ./build-mobile.sh stage:android-artifacts",
     "check:mobile": "bash ./build-mobile.sh check",
     "build:vite": "vite build",
     "tauri": "tauri",
