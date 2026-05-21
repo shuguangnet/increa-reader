@@ -59,6 +59,8 @@ pnpm --filter @increa-reader/desktop build
 
 另外，桌面端/移动端构建脚本中的 `resolve_pnpm()` 现在不再硬编码旧的 Corepack 缓存路径，而是优先读取根目录 `package.json` 的 `packageManager`（当前为 `pnpm@10.18.3`），再回退扫描本机已有的 Corepack pnpm 缓存版本。这样在 CI、本地多版本 Node 环境、或者后续升级 pnpm 时，不会因为脚本里写死 `10.17.1` 而出现“依赖其实已安装，但打包脚本仍报找不到 pnpm”的伪失败。
 
+同时，桌面端 `build.sh` 在归档 `src-tauri/target/{release,debug}/distribute/` 后，也会立即回读 `manifest.json` 与 `SHA256SUMS.txt` 做一致性校验：检查构建模式、产物数量、类型、大小以及 SHA256 是否与实际文件完全一致。这样可以把“安装包已经打出来，但分发目录清单损坏/漏文件/校验值过期”的问题拦截在构建阶段，而不是等到上传发布页或用户下载后才暴露。
+
 如需绕过统一封装、直接调用 Tauri CLI 进行底层排障，可使用 `dev:desktop:raw` / `build:desktop:raw`。
 
 构建产物在 `src-tauri/target/release/bundle/` 中：

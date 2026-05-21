@@ -58,6 +58,8 @@ src-tauri/
 
 若只是排查底层 Tauri CLI 行为，可额外使用 `dev:desktop:raw` / `build:desktop:raw`。
 
+此外，桌面端 `build.sh` 与移动端 `build-mobile.sh` 现在都不是只“生成清单”就算完成：归档结束后会立刻校验 `manifest.json` / `SHA256SUMS.txt` 与真实产物是否一致，覆盖产物数量、文件类型、大小和 SHA256。这样 CI 或人工发包时如果遇到归档目录残留旧文件、checksum 没更新、或脚本复制不完整，会在打包阶段直接失败，而不是把坏包继续往下游传递。
+
 ## iOS 构建流程
 
 > `./build-mobile.sh check` 现在不会因为缺少 Apple Team ID 而提前失败；它只做环境体检。真正执行 `init:ios` / `dev:ios` / `ios` 时，脚本才会强制要求 `INCREA_IOS_TEAM_ID` 或 `TAURI_IOS_TEAM_ID`，更适合 CI、自助排障和新机器初始化。
