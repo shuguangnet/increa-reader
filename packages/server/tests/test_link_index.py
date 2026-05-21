@@ -7,6 +7,7 @@ import pytest
 from increa_reader.link_index import (
     MD_LINK_RE,
     WIKI_LINK_RE,
+    _apply_backlink_deltas,
     _iter_markdown_files,
     _resolve_link,
 )
@@ -118,3 +119,37 @@ class TestIterMarkdownFiles:
         files = sorted(str(path.relative_to(repo)) for path in _iter_markdown_files(repo))
 
         assert files == ["docs/guide.markdown", "visible.md"]
+
+
+class TestApplyBacklinkDeltas:
+    def test_updates_only_affected_targets(self):
+        backlinks = {
+            "alpha.md": ["note-a.md", "note-b.md"],
+            "beta.md": ["note-a.md"],
+            "gamma.md": ["note-c.md"],
+        }
+
+        _apply_backlink_deltas(
+            backlinks,
+            source_path="note-a.md",
+            old_targets=["alpha.md", "beta.md"],
+            new_targets=["alpha.md", "delta.md"],
+        )
+
+        assert backlinks == {
+            "alpha.md": ["note-a.md", "note-b.md"],
+            "gamma.md": ["note-c.md"],
+            "delta.md": ["note-a.md"],
+        }
+
+    def test_preserves_duplicate_links(self):
+        backlinks = {"target.md": ["note.md", "note.md", "other.md"]}
+
+        _apply_backlink_deltas(
+            backlinks,
+            source_path="note.md",
+            old_targets=["target.md", "target.md"],
+            new_targets=["target.md"],
+        )
+
+        assert backlinks == {"target.md": ["note.md", "other.md"]}

@@ -6,6 +6,7 @@ import asyncio
 import os
 import re
 import time
+from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -129,6 +130,56 @@ def _build_backlinks(link_map: Dict[str, List[str]]) -> Dict[str, List[str]]:
     return backlinks
 
 
+def _apply_backlink_deltas(
+    backlinks: Dict[str, List[str]],
+    source_path: str,
+    old_targets: List[str],
+    new_targets: List[str],
+) -> None:
+    """Incrementally update backlinks for a single file change."""
+    counts_to_remove = Counter(old_targets)
+    counts_to_add = Counter(new_targets)
+
+    for target, count in counts_to_remove.items():
+        remaining = count - counts_to_add.get(target, 0)
+        if remaining <= 0:
+            continue
+        sources = backlinks.get(target)
+        if not sources:
+            continue
+        kept_sources: list[str] = []
+        removed = 0
+        for existing in sources:
+            if existing == source_path and removed < remaining:
+                removed += 1
+                continue
+            kept_sources.append(existing)
+        if kept_sources:
+            backlinks[target] = kept_sources
+        else:
+            backlinks.pop(target, None)
+
+    for target, count in counts_to_add.items():
+        remaining = count - counts_to_remove.get(target, 0)
+        if remaining <= 0:
+            continue
+        backlinks.setdefault(target, []).extend([source_path] * remaining)
+
+
+def _resolve_links_for_file(
+    repo_root: Path,
+    file_path: str,
+    full_path: Path,
+    raw_links: List[str],
+) -> List[str]:
+    resolved: list[str] = []
+    for link in raw_links:
+        target = _resolve_link(full_path.parent, link, repo_root)
+        if target:
+            resolved.append(target)
+    return resolved
+
+
 class LinkIndex:
     """Cached link index with rebuild support.
 
@@ -211,33 +262,41 @@ class LinkIndex:
         return repo_name in self.outgoing_links
 
     def remove_file(self, repo_name: str, file_path: str) -> None:
-        """Remove a file from the link index and rebuild backlinks."""
-        if repo_name not in self.outgoing_links:
+        """Remove a file from the link index without rebuilding the full repo backlinks."""
+        repo_links = self.outgoing_links.get(repo_name)
+        if repo_links is None:
             return
-        # Remove outgoing links for this file
-        self.outgoing_links[repo_name].pop(file_path, None)
-        # Rebuild backlinks for this repo
-        self._rebuild_backlinks(repo_name)
+
+        previous_targets = repo_links.pop(file_path, None)
+        if previous_targets is None:
+            return
+
+        repo_backlinks = self.backlinks_cache.setdefault(repo_name, {})
+        _apply_backlink_deltas(repo_backlinks, file_path, previous_targets, [])
+        self._build_time[repo_name] = time.time()
 
     async def update_file(self, repo_name: str, file_path: str, full_path: Path) -> None:
-        """Update link index for a single file."""
-        if file_path.endswith('.md') or file_path.endswith('.markdown'):
-            repo_config = next(
-                (r for r in self.workspace_config.repos if r.name == repo_name), None
-            )
-            if not repo_config:
-                return
-            raw_links = await _parse_links(full_path)
-            repo_root = Path(repo_config.root).resolve()
-            resolved = []
-            for link in raw_links:
-                r = _resolve_link(full_path.parent, link, repo_root)
-                if r:
-                    resolved.append(r)
-            if repo_name not in self.outgoing_links:
-                self.outgoing_links[repo_name] = {}
-            self.outgoing_links[repo_name][file_path] = resolved
-            self._rebuild_backlinks(repo_name)
+        """Update link index for a single file without rebuilding all backlinks."""
+        if not file_path.endswith(".md") and not file_path.endswith(".markdown"):
+            return
+
+        repo_config = next(
+            (r for r in self.workspace_config.repos if r.name == repo_name), None
+        )
+        if not repo_config:
+            return
+
+        raw_links = await _parse_links(full_path)
+        repo_root = Path(repo_config.root).resolve()
+        resolved = _resolve_links_for_file(repo_root, file_path, full_path, raw_links)
+
+        repo_links = self.outgoing_links.setdefault(repo_name, {})
+        previous_targets = repo_links.get(file_path, [])
+        repo_links[file_path] = resolved
+
+        repo_backlinks = self.backlinks_cache.setdefault(repo_name, {})
+        _apply_backlink_deltas(repo_backlinks, file_path, previous_targets, resolved)
+        self._build_time[repo_name] = time.time()
 
     def _rebuild_backlinks(self, repo_name: str) -> None:
         """Rebuild backlinks cache for a repo."""
