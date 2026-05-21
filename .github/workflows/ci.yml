@@ -381,6 +381,16 @@ jobs:
           cd packages/pdf-reader-mcp
           ruff check .
 
+      - name: Python format — ruff format check (pdf-reader-mcp)
+        run: |
+          cd packages/pdf-reader-mcp
+          ruff format --check .
+
+      - name: Type check — mypy (pdf-reader-mcp)
+        run: |
+          cd packages/pdf-reader-mcp
+          python -m mypy pdf_reader_server.py --ignore-missing-imports
+
       - name: Run pdf-reader-mcp tests with coverage (pytest)
         run: |
           cd packages/pdf-reader-mcp
@@ -500,6 +510,9 @@ jobs:
       - name: Compile check desktop shell
         run: cargo check --manifest-path packages/desktop/src-tauri/Cargo.toml --locked
 
+      - name: Run Rust tests (desktop)
+        run: cargo test --manifest-path packages/desktop/src-tauri/Cargo.toml --no-fail-fast
+
   # ── Security audit ──
   security:
     needs: changes
@@ -532,6 +545,47 @@ jobs:
       - name: Pip audit (pdf-reader-mcp)
         run: cd packages/pdf-reader-mcp && pip-audit || true
 
+  # ── Coverage Report — upload to Codecov ──
+  coverage-report:
+    needs:
+      - frontend-coverage
+      - python-server
+      - python-mcp
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend coverage (lcov)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ui-coverage
+          path: coverage-reports/ui
+
+      - name: Download server coverage (xml)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: server-coverage
+          path: coverage-reports/server
+
+      - name: Download MCP coverage (xml)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: mcp-coverage
+          path: coverage-reports/mcp
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          directory: coverage-reports
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   # ── Test Summary ──
   test-summary:
     needs:
@@ -546,6 +600,7 @@ jobs:
       - desktop
       - desktop-distribution
       - desktop-rust
+      - coverage-report
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -570,6 +625,7 @@ jobs:
             ["desktop"]="${{ needs.desktop.result }}"
             ["desktop-distribution"]="${{ needs.desktop-distribution.result }}"
             ["desktop-rust"]="${{ needs.desktop-rust.result }}"
+            ["coverage-report"]="${{ needs.coverage-report.result }}"
           )
 
           failed=0
