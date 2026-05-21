@@ -54,6 +54,8 @@ src-tauri/
 
 这些命令都会先走 `build.sh`，从而自动补齐 sidecar 构建与前置检查，避免直接执行 `tauri dev/build` 时出现“应用壳能启动，但安装包里漏掉 Python sidecar”的交付漂移。
 
+另外，`build.sh` / `build-mobile.sh` 里的 pnpm 解析逻辑现在会优先读取仓库 `packageManager` 声明，并回退扫描本机 Corepack 缓存中的可用 pnpm 版本，不再写死某个历史版本号。这样当仓库升级 pnpm、CI 预装版本变化、或开发机只缓存了新版本 pnpm 时，打包脚本仍能稳定找到正确的 CLI。
+
 若只是排查底层 Tauri CLI 行为，可额外使用 `dev:desktop:raw` / `build:desktop:raw`。
 
 ## iOS 构建流程
@@ -115,6 +117,7 @@ src-tauri/
 - **Split modules**: 禁用 `splitModulesEnabled`（保持单 APK 简化分发）
 - **构建稳定性**: 统一通过 `build-mobile.sh` 准备签名文件与 `gradle.properties`，避免 Tauri 重新生成 `gen/android/` 后丢失配置
 - **产物路径稳定性**: 统一把原生输出目录中的安装包归档到 `src-tauri/target/{ios,android}/release/`，便于 CI 上传、人工分发和后续脚本复用
+- **归档即校验**: `build:ios:stage` / `build:android:stage` 在生成 `manifest.json` 与 `SHA256SUMS.txt` 后，会立即校验平台字段、产物数量、文件大小、后缀类型和 checksum 映射，防止“清单写出来了但与实际安装包不一致”这类静默分发错误
 
 ## 权限配置
 

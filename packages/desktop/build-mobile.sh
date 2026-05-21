@@ -34,6 +34,7 @@ IOS_RELEASE_DIR="$SRC_TAURI_DIR/target/ios/release"
 ANDROID_RELEASE_DIR="$SRC_TAURI_DIR/target/android/release"
 PNPM_CMD="${PNPM_CMD:-}"
 TAURI_CMD="${TAURI_CMD:-}"
+PNPM_VERSION=""
 IOS_TEAM_ID_VALUE=""
 IOS_CONFIG_BACKUP_DIR=""
 
@@ -67,6 +68,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 platform = os.environ["PLATFORM"]
@@ -80,8 +82,7 @@ allowed_suffixes = {
     ".zip",
 }
 
-matches = []
-seen = set()
+matches_by_name = {}
 for pattern in patterns:
     for path in Path('.').glob(pattern):
         if not path.is_file():
@@ -89,57 +90,135 @@ for pattern in patterns:
         if not any(path.name.lower().endswith(suffix) for suffix in allowed_suffixes):
             continue
         resolved = path.resolve()
-        if resolved in seen:
+        current = matches_by_name.get(path.name)
+        if current is None:
+            matches_by_name[path.name] = resolved
             continue
-        seen.add(resolved)
-        matches.append(path)
+        current_stat = current.stat()
+        resolved_stat = resolved.stat()
+        if (resolved_stat.st_mtime_ns, str(resolved)) >= (current_stat.st_mtime_ns, str(current)):
+            matches_by_name[path.name] = resolved
 
-matches.sort(key=lambda p: (p.stat().st_mtime, str(p)))
+matches = sorted(matches_by_name.values(), key=lambda p: (p.stat().st_mtime, str(p)))
 
-for existing in destination.iterdir():
-    if existing.is_dir():
-        shutil.rmtree(existing)
-    else:
-        existing.unlink()
+with tempfile.TemporaryDirectory(prefix=f"increa-stage-{platform}-") as temp_dir:
+    temp_destination = Path(temp_dir)
+    staged = []
 
-staged = []
-for path in matches:
-    target = destination / path.name
-    shutil.copy2(path, target)
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    staged.append(
-        {
-            "name": target.name,
-            "path": str(target),
-            "source": str(path),
-            "sha256": digest,
-            "size": target.stat().st_size,
-        }
+    for path in matches:
+        target = temp_destination / path.name
+        shutil.copy2(path, target)
+        digest = hashlib.sha256(target.read_bytes()).hexdigest()
+        staged.append(
+            {
+                "name": target.name,
+                "path": str(destination / path.name),
+                "source": str(path),
+                "sha256": digest,
+                "size": target.stat().st_size,
+            }
+        )
+
+    (temp_destination / "SHA256SUMS.txt").write_text(
+        "".join(f"{item['sha256']}  {item['name']}\n" for item in staged),
+        encoding="utf-8",
+    )
+    (temp_destination / "manifest.json").write_text(
+        json.dumps(
+            {
+                "platform": platform,
+                "destination": str(destination),
+                "artifactCount": len(staged),
+                "artifacts": staged,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
     )
 
-(destination / "SHA256SUMS.txt").write_text(
-    "".join(f"{item['sha256']}  {item['name']}\n" for item in staged),
-    encoding="utf-8",
-)
-(destination / "manifest.json").write_text(
-    json.dumps(
-        {
-            "platform": platform,
-            "destination": str(destination),
-            "artifactCount": len(staged),
-            "artifacts": staged,
-        },
-        ensure_ascii=False,
-        indent=2,
-    )
-    + "\n",
-    encoding="utf-8",
-)
+    for existing in destination.iterdir():
+        if existing.is_dir():
+            shutil.rmtree(existing)
+        else:
+            existing.unlink()
+
+    for prepared in temp_destination.iterdir():
+        shutil.copy2(prepared, destination / prepared.name)
 
 print(f"platform={platform}")
 print(f"destination={destination}")
 print(f"count={len(staged)}")
 for item in staged:
+    print(item["name"])
+PY
+}
+
+verify_staged_manifest() {
+  local platform="$1"
+  local destination_dir="$2"
+
+  PLATFORM="$platform" DEST_DIR="$destination_dir" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+platform = os.environ["PLATFORM"]
+destination = Path(os.environ["DEST_DIR"])
+manifest_path = destination / "manifest.json"
+checksums_path = destination / "SHA256SUMS.txt"
+
+if not manifest_path.exists():
+    raise SystemExit(f"missing manifest: {manifest_path}")
+if not checksums_path.exists():
+    raise SystemExit(f"missing checksum file: {checksums_path}")
+
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+artifacts = manifest.get("artifacts", [])
+artifact_count = manifest.get("artifactCount")
+if manifest.get("platform") != platform:
+    raise SystemExit(f"manifest platform mismatch: expected {platform}, got {manifest.get('platform')}")
+if not isinstance(artifacts, list):
+    raise SystemExit("manifest artifacts must be a list")
+if artifact_count != len(artifacts):
+    raise SystemExit(f"artifactCount mismatch: {artifact_count} != {len(artifacts)}")
+if artifact_count <= 0:
+    raise SystemExit("no staged artifacts found")
+
+checksum_lines = {
+    line.strip() for line in checksums_path.read_text(encoding="utf-8").splitlines() if line.strip()
+}
+if len(checksum_lines) != len(artifacts):
+    raise SystemExit(
+        f"checksum line count mismatch: expected {len(artifacts)}, got {len(checksum_lines)}"
+    )
+
+allowed_suffixes = {
+    "ios": (".ipa", ".sig", ".zip"),
+    "android": (".apk", ".aab", ".sig", ".zip"),
+}
+expected_suffixes = allowed_suffixes[platform]
+
+for item in artifacts:
+    name = item.get("name")
+    sha256 = item.get("sha256")
+    size = item.get("size")
+    artifact_path = destination / name
+    if not name or not any(name.lower().endswith(suffix) for suffix in expected_suffixes):
+        raise SystemExit(f"unexpected artifact name for {platform}: {name}")
+    if not artifact_path.is_file():
+        raise SystemExit(f"staged artifact missing on disk: {artifact_path}")
+    if size != artifact_path.stat().st_size:
+        raise SystemExit(f"artifact size mismatch for {name}: {size} != {artifact_path.stat().st_size}")
+    checksum_line = f"{sha256}  {name}"
+    if checksum_line not in checksum_lines:
+        raise SystemExit(f"checksum entry missing for {name}")
+
+print(f"validated_platform={platform}")
+print(f"validated_destination={destination}")
+print(f"validated_count={len(artifacts)}")
+for item in artifacts:
     print(item["name"])
 PY
 }
@@ -210,11 +289,52 @@ resolve_pnpm() {
     return 0
   fi
 
-  local corepack_pnpm
-  corepack_pnpm="$(python3 - <<'PY'
+  if [[ -z "$PNPM_VERSION" ]]; then
+    PNPM_VERSION="$(python3 - <<'PY'
+import json
 from pathlib import Path
-root = Path.home() / '.cache/node/corepack/pnpm/10.17.1/bin/pnpm.cjs'
-print(root if root.exists() else '')
+
+version = ""
+for candidate in (Path('package.json'), Path('packages/desktop/package.json')):
+    if not candidate.exists():
+        continue
+    try:
+        data = json.loads(candidate.read_text(encoding='utf-8'))
+    except Exception:
+        continue
+    package_manager = data.get('packageManager', '')
+    if isinstance(package_manager, str) and package_manager.startswith('pnpm@'):
+        version = package_manager.split('@', 1)[1]
+        break
+print(version)
+PY
+)"
+  fi
+
+  local corepack_pnpm
+  corepack_pnpm="$(PNPM_VERSION="$PNPM_VERSION" python3 - <<'PY'
+import os
+from pathlib import Path
+
+version = os.environ.get('PNPM_VERSION', '').strip()
+cache_root = Path.home() / '.cache/node/corepack/pnpm'
+candidates = []
+if version:
+    candidates.append(cache_root / version / 'bin/pnpm.cjs')
+if cache_root.exists():
+    candidates.extend(sorted(cache_root.glob('*/bin/pnpm.cjs'), reverse=True))
+
+seen = set()
+for candidate in candidates:
+    candidate = candidate.resolve()
+    if candidate in seen:
+        continue
+    seen.add(candidate)
+    if candidate.exists():
+        print(candidate)
+        break
+else:
+    print('')
 PY
 )"
 
@@ -223,7 +343,7 @@ PY
     return 0
   fi
 
-  error "pnpm not found. Install pnpm or prepare corepack pnpm@10.17.1 first."
+  error "pnpm not found. Install pnpm or prepare corepack pnpm${PNPM_VERSION:+@$PNPM_VERSION} first."
 }
 
 pnpm_run() {
@@ -505,11 +625,13 @@ case "${1:-help}" in
     echo "📦 Staging iOS artifacts into stable release directory..."
     cd "$ROOT_DIR"
     collect_ios_artifacts
+    verify_staged_manifest "ios" "$IOS_RELEASE_DIR"
     ;;
   stage:android-artifacts)
     echo "📦 Staging Android artifacts into stable release directory..."
     cd "$ROOT_DIR"
     collect_android_artifacts
+    verify_staged_manifest "android" "$ANDROID_RELEASE_DIR"
     ;;
   dev:ios)
     check_ios_prereqs

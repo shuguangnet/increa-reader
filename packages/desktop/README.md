@@ -57,6 +57,8 @@ pnpm --filter @increa-reader/desktop build
 
 另外，`packages/desktop/package.json` 中的 `dev` / `dev:desktop` / `build` / `build:desktop` / `build:debug` / `build:ios` / `build:android` 已统一改为调用 `build.sh` / `build-mobile.sh`，这样无论是本地开发、CI 还是直接执行 pnpm script，都会复用同一条打包链路，减少“脚本能跑、实际发包漏步骤”的漂移风险。
 
+另外，桌面端/移动端构建脚本中的 `resolve_pnpm()` 现在不再硬编码旧的 Corepack 缓存路径，而是优先读取根目录 `package.json` 的 `packageManager`（当前为 `pnpm@10.18.3`），再回退扫描本机已有的 Corepack pnpm 缓存版本。这样在 CI、本地多版本 Node 环境、或者后续升级 pnpm 时，不会因为脚本里写死 `10.17.1` 而出现“依赖其实已安装，但打包脚本仍报找不到 pnpm”的伪失败。
+
 如需绕过统一封装、直接调用 Tauri CLI 进行底层排障，可使用 `dev:desktop:raw` / `build:desktop:raw`。
 
 构建产物在 `src-tauri/target/release/bundle/` 中：
@@ -168,6 +170,7 @@ pnpm --filter @increa-reader/desktop build:android:stage
 - **自动补齐初始化**：如果 `src-tauri/gen/android/` 被清理或 CI 是全新工作目录，`build-mobile.sh prepare:android` / `dev:android` / `android` 会先自动执行一次 `tauri android init`，再同步 Gradle/签名文件，减少“忘记 init 导致构建中断”的发包风险
 - **产物归档稳定化**：`build-mobile.sh ios` / `android` 会在 Tauri 构建后自动把 IPA / APK / AAB 从原生工程输出目录归档到 `src-tauri/target/{ios,android}/release/`；即使 Tauri CLI 在不同版本里更换底层输出路径，CI 上传与人工分发入口仍保持不变
 - **分发校验补齐**：移动端归档目录现在也会自动生成 `manifest.json` 与 `SHA256SUMS.txt`，并支持 `build:ios:stage` / `build:android:stage` 对已有构建结果重复归档，方便发布页上传、镜像同步和安装包完整性校验
+- **归档结果不再盲信**：`build:ios:stage` / `build:android:stage` 在归档完成后会立刻校验 manifest 平台标记、产物数量、文件大小、后缀合法性以及 `SHA256SUMS.txt` 映射，避免 CI 或人工发包时带着“清单存在但内容错位”的坏包继续流转
 
 ## 工作原理
 
