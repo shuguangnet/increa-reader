@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from increa_reader.main import create_app
@@ -160,3 +161,44 @@ def test_invalid_color_is_rejected(tmp_path, monkeypatch):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "note.color is invalid"
+
+
+@pytest.mark.parametrize("endpoint", ["/api/workspace/tree", "/api/workspace/repos/demo-repo/tree"])
+def test_workspace_tree_cache_reflects_file_changes(tmp_path, monkeypatch, endpoint):
+    client, repo_root = _build_client(tmp_path, monkeypatch)
+
+    first_response = client.get(endpoint)
+    assert first_response.status_code == 200
+
+    docs_dir = repo_root / "docs"
+    new_file = docs_dir / "later.md"
+    new_file.write_text("# Later\n", encoding="utf-8")
+
+    second_response = client.get(endpoint)
+    assert second_response.status_code == 200
+    payload = second_response.json()["data"]
+
+    if endpoint == "/api/workspace/tree":
+        files = payload[0]["files"]
+    else:
+        files = payload["files"]
+
+    docs_node = next(node for node in files if node["path"] == "docs")
+    child_paths = {child["path"] for child in docs_node["children"]}
+    assert "docs/later.md" not in child_paths
+
+    app = client.app
+    app.state.workspace_tree_cache.invalidate_repo("demo-repo")
+
+    refreshed_response = client.get(endpoint)
+    assert refreshed_response.status_code == 200
+    refreshed_payload = refreshed_response.json()["data"]
+
+    if endpoint == "/api/workspace/tree":
+        refreshed_files = refreshed_payload[0]["files"]
+    else:
+        refreshed_files = refreshed_payload["files"]
+
+    refreshed_docs = next(node for node in refreshed_files if node["path"] == "docs")
+    refreshed_child_paths = {child["path"] for child in refreshed_docs["children"]}
+    assert "docs/later.md" in refreshed_child_paths

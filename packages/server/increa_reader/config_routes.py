@@ -8,7 +8,12 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from .models import RepoItem, WorkspaceConfig
-from .workspace import load_api_settings, save_api_settings, save_workspace_config
+from .workspace import (
+    WorkspaceTreeCache,
+    load_api_settings,
+    save_api_settings,
+    save_workspace_config,
+)
 
 
 class RepoEntry(BaseModel):
@@ -66,6 +71,7 @@ def create_config_routes(app: FastAPI, workspace_config: WorkspaceConfig):
         # In-place update so all route handlers see the change immediately
         workspace_config.repos.clear()
         workspace_config.repos.extend(new_repos)
+        app.state.workspace_tree_cache = WorkspaceTreeCache(workspace_config.excludes)
 
         return {
             "data": [

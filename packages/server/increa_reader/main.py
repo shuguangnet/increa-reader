@@ -42,7 +42,7 @@ from .session_routes import create_session_routes
 from .tags_routes import create_tags_routes
 from .template_routes import create_template_routes
 from .version_routes import create_version_routes
-from .workspace import load_workspace_config
+from .workspace import WorkspaceTreeCache, load_workspace_config
 from .workspace_routes import create_workspace_routes
 
 
@@ -91,13 +91,16 @@ async def lifespan(app: FastAPI):
         """Incrementally update search and link indexes when files change."""
         search_idx: SearchIndex = app.state.search_index
         link_idx: LinkIndex = app.state.link_index
+        tree_cache: WorkspaceTreeCache = app.state.workspace_tree_cache
         all_keys = set()
+        changed_repos = set()
         for key_set in changed_files.values():
             all_keys.update(key_set)
         if not all_keys:
             return
         for key in all_keys:
             repo_name, file_path = key.split(':', 1)
+            changed_repos.add(repo_name)
             if key in changed_files.get('deleted', set()):
                 search_idx.remove_file(repo_name, file_path)
                 link_idx.remove_file(repo_name, file_path)
@@ -111,6 +114,8 @@ async def lifespan(app: FastAPI):
                     if full_path.exists():
                         await search_idx.update_file(repo_name, file_path, full_path, repo_root)
                         await link_idx.update_file(repo_name, file_path, full_path)
+        for repo_name in changed_repos:
+            tree_cache.invalidate_repo(repo_name)
         if DEBUG:
             print(f"   ✅ Indexes updated for {len(all_keys)} file changes")
 
@@ -166,6 +171,7 @@ def create_app() -> FastAPI:
     # Global workspace configuration
     workspace_config = load_workspace_config()
     app.state.workspace_config = workspace_config
+    app.state.workspace_tree_cache = WorkspaceTreeCache(workspace_config.excludes)
 
     # Create link index (built during lifespan startup)
     link_index = LinkIndex(workspace_config)

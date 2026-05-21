@@ -5,6 +5,7 @@ Workspace management and file tree functionality
 import json
 import os
 from pathlib import Path
+from threading import Lock
 from typing import List
 
 from .models import RepoItem, TreeNode, WorkspaceConfig
@@ -204,3 +205,55 @@ def build_file_tree(
     # Sort: directories first, then files (both alphabetically)
     nodes.sort(key=lambda x: (x.type != "dir", x.name.lower()))
     return nodes
+
+
+class WorkspaceTreeCache:
+    """Cache workspace file trees and invalidate them incrementally on changes."""
+
+    def __init__(self, excludes: List[str]):
+        self.excludes = excludes
+        self._repo_trees: dict[str, List[TreeNode]] = {}
+        self._workspace_tree: list[dict[str, object]] | None = None
+        self._lock = Lock()
+
+    def get_repo_tree(self, repo_name: str, repo_root: Path) -> List[TreeNode]:
+        with self._lock:
+            cached = self._repo_trees.get(repo_name)
+            if cached is not None:
+                return cached
+
+        files = build_file_tree(repo_root, repo_root, self.excludes)
+
+        with self._lock:
+            existing = self._repo_trees.get(repo_name)
+            if existing is not None:
+                return existing
+            self._repo_trees[repo_name] = files
+            self._workspace_tree = None
+            return files
+
+    def get_workspace_tree(self, repos: List[RepoItem]) -> List[dict[str, object]]:
+        with self._lock:
+            if self._workspace_tree is not None:
+                return self._workspace_tree
+
+        result: list[dict[str, object]] = []
+        for repo in repos:
+            repo_path = Path(repo.root)
+            if repo_path.exists():
+                files = self.get_repo_tree(repo.name, repo_path)
+                result.append({"name": repo.name, "files": files})
+
+        with self._lock:
+            self._workspace_tree = result
+            return result
+
+    def invalidate_repo(self, repo_name: str) -> None:
+        with self._lock:
+            self._repo_trees.pop(repo_name, None)
+            self._workspace_tree = None
+
+    def invalidate_all(self) -> None:
+        with self._lock:
+            self._repo_trees.clear()
+            self._workspace_tree = None
