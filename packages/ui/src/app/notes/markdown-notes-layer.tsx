@@ -57,7 +57,7 @@ export function MarkdownNotesLayer({
   useEffect(() => {
     setDraftNotes([])
     setResolvedNotes([])
-  }, [repoName, filePath])
+  }, [])
 
   const allNotes = useMemo(
     () =>

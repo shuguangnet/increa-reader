@@ -81,7 +81,7 @@ export function RepoPanel({ repoName, searchQuery, initialFiles }: RepoPanelProp
     startFilteringTree(() => {
       setFilterResult(filterTree(searchQuery))
     })
-  }, [filterTree, searchActive, searchQuery, startFilteringTree])
+  }, [filterTree, searchActive, searchQuery])
 
   const toggleCollapse = () => {
     if (searchActive) return

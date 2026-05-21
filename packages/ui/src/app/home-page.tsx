@@ -1,15 +1,26 @@
-import { apiFetch, fetchRepos } from '@/app/api'
+import {
+  BarChart3,
+  BookOpen,
+  Clock,
+  FolderOpen,
+  Hash,
+  Keyboard,
+  MessageSquare,
+  Network,
+  Search,
+  Star,
+} from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, BarChart3, Clock, FolderOpen, Hash, Keyboard, MessageSquare, Network, Search, Star } from 'lucide-react'
-import { useFavoritesStore } from '../stores/favorites-store'
-import { useRecentFilesStore } from '../stores/recent-files-store'
-import { useProgressStore } from '../stores/progress-store'
-import { useUIStore } from '../stores/ui-store'
-import { useIsMobile } from '../hooks/use-mobile'
-import { getFileIcon } from './file-tree'
-import { prefetch } from './app'
+import { apiFetch, fetchRepos } from '@/app/api'
 import { EmptyState } from '@/components/empty-state'
+import { useIsMobile } from '../hooks/use-mobile'
+import { useFavoritesStore } from '../stores/favorites-store'
+import { useProgressStore } from '../stores/progress-store'
+import { useRecentFilesStore } from '../stores/recent-files-store'
+import { useUIStore } from '../stores/ui-store'
+import { prefetch } from './app'
+import { getFileIcon } from './file-tree'
 
 type TagInfo = { name: string; count: number }
 type TagFile = { repo: string; file_path: string; path?: string }
@@ -54,24 +65,27 @@ function HomePage() {
     }
   }, [])
 
-  const loadTagFiles = useCallback(async (tagName: string) => {
-    if (expandedTag === tagName) {
-      setExpandedTag(null)
-      setTagFiles([])
-      return
-    }
-    setExpandedTag(tagName)
-    setTagFilesLoading(true)
-    try {
-      const res = await apiFetch(`/api/tags/${encodeURIComponent(tagName)}`)
-      const data = await res.json()
-      setTagFiles(data.files ?? data.data ?? [])
-    } catch {
-      setTagFiles([])
-    } finally {
-      setTagFilesLoading(false)
-    }
-  }, [expandedTag])
+  const loadTagFiles = useCallback(
+    async (tagName: string) => {
+      if (expandedTag === tagName) {
+        setExpandedTag(null)
+        setTagFiles([])
+        return
+      }
+      setExpandedTag(tagName)
+      setTagFilesLoading(true)
+      try {
+        const res = await apiFetch(`/api/tags/${encodeURIComponent(tagName)}`)
+        const data = await res.json()
+        setTagFiles(data.files ?? data.data ?? [])
+      } catch {
+        setTagFiles([])
+      } finally {
+        setTagFilesLoading(false)
+      }
+    },
+    [expandedTag],
+  )
 
   useEffect(() => {
     loadTags()
@@ -92,10 +106,34 @@ function HomePage() {
     .slice(0, 5)
 
   const quickActions = [
-    { label: '搜索文件内容', icon: <Search className="size-5" />, onClick: () => setSearchPanelOpen(true), color: 'text-blue-500 bg-blue-50 dark:bg-blue-950', prefetch: undefined },
-    { label: '命令面板', icon: <Keyboard className="size-5" />, onClick: () => setCommandPaletteOpen(true), color: 'text-violet-500 bg-violet-50 dark:bg-violet-950', prefetch: undefined },
-    { label: '知识图谱', icon: <Network className="size-5" />, onClick: () => navigate('/graph'), color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950', prefetch: 'graph' as const },
-    { label: 'AI对话', icon: <MessageSquare className="size-5" />, onClick: () => toggleRightPanel(), color: 'text-amber-500 bg-amber-50 dark:bg-amber-950', prefetch: undefined },
+    {
+      label: '搜索文件内容',
+      icon: <Search className="size-5" />,
+      onClick: () => setSearchPanelOpen(true),
+      color: 'text-blue-500 bg-blue-50 dark:bg-blue-950',
+      prefetch: undefined,
+    },
+    {
+      label: '命令面板',
+      icon: <Keyboard className="size-5" />,
+      onClick: () => setCommandPaletteOpen(true),
+      color: 'text-violet-500 bg-violet-50 dark:bg-violet-950',
+      prefetch: undefined,
+    },
+    {
+      label: '知识图谱',
+      icon: <Network className="size-5" />,
+      onClick: () => navigate('/graph'),
+      color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950',
+      prefetch: 'graph' as const,
+    },
+    {
+      label: 'AI对话',
+      icon: <MessageSquare className="size-5" />,
+      onClick: () => toggleRightPanel(),
+      color: 'text-amber-500 bg-amber-50 dark:bg-amber-950',
+      prefetch: undefined,
+    },
   ]
 
   const displayRecent = todayFiles.length > 0 ? todayFiles : sortedRecent
@@ -106,12 +144,8 @@ function HomePage() {
       <div className={`mx-auto ${isMobile ? 'px-4 py-6' : 'px-8 py-10'} max-w-3xl`}>
         {/* Hero Section */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight mb-1">
-            Increa Reader
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            你的个人知识库，快速访问文件与笔记
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight mb-1">Increa Reader</h1>
+          <p className="text-muted-foreground text-sm">你的个人知识库，快速访问文件与笔记</p>
         </div>
 
         {/* Statistics Bar */}
@@ -154,9 +188,7 @@ function HomePage() {
               onMouseEnter={() => action.prefetch && prefetch(action.prefetch)}
               className={`flex items-center ${isMobile ? 'justify-start' : 'flex-col items-center'} gap-3 ${isMobile ? 'p-3' : 'p-4'} rounded-xl border bg-card hover:bg-accent/50 transition-colors touch-target`}
             >
-              <div className={`p-2.5 rounded-lg ${action.color}`}>
-                {action.icon}
-              </div>
+              <div className={`p-2.5 rounded-lg ${action.color}`}>{action.icon}</div>
               <span className="text-xs font-medium">{action.label}</span>
             </button>
           ))}
@@ -180,7 +212,9 @@ function HomePage() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{fileName}</div>
-                      <div className="text-xs text-muted-foreground truncate">{p.repo}/{p.path}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {p.repo}/{p.path}
+                      </div>
                       <div className="mt-1.5 flex items-center gap-2">
                         <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
@@ -188,7 +222,9 @@ function HomePage() {
                             style={{ width: `${percent}%` }}
                           />
                         </div>
-                        <span className="text-[10px] text-muted-foreground shrink-0">{percent}%</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {percent}%
+                        </span>
                       </div>
                     </div>
                     <button
@@ -224,7 +260,9 @@ function HomePage() {
                     {getFileIcon(item.name)}
                     <div className="min-w-0 flex-1">
                       <div className="text-sm truncate">{item.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{item.repo}/{item.path}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {item.repo}/{item.path}
+                      </div>
                     </div>
                     {percent !== undefined && (
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -234,7 +272,9 @@ function HomePage() {
                             style={{ width: `${percent}%` }}
                           />
                         </div>
-                        <span className="text-[10px] text-muted-foreground w-8 text-right">{percent}%</span>
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">
+                          {percent}%
+                        </span>
                       </div>
                     )}
                   </button>
@@ -264,7 +304,9 @@ function HomePage() {
                     {getFileIcon(item.name)}
                     <div className="min-w-0 flex-1">
                       <div className="text-sm truncate">{item.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{item.repo}/{item.path}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {item.repo}/{item.path}
+                      </div>
                     </div>
                     {percent !== undefined && (
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -274,7 +316,9 @@ function HomePage() {
                             style={{ width: `${percent}%` }}
                           />
                         </div>
-                        <span className="text-[10px] text-muted-foreground w-8 text-right">{percent}%</span>
+                        <span className="text-[10px] text-muted-foreground w-8 text-right">
+                          {percent}%
+                        </span>
                       </div>
                     )}
                   </button>
@@ -293,11 +337,12 @@ function HomePage() {
             </div>
             <div className="flex flex-wrap gap-2 mb-3">
               {tags.map(tag => {
-                const sizeClass = tag.count >= 6
-                  ? 'text-base font-semibold'
-                  : tag.count >= 3
-                    ? 'text-sm'
-                    : 'text-xs'
+                const sizeClass =
+                  tag.count >= 6
+                    ? 'text-base font-semibold'
+                    : tag.count >= 3
+                      ? 'text-sm'
+                      : 'text-xs'
                 return (
                   <button
                     key={tag.name}
@@ -330,7 +375,9 @@ function HomePage() {
                     className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-left"
                   >
                     {getFileIcon(f.file_path.split('/').pop() || f.file_path)}
-                    <span className="text-sm truncate">{f.repo}/{f.file_path}</span>
+                    <span className="text-sm truncate">
+                      {f.repo}/{f.file_path}
+                    </span>
                   </button>
                 ))}
                 {tagFiles.length > 8 && (
@@ -345,13 +392,30 @@ function HomePage() {
 
         {/* Empty State */}
         {sortedRecent.length === 0 && sortedFavorites.length === 0 && tags.length === 0 && (
-          <EmptyState icon={FolderOpen} title="还没有打开过文件" description="从左侧面板选择文件开始阅读" className="py-16" />
+          <EmptyState
+            icon={FolderOpen}
+            title="还没有打开过文件"
+            description="从左侧面板选择文件开始阅读"
+            className="py-16"
+          />
         )}
 
         {/* Keyboard shortcut hint */}
-        <div className={`flex items-center justify-center gap-4 text-xs text-muted-foreground ${isMobile ? 'mt-6 safe-bottom pb-4' : 'mt-10'}`}>
-          <span><kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Ctrl+K</kbd> 快速导航</span>
-          <span><kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Ctrl+Shift+F</kbd> 全局搜索</span>
+        <div
+          className={`flex items-center justify-center gap-4 text-xs text-muted-foreground ${isMobile ? 'mt-6 safe-bottom pb-4' : 'mt-10'}`}
+        >
+          <span>
+            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+              Ctrl+K
+            </kbd>{' '}
+            快速导航
+          </span>
+          <span>
+            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+              Ctrl+Shift+F
+            </kbd>{' '}
+            全局搜索
+          </span>
         </div>
       </div>
     </div>

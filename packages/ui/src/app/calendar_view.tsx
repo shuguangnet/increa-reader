@@ -2,7 +2,7 @@ import { Calendar, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { fetchCalendar, type CalendarData } from './api'
+import { type CalendarData, fetchCalendar } from './api'
 
 type CalendarViewProps = {
   repoName: string
@@ -21,7 +21,12 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isMobile = useIsMobile()
-  const [swipeState, setSwipeState] = useState<{ startX: number; startY: number; swiping: boolean; direction: 'left' | 'right' | null }>({ startX: 0, startY: 0, swiping: false, direction: null })
+  const [swipeState, setSwipeState] = useState<{
+    startX: number
+    startY: number
+    swiping: boolean
+    direction: 'left' | 'right' | null
+  }>({ startX: 0, startY: 0, swiping: false, direction: null })
 
   useEffect(() => {
     let cancelled = false
@@ -37,7 +42,9 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [repoName, year, month])
 
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
@@ -132,8 +139,18 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
   }, [swipeState, handleNextMonth, handlePrevMonth])
 
   const monthNames = [
-    '一月', '二月', '三月', '四月', '五月', '六月',
-    '七月', '八月', '九月', '十月', '十一月', '十二月',
+    '一月',
+    '二月',
+    '三月',
+    '四月',
+    '五月',
+    '六月',
+    '七月',
+    '八月',
+    '九月',
+    '十月',
+    '十一月',
+    '十二月',
   ]
 
   const weekdays = isMobile ? WEEKDAYS_SHORT : WEEKDAYS
@@ -142,22 +159,41 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className={`flex items-center justify-between border-b ${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
+      <div
+        className={`flex items-center justify-between border-b ${isMobile ? 'px-3 py-2' : 'px-4 py-3'}`}
+      >
         <div className="flex items-center gap-2">
           <Calendar className="size-5" />
           <h2 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold`}>日历</h2>
         </div>
         <div className="flex items-center gap-1.5">
-          <Button size="sm" variant="outline" onClick={handleToday} className={isMobile ? 'text-xs h-7' : ''}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleToday}
+            className={isMobile ? 'text-xs h-7' : ''}
+          >
             今天
           </Button>
-          <Button size="icon" variant="outline" className={isMobile ? 'size-7' : 'size-8'} onClick={handlePrevMonth}>
+          <Button
+            size="icon"
+            variant="outline"
+            className={isMobile ? 'size-7' : 'size-8'}
+            onClick={handlePrevMonth}
+          >
             <ChevronLeft className="size-4" />
           </Button>
-          <span className={`${isMobile ? 'min-w-[80px] text-xs' : 'min-w-[120px]'} text-center font-medium`}>
+          <span
+            className={`${isMobile ? 'min-w-[80px] text-xs' : 'min-w-[120px]'} text-center font-medium`}
+          >
             {year} 年 {monthNames[month - 1]}
           </span>
-          <Button size="icon" variant="outline" className={isMobile ? 'size-7' : 'size-8'} onClick={handleNextMonth}>
+          <Button
+            size="icon"
+            variant="outline"
+            className={isMobile ? 'size-7' : 'size-8'}
+            onClick={handleNextMonth}
+          >
             <ChevronRight className="size-4" />
           </Button>
         </div>
@@ -182,9 +218,7 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
             <div
               key={i}
               className={`py-1 text-center text-xs font-medium ${
-                i === 0 || i === 6
-                  ? 'text-red-400 dark:text-red-300'
-                  : 'text-muted-foreground'
+                i === 0 || i === 6 ? 'text-red-400 dark:text-red-300' : 'text-muted-foreground'
               }`}
             >
               {wd}
@@ -197,11 +231,7 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
           {calendarGrid.map((cell, i) => {
             if (cell.day === null) {
               return (
-                <div
-                  key={i}
-                  className="bg-muted/30 p-1"
-                  style={{ minHeight: cellMinHeight }}
-                />
+                <div key={i} className="bg-muted/30 p-1" style={{ minHeight: cellMinHeight }} />
               )
             }
 
@@ -211,9 +241,7 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
               <div
                 key={i}
                 className={`p-1 transition-colors ${isMobile ? 'group' : ''} ${
-                  isToday
-                    ? 'bg-blue-50 dark:bg-blue-950/30'
-                    : 'bg-background hover:bg-accent/50'
+                  isToday ? 'bg-blue-50 dark:bg-blue-950/30' : 'bg-background hover:bg-accent/50'
                 }`}
                 style={{ minHeight: cellMinHeight }}
               >
@@ -261,7 +289,9 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
                       )
                     })}
                     {cell.files.length > (isMobile ? 1 : 2) && (
-                      <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-muted-foreground px-1`}>
+                      <span
+                        className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-muted-foreground px-1`}
+                      >
                         +{cell.files.length - (isMobile ? 1 : 2)} 更多
                       </span>
                     )}
@@ -284,11 +314,7 @@ export function CalendarView({ repoName, onFileClick, onCreateFile }: CalendarVi
           })}
         </div>
 
-        {loading && (
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            加载中...
-          </div>
-        )}
+        {loading && <div className="mt-4 text-center text-sm text-muted-foreground">加载中...</div>}
 
         {/* Mobile swipe hint */}
         {isMobile && (

@@ -16,32 +16,27 @@ interface UIState {
 
 export const useUIStore = create<UIState>()(
   persist(
-    (set) => ({
+    set => ({
       leftPanelVisible: true,
       rightPanelVisible: true,
       commandPaletteOpen: false,
       shortcutsOpen: false,
       searchPanelOpen: false,
 
-      toggleLeftPanel: () =>
-        set((state) => ({ leftPanelVisible: !state.leftPanelVisible })),
+      toggleLeftPanel: () => set(state => ({ leftPanelVisible: !state.leftPanelVisible })),
 
-      toggleRightPanel: () =>
-        set((state) => ({ rightPanelVisible: !state.rightPanelVisible })),
+      toggleRightPanel: () => set(state => ({ rightPanelVisible: !state.rightPanelVisible })),
 
-      setCommandPaletteOpen: (open: boolean) =>
-        set({ commandPaletteOpen: open }),
+      setCommandPaletteOpen: (open: boolean) => set({ commandPaletteOpen: open }),
 
-      setShortcutsOpen: (open: boolean) =>
-        set({ shortcutsOpen: open }),
+      setShortcutsOpen: (open: boolean) => set({ shortcutsOpen: open }),
 
-      setSearchPanelOpen: (open: boolean) =>
-        set({ searchPanelOpen: open }),
+      setSearchPanelOpen: (open: boolean) => set({ searchPanelOpen: open }),
     }),
     {
       name: 'increa-ui',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
+      partialize: state => ({
         leftPanelVisible: state.leftPanelVisible,
         rightPanelVisible: state.rightPanelVisible,
       }),

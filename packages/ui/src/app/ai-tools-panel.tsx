@@ -1,8 +1,8 @@
-import { apiFetch } from '@/app/api'
 import { FileSearch, Loader2, MessageSquare, Sparkles, Tag, X } from 'lucide-react'
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useNavigate } from 'react-router-dom'
+import { apiFetch } from '@/app/api'
 
 type AiToolsPanelProps = {
   repo: string
@@ -114,9 +114,7 @@ function SummaryTab({ repo, path }: { repo: string; path: string }) {
         {loading ? '生成中...' : '生成摘要'}
       </button>
 
-      {error && (
-        <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
 
       {loading && !summary && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -193,9 +191,7 @@ function TagsTab({ repo, path }: { repo: string; path: string }) {
         {loading ? '分析中...' : '智能标签'}
       </button>
 
-      {error && (
-        <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
 
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -216,7 +212,9 @@ function TagsTab({ repo, path }: { repo: string; path: string }) {
       )}
 
       {tags.length === 0 && !loading && !error && (
-        <p className="text-xs text-muted-foreground">点击按钮获取 AI 建议标签，点击标签直接添加到文件</p>
+        <p className="text-xs text-muted-foreground">
+          点击按钮获取 AI 建议标签，点击标签直接添加到文件
+        </p>
       )}
     </div>
   )
@@ -274,9 +272,7 @@ function AskTab({ repo, path }: { repo: string; path: string }) {
         </button>
       </div>
 
-      {error && (
-        <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
 
       {loading && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -344,9 +340,7 @@ function RelatedTab({ repo, path }: { repo: string; path: string }) {
         {loading ? '查找中...' : '找相关文档'}
       </button>
 
-      {error && (
-        <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
 
       {related.length > 0 && (
         <div className="space-y-2">
@@ -360,9 +354,7 @@ function RelatedTab({ repo, path }: { repo: string; path: string }) {
               <div className="text-xs font-medium truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
                 {doc.path}
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                {doc.reason}
-              </div>
+              <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.reason}</div>
             </button>
           ))}
         </div>

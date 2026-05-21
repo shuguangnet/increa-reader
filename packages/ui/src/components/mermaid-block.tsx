@@ -76,7 +76,10 @@ export function MermaidBlock({ code }: { code: string }) {
   }
 
   return (
-    <div ref={containerRef} className="my-2 overflow-auto rounded-md bg-white p-4 animate-pulse min-h-[60px] flex items-center justify-center text-muted-foreground text-sm">
+    <div
+      ref={containerRef}
+      className="my-2 overflow-auto rounded-md bg-white p-4 animate-pulse min-h-[60px] flex items-center justify-center text-muted-foreground text-sm"
+    >
       Loading diagram…
     </div>
   )

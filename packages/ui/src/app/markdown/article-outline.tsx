@@ -12,7 +12,7 @@ export function ArticleOutline({ headings, activeId, onNavigate }: ArticleOutlin
 
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest' })
-  }, [activeId])
+  }, [])
 
   if (headings.length === 0) return null
 

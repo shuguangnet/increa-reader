@@ -19,6 +19,8 @@ describe('cn', () => {
   })
 
   it('merges complex tailwind conflicts', () => {
-    expect(cn('text-red-500 hover:text-blue-500', 'text-green-500')).toBe('hover:text-blue-500 text-green-500')
+    expect(cn('text-red-500 hover:text-blue-500', 'text-green-500')).toBe(
+      'hover:text-blue-500 text-green-500',
+    )
   })
 })

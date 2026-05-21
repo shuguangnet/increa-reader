@@ -1,4 +1,4 @@
-import { Command, Search, PanelLeft, PanelRight, FileText, FilePlus } from 'lucide-react'
+import { Command, FilePlus, FileText, PanelLeft, PanelRight, Search } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
 
 const SHORTCUTS = [
@@ -15,25 +15,19 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone/.test(navigator.us
 
 function formatKeys(keys: string) {
   if (!isMac) return keys
-  return keys
-    .replace('Ctrl+', '⌘+')
-    .replace('Alt+', '⌥+')
-    .replace('Shift+', '⇧+')
+  return keys.replace('Ctrl+', '⌘+').replace('Alt+', '⌥+').replace('Shift+', '⇧+')
 }
 
 export function ShortcutsDialog() {
-  const open = useUIStore((s) => s.shortcutsOpen)
-  const setShortcutsOpen = useUIStore((s) => s.setShortcutsOpen)
-  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
+  const open = useUIStore(s => s.shortcutsOpen)
+  const setShortcutsOpen = useUIStore(s => s.setShortcutsOpen)
+  const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
 
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
-      <div
-        className="fixed inset-0 bg-black/50"
-        onClick={() => setShortcutsOpen(false)}
-      />
+      <div className="fixed inset-0 bg-black/50" onClick={() => setShortcutsOpen(false)} />
       <div className="relative z-[61] w-full max-w-md rounded-lg border bg-white p-6 shadow-2xl dark:bg-gray-900">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -49,7 +43,7 @@ export function ShortcutsDialog() {
         </div>
 
         <div className="space-y-1">
-          {SHORTCUTS.map((shortcut) => (
+          {SHORTCUTS.map(shortcut => (
             <div
               key={shortcut.keys}
               className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-accent transition-colors"

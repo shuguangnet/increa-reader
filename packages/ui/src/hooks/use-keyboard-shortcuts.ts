@@ -2,11 +2,11 @@ import { useEffect } from 'react'
 import { useUIStore } from '@/stores/ui-store'
 
 export function useKeyboardShortcuts() {
-  const toggleLeftPanel = useUIStore((s) => s.toggleLeftPanel)
-  const toggleRightPanel = useUIStore((s) => s.toggleRightPanel)
-  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
-  const setShortcutsOpen = useUIStore((s) => s.setShortcutsOpen)
-  const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
+  const toggleLeftPanel = useUIStore(s => s.toggleLeftPanel)
+  const toggleRightPanel = useUIStore(s => s.toggleRightPanel)
+  const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
+  const setShortcutsOpen = useUIStore(s => s.setShortcutsOpen)
+  const setSearchPanelOpen = useUIStore(s => s.setSearchPanelOpen)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -64,5 +64,11 @@ export function useKeyboardShortcuts() {
 
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [toggleLeftPanel, toggleRightPanel, setCommandPaletteOpen, setShortcutsOpen, setSearchPanelOpen])
+  }, [
+    toggleLeftPanel,
+    toggleRightPanel,
+    setCommandPaletteOpen,
+    setShortcutsOpen,
+    setSearchPanelOpen,
+  ])
 }

@@ -315,7 +315,7 @@ export const PDFPage = memo(function PDFPage({
     setPageData(cachedPageData)
     setError(null)
     setLoading(false)
-  }, [cachedPageData, cacheKey])
+  }, [cachedPageData])
 
   useEffect(() => {
     if (viewMode === 'markdown') {

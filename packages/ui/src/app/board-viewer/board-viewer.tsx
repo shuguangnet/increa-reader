@@ -1,6 +1,6 @@
-import { apiFetch } from '@/app/api'
 import { Pause, Play, RotateCcw, Save, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { apiFetch } from '@/app/api'
 import { Button } from '@/components/ui/button'
 import { getTab, useBoardStore } from '@/stores/board-store'
 import type { BoardFile } from '@/types/board'
@@ -26,11 +26,6 @@ export function BoardViewer({ repo, filePath, data }: BoardViewerProps) {
   const background = data?.canvas?.background ?? DEFAULT_BACKGROUND
   const [controlValues, setControlValues] = useState<Record<string, number>>({})
 
-  const controlsKey = useMemo(
-    () => (animation?.controls ? JSON.stringify(animation.controls) : ''),
-    [animation?.controls],
-  )
-
   useEffect(() => {
     if (!animation?.controls) {
       setControlValues({})
@@ -41,7 +36,7 @@ export function BoardViewer({ repo, filePath, data }: BoardViewerProps) {
       initial[name] = def.default ?? (def.type === 'range' ? def.min : 0)
     }
     setControlValues(initial)
-  }, [controlsKey])
+  }, [animation?.controls])
 
   const { position, scale, isDragging, containerRef, reset, zoomIn, zoomOut, handlers } =
     useCanvasNavigation()

@@ -74,7 +74,9 @@ export async function restoreWindowBounds(): Promise<void> {
     }
 
     const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
-    const { LogicalPosition, LogicalSize } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/dpi')
+    const { LogicalPosition, LogicalSize } = await import(
+      /* @vite-ignore */ '@tauri-apps' + '/api/dpi'
+    )
     const win = getCurrentWindow()
 
     if (bounds.maximized) {

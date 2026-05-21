@@ -1,9 +1,9 @@
-import { apiFetch, saveFile } from '@/app/api'
 import { GitCommit, History, Loader2, RotateCcw, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { apiFetch, saveFile } from '@/app/api'
 import { showToast } from '@/app/toast'
 import { EmptyState } from '@/components/empty-state'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 type VersionHistoryPanelProps = {
   repo: string
@@ -45,7 +45,9 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
     setError(null)
     setNoGit(false)
     try {
-      const res = await apiFetch(`/api/versions/${encodeURIComponent(repo)}/${encodeURIComponent(path)}`)
+      const res = await apiFetch(
+        `/api/versions/${encodeURIComponent(repo)}/${encodeURIComponent(path)}`,
+      )
       if (!res.ok) {
         if (res.status === 404) {
           setNoGit(true)
@@ -88,21 +90,24 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
     }
   }
 
-  const restoreVersion = useCallback(async (_hash: string, content: string) => {
-    setRestoring(true)
-    try {
-      await saveFile(repo, path, content)
-      showToast('已恢复到选定版本', 'success')
-      setViewHash(null)
-      setViewContent(null)
-      // Reload versions after restore
-      loadVersions()
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : '恢复版本失败', 'error')
-    } finally {
-      setRestoring(false)
-    }
-  }, [repo, path, loadVersions])
+  const restoreVersion = useCallback(
+    async (_hash: string, content: string) => {
+      setRestoring(true)
+      try {
+        await saveFile(repo, path, content)
+        showToast('已恢复到选定版本', 'success')
+        setViewHash(null)
+        setViewContent(null)
+        // Reload versions after restore
+        loadVersions()
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : '恢复版本失败', 'error')
+      } finally {
+        setRestoring(false)
+      }
+    },
+    [repo, path, loadVersions],
+  )
 
   const selectForDiff = (hash: string) => {
     if (diffFrom === null) {
@@ -223,9 +228,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
             </div>
           )}
 
-          {error && (
-            <div className="p-4 text-xs text-red-500 dark:text-red-400">{error}</div>
-          )}
+          {error && <div className="p-4 text-xs text-red-500 dark:text-red-400">{error}</div>}
 
           {noGit && (
             <div className="flex flex-col items-center justify-center gap-2 p-8 text-muted-foreground">
@@ -296,11 +299,17 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
           <div className="fixed inset-0 z-50 flex flex-col bg-background">
             <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
               <span className="text-sm font-medium">
-                版本 <span className="font-mono text-blue-600 dark:text-blue-400">{viewHash.slice(0, 7)}</span>
+                版本{' '}
+                <span className="font-mono text-blue-600 dark:text-blue-400">
+                  {viewHash.slice(0, 7)}
+                </span>
               </span>
               <button
                 type="button"
-                onClick={() => { setViewHash(null); setViewContent(null) }}
+                onClick={() => {
+                  setViewHash(null)
+                  setViewContent(null)
+                }}
                 className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors touch-target"
               >
                 <X size={16} />
@@ -342,16 +351,20 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
 
         {/* Diff modal - mobile fullscreen */}
         {(diffContent !== null || diffLoading) && diffFrom && diffTo && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-background"
-            onClick={cancelDiffMode}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b shrink-0"
+          <div className="fixed inset-0 z-50 flex flex-col bg-background" onClick={cancelDiffMode}>
+            <div
+              className="flex items-center justify-between px-4 py-3 border-b shrink-0"
               onClick={e => e.stopPropagation()}
             >
               <span className="text-sm font-medium">
-                对比 <span className="font-mono text-blue-600 dark:text-blue-400">{diffFrom.slice(0, 7)}</span>
+                对比{' '}
+                <span className="font-mono text-blue-600 dark:text-blue-400">
+                  {diffFrom.slice(0, 7)}
+                </span>
                 {' → '}
-                <span className="font-mono text-blue-600 dark:text-blue-400">{diffTo.slice(0, 7)}</span>
+                <span className="font-mono text-blue-600 dark:text-blue-400">
+                  {diffTo.slice(0, 7)}
+                </span>
               </span>
               <button
                 type="button"
@@ -361,18 +374,14 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
                 <X size={16} />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-4"
-              onClick={e => e.stopPropagation()}
-            >
+            <div className="flex-1 overflow-auto p-4" onClick={e => e.stopPropagation()}>
               {diffLoading && (
                 <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
                   <Loader2 size={16} className="animate-spin" />
                   加载 diff...
                 </div>
               )}
-              {diffContent !== null && (
-                <DiffView content={diffContent} />
-              )}
+              {diffContent !== null && <DiffView content={diffContent} />}
             </div>
           </div>
         )}
@@ -421,9 +430,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
             </div>
           )}
           {diffTo && (
-            <div className="text-xs font-mono text-muted-foreground">
-              新: {diffTo.slice(0, 7)}
-            </div>
+            <div className="text-xs font-mono text-muted-foreground">新: {diffTo.slice(0, 7)}</div>
           )}
         </div>
       )}
@@ -437,9 +444,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
           </div>
         )}
 
-        {error && (
-          <div className="p-3 text-xs text-red-500 dark:text-red-400">{error}</div>
-        )}
+        {error && <div className="p-3 text-xs text-red-500 dark:text-red-400">{error}</div>}
 
         {noGit && (
           <div className="flex flex-col items-center justify-center gap-2 p-6 text-muted-foreground">
@@ -507,15 +512,20 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
 
       {/* Version content modal — desktop */}
       {viewHash && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={() => setViewHash(null)}
         >
-          <div className="bg-background rounded-lg border border-border w-[640px] max-h-[80vh] flex flex-col shadow-xl"
+          <div
+            className="bg-background rounded-lg border border-border w-[640px] max-h-[80vh] flex flex-col shadow-xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
               <span className="text-sm font-medium">
-                版本 <span className="font-mono text-blue-600 dark:text-blue-400">{viewHash.slice(0, 7)}</span>
+                版本{' '}
+                <span className="font-mono text-blue-600 dark:text-blue-400">
+                  {viewHash.slice(0, 7)}
+                </span>
               </span>
               <button
                 type="button"
@@ -541,9 +551,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
             {/* Restore button */}
             {viewContent !== null && !viewLoading && (
               <div className="border-t px-4 py-3 flex items-center justify-between shrink-0">
-                <span className="text-xs text-muted-foreground">
-                  恢复此版本将覆盖当前文件内容
-                </span>
+                <span className="text-xs text-muted-foreground">恢复此版本将覆盖当前文件内容</span>
                 <button
                   type="button"
                   onClick={() => restoreVersion(viewHash, viewContent)}
@@ -565,17 +573,24 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
 
       {/* Diff modal — desktop */}
       {(diffContent !== null || diffLoading) && diffFrom && diffTo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={cancelDiffMode}
         >
-          <div className="bg-background rounded-lg border border-border w-[640px] max-h-[80vh] flex flex-col shadow-xl"
+          <div
+            className="bg-background rounded-lg border border-border w-[640px] max-h-[80vh] flex flex-col shadow-xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
               <span className="text-sm font-medium">
-                对比 <span className="font-mono text-blue-600 dark:text-blue-400">{diffFrom.slice(0, 7)}</span>
+                对比{' '}
+                <span className="font-mono text-blue-600 dark:text-blue-400">
+                  {diffFrom.slice(0, 7)}
+                </span>
                 {' → '}
-                <span className="font-mono text-blue-600 dark:text-blue-400">{diffTo.slice(0, 7)}</span>
+                <span className="font-mono text-blue-600 dark:text-blue-400">
+                  {diffTo.slice(0, 7)}
+                </span>
               </span>
               <button
                 type="button"
@@ -592,9 +607,7 @@ export function VersionHistoryPanel({ repo, path, onClose }: VersionHistoryPanel
                   加载 diff...
                 </div>
               )}
-              {diffContent !== null && (
-                <DiffView content={diffContent} />
-              )}
+              {diffContent !== null && <DiffView content={diffContent} />}
             </div>
           </div>
         </div>
@@ -625,7 +638,10 @@ function DiffView({ content }: { content: string }) {
         }
 
         return (
-          <div key={i} className={`${bg} ${colorClass} px-2 py-0.5 whitespace-pre-wrap break-words`}>
+          <div
+            key={i}
+            className={`${bg} ${colorClass} px-2 py-0.5 whitespace-pre-wrap break-words`}
+          >
             {line}
           </div>
         )

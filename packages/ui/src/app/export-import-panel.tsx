@@ -1,8 +1,8 @@
-import { apiFetch } from '@/app/api'
 import { Download, Loader2, Upload, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { apiFetch } from '@/app/api'
 import { showToast } from '@/app/toast'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 type ExportImportPanelProps = {
   repo: string
@@ -26,7 +26,11 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
   const [importProgress, setImportProgress] = useState<string | null>(null)
   const [importUrl, setImportUrl] = useState('')
   const [importingUrl, setImportingUrl] = useState(false)
-  const [importResults, setImportResults] = useState<Array<{ path: string; size?: number; error?: string }> | null>(null)
+  const [importResults, setImportResults] = useState<Array<{
+    path: string
+    size?: number
+    error?: string
+  }> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Download helper
@@ -42,17 +46,20 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
     URL.revokeObjectURL(url)
   }, [])
 
-  const downloadArrayBuffer = useCallback((data: ArrayBuffer, filename: string, mimeType: string) => {
-    const blob = new Blob([data], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }, [])
+  const downloadArrayBuffer = useCallback(
+    (data: ArrayBuffer, filename: string, mimeType: string) => {
+      const blob = new Blob([data], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
+    [],
+  )
 
   // Export single file
   const handleExport = useCallback(async () => {
@@ -72,7 +79,9 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
       if (exportFormat === 'pdf') {
         // Download PDF from temp path
         if (data.temp_path) {
-          const pdfRes = await apiFetch(`/api/export/pdf-download?temp_path=${encodeURIComponent(data.temp_path)}`)
+          const pdfRes = await apiFetch(
+            `/api/export/pdf-download?temp_path=${encodeURIComponent(data.temp_path)}`,
+          )
           if (!pdfRes.ok) throw new Error('PDF 下载失败')
           const pdfBuffer = await pdfRes.arrayBuffer()
           downloadArrayBuffer(pdfBuffer, data.filename, 'application/pdf')
@@ -131,43 +140,49 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
   }, [repo, zipDirectory, zipFormat])
 
   // Handle file upload
-  const handleFileUpload = useCallback(async (files: FileList | File[]) => {
-    setImportProgress('上传中...')
-    setImportResults(null)
-    const formData = new FormData()
-    formData.append('repo', repo)
-    formData.append('target_path', '')
-    for (const file of files) {
-      formData.append('files', file)
-    }
-
-    try {
-      const res = await apiFetch('/api/import/upload', {
-        method: 'POST',
-        body: formData,
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail || '导入失败')
+  const handleFileUpload = useCallback(
+    async (files: FileList | File[]) => {
+      setImportProgress('上传中...')
+      setImportResults(null)
+      const formData = new FormData()
+      formData.append('repo', repo)
+      formData.append('target_path', '')
+      for (const file of files) {
+        formData.append('files', file)
       }
-      const data = await res.json()
-      setImportResults(data.imported)
-      setImportProgress(null)
-      showToast('文件导入成功', 'success')
-    } catch (e) {
-      setImportProgress(null)
-      showToast(e instanceof Error ? e.message : '导入失败', 'error')
-    }
-  }, [repo])
+
+      try {
+        const res = await apiFetch('/api/import/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.detail || '导入失败')
+        }
+        const data = await res.json()
+        setImportResults(data.imported)
+        setImportProgress(null)
+        showToast('文件导入成功', 'success')
+      } catch (e) {
+        setImportProgress(null)
+        showToast(e instanceof Error ? e.message : '导入失败', 'error')
+      }
+    },
+    [repo],
+  )
 
   // Handle drag & drop
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.dataTransfer.files.length > 0) {
-      handleFileUpload(e.dataTransfer.files)
-    }
-  }, [handleFileUpload])
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.dataTransfer.files.length > 0) {
+        handleFileUpload(e.dataTransfer.files)
+      }
+    },
+    [handleFileUpload],
+  )
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -207,7 +222,9 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
   }
 
   return (
-    <div className={`flex flex-col h-full bg-background ${isMobile ? 'w-full' : 'border-l border-border w-80 min-w-[320px]'}`}>
+    <div
+      className={`flex flex-col h-full bg-background ${isMobile ? 'w-full' : 'border-l border-border w-80 min-w-[320px]'}`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -247,7 +264,11 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
                 disabled={exporting}
                 className="h-8 px-3 flex items-center gap-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
               >
-                {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                {exporting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Download size={14} />
+                )}
                 导出
               </button>
             </div>
@@ -374,9 +395,7 @@ export function ExportImportPanel({ repo, path, onClose }: ExportImportPanelProp
                   {item.size !== undefined && (
                     <span className="ml-2 text-muted-foreground">({formatSize(item.size)})</span>
                   )}
-                  {item.error && (
-                    <span className="ml-1">: {item.error}</span>
-                  )}
+                  {item.error && <span className="ml-1">: {item.error}</span>}
                 </div>
               ))}
             </div>

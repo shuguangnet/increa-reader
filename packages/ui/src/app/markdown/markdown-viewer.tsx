@@ -1,20 +1,29 @@
 import type { ComponentPropsWithoutRef, RefObject } from 'react'
-import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
 import { AlertTriangle, ListTree, RefreshCw, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
+import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { MarkdownNotesLayer } from '@/app/notes/markdown-notes-layer'
+import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { MermaidBlock } from '@/components/mermaid-block'
 import { useExternalLinks } from '@/hooks/use-external-links'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePref } from '@/hooks/use-pref'
-import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useTheme } from '@/hooks/use-theme'
+import { cn } from '@/lib/utils'
 import { ArticleOutline } from './article-outline'
 import { parseHeadings } from './heading-utils'
 import { useHeadingObserver } from './use-heading-observer'
@@ -67,11 +76,20 @@ function resolveImageSrc(
   return `/api/raw/${repo}/${resolved}`
 }
 
-export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY, scrollToLine }: MarkdownViewerProps) {
+export function MarkdownViewer({
+  body,
+  repoName,
+  filePath,
+  elementsRef,
+  scrollY,
+  scrollToLine,
+}: MarkdownViewerProps) {
   const pref = usePref('outline')
   const isMobile = useIsMobile()
   // On mobile, outline is hidden by default and shown as overlay; on desktop, visible by default as sidebar
-  const [showOutline, setShowOutline] = useState(() => isMobile ? false : pref.get('visible', true))
+  const [showOutline, setShowOutline] = useState(() =>
+    isMobile ? false : pref.get('visible', true),
+  )
   const markdownRef = useExternalLinks()
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -118,7 +136,7 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
       observer.disconnect()
       elements.clear()
     }
-  }, [body, elementsRef])
+  }, [elementsRef])
 
   const toggleOutline = useCallback(() => {
     const next = !showOutline
@@ -128,14 +146,17 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
     }
   }, [showOutline, pref, isMobile])
 
-  const handleNavigateAndCloseMobile = useCallback((id: string) => {
-    const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    // On mobile, close the outline drawer after navigation
-    if (isMobile) {
-      setShowOutline(false)
-    }
-  }, [isMobile])
+  const handleNavigateAndCloseMobile = useCallback(
+    (id: string) => {
+      const el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // On mobile, close the outline drawer after navigation
+      if (isMobile) {
+        setShowOutline(false)
+      }
+    },
+    [isMobile],
+  )
 
   // Restore scroll position after content renders
   useEffect(() => {
@@ -149,7 +170,7 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [body, scrollY])
+  }, [scrollY])
 
   // Scroll to a specific source line number (from search results)
   useEffect(() => {
@@ -164,7 +185,10 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
       // Search for elements containing text that matches the line
       const allElements = container.querySelectorAll('.prose > *')
       for (const el of allElements) {
-        if (el.textContent?.trim().includes(targetLineContent) || targetLineContent.includes(el.textContent?.trim() || '')) {
+        if (
+          el.textContent?.trim().includes(targetLineContent) ||
+          targetLineContent.includes(el.textContent?.trim() || '')
+        ) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' })
           el.classList.add('ring-2', 'ring-yellow-400', 'rounded', 'transition-all')
           setTimeout(() => {
@@ -191,7 +215,9 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
   const components = useMemo(
     () => ({
       img({ src, alt, ...props }: ComponentPropsWithoutRef<'img'>) {
-        return <img src={resolveImageSrc(src, repoName, filePath)} alt={alt} loading="lazy" {...props} />
+        return (
+          <img src={resolveImageSrc(src, repoName, filePath)} alt={alt} loading="lazy" {...props} />
+        )
       },
       code({ className, children, ...props }: ComponentPropsWithoutRef<'code'>) {
         const match = /language-(\w+)/.exec(className || '')
@@ -220,7 +246,7 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
         )
       },
     }),
-    [repoName, filePath],
+    [repoName, filePath, codeStyle],
   )
 
   const outlineVisible = showOutline && headings.length > 0
@@ -293,11 +319,9 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
       {/* Mobile: bottom sheet outline drawer */}
       {outlineVisible && isMobile && (
         <>
+          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setShowOutline(false)} />
           <div
-            className="fixed inset-0 z-40 bg-black/50"
-            onClick={() => setShowOutline(false)}
-          />
-          <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col bg-white dark:bg-gray-900 rounded-t-xl shadow-2xl animate-in slide-in-from-bottom duration-200 safe-top"
+            className="fixed inset-x-0 bottom-0 z-50 flex flex-col bg-white dark:bg-gray-900 rounded-t-xl shadow-2xl animate-in slide-in-from-bottom duration-200 safe-top"
             style={{ maxHeight: '60dvh' }}
           >
             {/* Drag handle */}
@@ -320,7 +344,11 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
             </div>
             {/* Outline content */}
             <div className="flex-1 overflow-auto overscroll-contain px-2 pb-4 safe-bottom">
-              <ArticleOutline headings={headings} activeId={activeId} onNavigate={handleNavigateAndCloseMobile} />
+              <ArticleOutline
+                headings={headings}
+                activeId={activeId}
+                onNavigate={handleNavigateAndCloseMobile}
+              />
             </div>
           </div>
         </>
@@ -335,7 +363,7 @@ export function MarkdownViewer({ body, repoName, filePath, elementsRef, scrollY,
             'absolute z-10 p-1.5 rounded-md transition-colors',
             isMobile
               ? 'bottom-3 right-3 bg-primary text-primary-foreground shadow-lg touch-target'
-              : 'top-2 right-2 bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm'
+              : 'top-2 right-2 bg-background/80 border border-border text-muted-foreground hover:text-foreground backdrop-blur-sm',
           )}
           title={showOutline ? '隐藏大纲' : '显示大纲'}
         >

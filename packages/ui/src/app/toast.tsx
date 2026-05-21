@@ -1,5 +1,5 @@
+import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Info, AlertTriangle, X } from 'lucide-react'
 
 type ToastType = 'success' | 'error' | 'info'
 
@@ -48,10 +48,28 @@ export function useToasts() {
   return { toasts, dismiss: dismissToast }
 }
 
-const TOAST_STYLES: Record<ToastType, { bg: string; border: string; icon: typeof CheckCircle2; iconColor: string }> = {
-  success: { bg: 'bg-emerald-50 dark:bg-emerald-950/50', border: 'border-emerald-200 dark:border-emerald-800', icon: CheckCircle2, iconColor: 'text-emerald-600 dark:text-emerald-400' },
-  error: { bg: 'bg-red-50 dark:bg-red-950/50', border: 'border-red-200 dark:border-red-800', icon: AlertTriangle, iconColor: 'text-red-600 dark:text-red-400' },
-  info: { bg: 'bg-blue-50 dark:bg-blue-950/50', border: 'border-blue-200 dark:border-blue-800', icon: Info, iconColor: 'text-blue-600 dark:text-blue-400' },
+const TOAST_STYLES: Record<
+  ToastType,
+  { bg: string; border: string; icon: typeof CheckCircle2; iconColor: string }
+> = {
+  success: {
+    bg: 'bg-emerald-50 dark:bg-emerald-950/50',
+    border: 'border-emerald-200 dark:border-emerald-800',
+    icon: CheckCircle2,
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+  },
+  error: {
+    bg: 'bg-red-50 dark:bg-red-950/50',
+    border: 'border-red-200 dark:border-red-800',
+    icon: AlertTriangle,
+    iconColor: 'text-red-600 dark:text-red-400',
+  },
+  info: {
+    bg: 'bg-blue-50 dark:bg-blue-950/50',
+    border: 'border-blue-200 dark:border-blue-800',
+    icon: Info,
+    iconColor: 'text-blue-600 dark:text-blue-400',
+  },
 }
 
 export function ToastContainer() {

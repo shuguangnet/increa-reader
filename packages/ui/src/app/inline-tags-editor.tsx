@@ -1,6 +1,6 @@
-import { apiFetch } from '@/app/api'
 import { Hash, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { apiFetch } from '@/app/api'
 import { showToast } from '@/app/toast'
 
 type InlineTagsEditorProps = {
@@ -24,7 +24,9 @@ export function InlineTagsEditor({ repo, path }: InlineTagsEditorProps) {
     if (!repo || !path) return
     try {
       const [fileRes, allRes] = await Promise.all([
-        apiFetch(`/api/tags/file?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`),
+        apiFetch(
+          `/api/tags/file?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`,
+        ),
         apiFetch('/api/tags'),
       ])
       const fileData = await fileRes.json()
@@ -37,7 +39,9 @@ export function InlineTagsEditor({ repo, path }: InlineTagsEditorProps) {
     }
   }, [repo, path])
 
-  useEffect(() => { loadTags() }, [loadTags])
+  useEffect(() => {
+    loadTags()
+  }, [loadTags])
 
   // Auto-focus input when shown
   useEffect(() => {
@@ -46,55 +50,63 @@ export function InlineTagsEditor({ repo, path }: InlineTagsEditorProps) {
     }
   }, [inputVisible])
 
-  const addTag = useCallback(async (tagName?: string) => {
-    const tag = (tagName ?? newTag).trim()
-    if (!tag || !repo || !path) return
-    if (fileTags.includes(tag)) {
-      setInputVisible(false)
-      setNewTag('')
-      return
-    }
-    setLoading(true)
-    try {
-      await apiFetch('/api/tags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_path: path, repo, tags: [tag] }),
-      })
-      setNewTag('')
-      setInputVisible(false)
-      showToast(`标签 "${tag}" 已添加`, 'success')
-      await loadTags()
-    } catch {
-      showToast('添加标签失败', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [newTag, repo, path, fileTags, loadTags])
+  const addTag = useCallback(
+    async (tagName?: string) => {
+      const tag = (tagName ?? newTag).trim()
+      if (!tag || !repo || !path) return
+      if (fileTags.includes(tag)) {
+        setInputVisible(false)
+        setNewTag('')
+        return
+      }
+      setLoading(true)
+      try {
+        await apiFetch('/api/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_path: path, repo, tags: [tag] }),
+        })
+        setNewTag('')
+        setInputVisible(false)
+        showToast(`标签 "${tag}" 已添加`, 'success')
+        await loadTags()
+      } catch {
+        showToast('添加标签失败', 'error')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [newTag, repo, path, fileTags, loadTags],
+  )
 
-  const removeTag = useCallback(async (tagName: string) => {
-    if (!repo || !path) return
-    try {
-      await apiFetch('/api/tags', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_path: path, repo, tags: [tagName] }),
-      })
-      showToast(`标签 "${tagName}" 已移除`, 'info')
-      await loadTags()
-    } catch {
-      showToast('移除标签失败', 'error')
-    }
-  }, [repo, path, loadTags])
+  const removeTag = useCallback(
+    async (tagName: string) => {
+      if (!repo || !path) return
+      try {
+        await apiFetch('/api/tags', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_path: path, repo, tags: [tagName] }),
+        })
+        showToast(`标签 "${tagName}" 已移除`, 'info')
+        await loadTags()
+      } catch {
+        showToast('移除标签失败', 'error')
+      }
+    },
+    [repo, path, loadTags],
+  )
 
   // Compute suggestions: existing tags that match input and aren't already on this file
-  const suggestions = allTags.filter(name => {
-    if (!newTag.trim()) return false
-    const q = newTag.trim().toLowerCase()
-    if (!name.toLowerCase().includes(q)) return false
-    if (fileTags.includes(name)) return false
-    return true
-  }).slice(0, 5)
+  const suggestions = allTags
+    .filter(name => {
+      if (!newTag.trim()) return false
+      const q = newTag.trim().toLowerCase()
+      if (!name.toLowerCase().includes(q)) return false
+      if (fileTags.includes(name)) return false
+      return true
+    })
+    .slice(0, 5)
 
   if (fileTags.length === 0 && !inputVisible) {
     return (
@@ -116,7 +128,9 @@ export function InlineTagsEditor({ repo, path }: InlineTagsEditorProps) {
           key={tag}
           className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-accent text-accent-foreground group/tag"
         >
-          <span className="truncate max-w-[80px]" title={tag}>{tag}</span>
+          <span className="truncate max-w-[80px]" title={tag}>
+            {tag}
+          </span>
           <button
             type="button"
             onClick={() => removeTag(tag)}
@@ -161,7 +175,7 @@ export function InlineTagsEditor({ repo, path }: InlineTagsEditorProps) {
                 <button
                   key={name}
                   type="button"
-                  onMouseDown={(e) => {
+                  onMouseDown={e => {
                     e.preventDefault()
                     addTag(name)
                   }}

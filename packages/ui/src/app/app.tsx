@@ -4,25 +4,35 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { AppSkeleton } from '@/components/skeleton'
 import { VisibleContentProvider } from '../contexts/visible-content-context'
 import { useFavoritesStore } from '../stores/favorites-store'
-import { useRecentFilesStore } from '../stores/recent-files-store'
-import { useProgressStore } from '../stores/progress-store'
-import { useTabsStore } from '../stores/tabs-store'
-import { useSearchHistoryStore } from '../stores/search-history-store'
-import { useUIStore } from '../stores/ui-store'
 import { useFileTreeStore } from '../stores/file-tree-store'
+import { useProgressStore } from '../stores/progress-store'
+import { useRecentFilesStore } from '../stores/recent-files-store'
+import { useSearchHistoryStore } from '../stores/search-history-store'
+import { useTabsStore } from '../stores/tabs-store'
+import { useUIStore } from '../stores/ui-store'
 import { Layout } from './layout'
 import { TabbedViewer } from './tabs/tabbed-viewer'
 
 const HomePage = lazy(() => import('./home-page').then(m => ({ default: m.HomePage })))
-const BoardViewer = lazy(() => import('./board-viewer/board-viewer').then(m => ({ default: m.BoardViewer })))
-const KnowledgeGraph = lazy(() => import('./knowledge-graph').then(m => ({ default: m.KnowledgeGraph })))
+const BoardViewer = lazy(() =>
+  import('./board-viewer/board-viewer').then(m => ({ default: m.BoardViewer })),
+)
+const KnowledgeGraph = lazy(() =>
+  import('./knowledge-graph').then(m => ({ default: m.KnowledgeGraph })),
+)
 
 /** Preload lazy components on hover/focus for instant navigation */
 export function prefetch(route: 'home' | 'board' | 'graph') {
   switch (route) {
-    case 'home': import('./home-page'); break
-    case 'board': import('./board-viewer/board-viewer'); break
-    case 'graph': import('./knowledge-graph'); break
+    case 'home':
+      import('./home-page')
+      break
+    case 'board':
+      import('./board-viewer/board-viewer')
+      break
+    case 'graph':
+      import('./knowledge-graph')
+      break
   }
 }
 

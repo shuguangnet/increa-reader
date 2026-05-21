@@ -93,9 +93,7 @@ export function SettingsDrawer({ open, onOpenChange, onReposChanged }: SettingsD
           <TabsContent value="repositories" className="flex flex-1 flex-col overflow-hidden">
             <div className="flex-1 overflow-auto px-4">
               {repos.length === 0 && (
-                <p className="py-4 text-center text-sm text-muted-foreground">
-                  未配置仓库
-                </p>
+                <p className="py-4 text-center text-sm text-muted-foreground">未配置仓库</p>
               )}
               <ul className="space-y-2">
                 {repos.map((repo, index) => (

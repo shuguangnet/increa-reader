@@ -145,9 +145,12 @@ export function PDFViewer({ repo, filePath, metadata }: PDFViewerProps) {
     useTabsStore.getState().setPageNumber(tabId, currentPage)
   }, [currentPage, tabId])
 
-  const scrollToPage = useCallback((page: number) => {
-    rowVirtualizer.scrollToIndex(page - 1, { align: 'center' })
-  }, [rowVirtualizer])
+  const scrollToPage = useCallback(
+    (page: number) => {
+      rowVirtualizer.scrollToIndex(page - 1, { align: 'center' })
+    },
+    [rowVirtualizer],
+  )
 
   const fileName = filePath.split('/').pop() || 'document.pdf'
   const displayTitle = metadata.title || fileName
@@ -174,7 +177,7 @@ export function PDFViewer({ repo, filePath, metadata }: PDFViewerProps) {
 
   useEffect(() => {
     setDraftNotes([])
-  }, [repo, filePath])
+  }, [])
 
   const handleCreateDraft = useCallback((page: number, xRatio: number, yRatio: number) => {
     setDraftNotes(prev => [...prev, createDraftPDFNote('yellow', { page, xRatio, yRatio })])

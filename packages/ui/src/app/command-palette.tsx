@@ -1,25 +1,24 @@
-import { apiFetch } from '@/app/api'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-// useMemo is used below for viewContext stabilization
-import { useNavigate } from 'react-router-dom'
 import {
   Command,
   FilePlus,
+  FileText,
   FolderPlus,
+  GitBranch,
   Moon,
+  Network,
   Search,
   Star,
-  GitBranch,
-  Network,
-  FileText,
 } from 'lucide-react'
-
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+// useMemo is used below for viewContext stabilization
+import { useNavigate } from 'react-router-dom'
+import { apiFetch } from '@/app/api'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useTheme } from '@/hooks/use-theme'
 import { useFavoritesStore } from '@/stores/favorites-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useViewContext } from '@/stores/view-context'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { type TreeNode } from './api'
+import type { TreeNode } from './api'
 
 type PaletteItem = {
   id: string
@@ -51,15 +50,15 @@ function flattenTree(repo: string, nodes: TreeNode[], prefix = ''): FlatFile[] {
 }
 
 export function CommandPalette() {
-  const open = useUIStore((s) => s.commandPaletteOpen)
-  const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen)
-  const setShortcutsOpen = useUIStore((s) => s.setShortcutsOpen)
-  const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
+  const open = useUIStore(s => s.commandPaletteOpen)
+  const setCommandPaletteOpen = useUIStore(s => s.setCommandPaletteOpen)
+  const setShortcutsOpen = useUIStore(s => s.setShortcutsOpen)
+  const setSearchPanelOpen = useUIStore(s => s.setSearchPanelOpen)
   const navigate = useNavigate()
   const { toggle: toggleTheme } = useTheme()
-  const addFavorite = useFavoritesStore((s) => s.addFavorite)
-  const viewRepo = useViewContext((s) => s.repo)
-  const viewPath = useViewContext((s) => s.path)
+  const addFavorite = useFavoritesStore(s => s.addFavorite)
+  const viewRepo = useViewContext(s => s.repo)
+  const viewPath = useViewContext(s => s.path)
   const viewContext = useMemo(() => ({ repo: viewRepo, path: viewPath }), [viewRepo, viewPath])
   const isMobile = useIsMobile()
 
@@ -77,8 +76,8 @@ export function CommandPalette() {
     setFilesError(null)
 
     apiFetch('/api/workspace/tree')
-      .then((res) => res.json())
-      .then((data) => {
+      .then(res => res.json())
+      .then(data => {
         const repoList: { name: string; files: TreeNode[] }[] = data.data || []
         const allFiles: FlatFile[] = []
         for (const repo of repoList) {
@@ -87,7 +86,7 @@ export function CommandPalette() {
         setFiles(allFiles)
         setFilesError(null)
       })
-      .catch((err) => {
+      .catch(err => {
         console.error(err)
         setFilesError('加载文件列表失败')
         setFiles([])
@@ -186,100 +185,108 @@ export function CommandPalette() {
         },
       },
     ],
-    [toggleTheme, navigate, viewContext, addFavorite, setCommandPaletteOpen, setShortcutsOpen, setSearchPanelOpen],
+    [
+      toggleTheme,
+      navigate,
+      viewContext,
+      addFavorite,
+      setCommandPaletteOpen,
+      setShortcutsOpen,
+      setSearchPanelOpen,
+    ],
   )
 
-/**
- * Fuzzy path matching: split query into segments and match each segment
- * against path parts. Supports:
- * - Pure substring: "readme" → matches "docs/readme.md"
- * - Path-based: "docs/read" → matches "docs/README.md"
- * - CamelCase/PascalCase initials: "mv" → matches "MarkdownViewer"
- * - Split by separators: "d/r" → matches segments starting with d then r
- */
-function fuzzyMatchPath(query: string, path: string, name: string): boolean {
-  const q = query.toLowerCase()
-  const lowerPath = path.toLowerCase()
-  const lowerName = name.toLowerCase()
+  /**
+   * Fuzzy path matching: split query into segments and match each segment
+   * against path parts. Supports:
+   * - Pure substring: "readme" → matches "docs/readme.md"
+   * - Path-based: "docs/read" → matches "docs/README.md"
+   * - CamelCase/PascalCase initials: "mv" → matches "MarkdownViewer"
+   * - Split by separators: "d/r" → matches segments starting with d then r
+   */
+  function fuzzyMatchPath(query: string, path: string, name: string): boolean {
+    const q = query.toLowerCase()
+    const lowerPath = path.toLowerCase()
+    const lowerName = name.toLowerCase()
 
-  // 1. Direct substring match (fastest)
-  if (lowerName.includes(q) || lowerPath.includes(q)) return true
+    // 1. Direct substring match (fastest)
+    if (lowerName.includes(q) || lowerPath.includes(q)) return true
 
-  // 2. Path segment matching: "docs/read" → ["docs", "read"]
-  //    Each query segment must match the start of a path segment in order
-  const queryParts = q.split(/[/\\]+/).filter(Boolean)
-  if (queryParts.length > 1) {
-    const pathParts = lowerPath.split(/[/\\]+/)
-    let pi = 0
-    for (const qp of queryParts) {
-      while (pi < pathParts.length) {
-        if (pathParts[pi].startsWith(qp)) break
+    // 2. Path segment matching: "docs/read" → ["docs", "read"]
+    //    Each query segment must match the start of a path segment in order
+    const queryParts = q.split(/[/\\]+/).filter(Boolean)
+    if (queryParts.length > 1) {
+      const pathParts = lowerPath.split(/[/\\]+/)
+      let pi = 0
+      for (const qp of queryParts) {
+        while (pi < pathParts.length) {
+          if (pathParts[pi].startsWith(qp)) break
+          pi++
+        }
+        if (pi >= pathParts.length) return false
         pi++
       }
-      if (pi >= pathParts.length) return false
-      pi++
+      return true
     }
-    return true
+
+    // 3. CamelCase / PascalCase initial matching: "mv" → "MarkdownViewer"
+    if (q.length <= 5 && q.length >= 1) {
+      const initials = name
+        .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase split
+        .replace(/[-_.]/g, ' ') // separator split
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(s => s[0].toLowerCase())
+        .join('')
+      if (initials.includes(q)) return true
+    }
+
+    // 4. Character-by-character fuzzy match
+    //    Each query char must appear in order within the path
+    let qi = 0
+    for (let i = 0; i < lowerPath.length && qi < q.length; i++) {
+      if (lowerPath[i] === q[qi]) qi++
+    }
+    return qi === q.length
   }
 
-  // 3. CamelCase / PascalCase initial matching: "mv" → "MarkdownViewer"
-  if (q.length <= 5 && q.length >= 1) {
-    const initials = name
-      .replace(/([a-z])([A-Z])/g, '$1 $2')  // camelCase split
-      .replace(/[-_.]/g, ' ')                  // separator split
-      .split(/\s+/)
-      .filter(Boolean)
-      .map(s => s[0].toLowerCase())
-      .join('')
-    if (initials.includes(q)) return true
+  function matchScore(query: string, path: string, name: string): number {
+    const q = query.toLowerCase()
+    const lowerName = name.toLowerCase()
+    const lowerPath = path.toLowerCase()
+
+    // Exact name match → highest
+    if (lowerName === q) return 1000
+    // Name starts with query → very high
+    if (lowerName.startsWith(q)) return 800
+    // Path starts with query → high
+    if (lowerPath.startsWith(q)) return 600
+    // Name contains query → medium
+    if (lowerName.includes(q)) return 400
+    // Path contains query → lower
+    if (lowerPath.includes(q)) return 200
+    // Fuzzy match → lowest
+    return 100
   }
-
-  // 4. Character-by-character fuzzy match
-  //    Each query char must appear in order within the path
-  let qi = 0
-  for (let i = 0; i < lowerPath.length && qi < q.length; i++) {
-    if (lowerPath[i] === q[qi]) qi++
-  }
-  return qi === q.length
-}
-
-function matchScore(query: string, path: string, name: string): number {
-  const q = query.toLowerCase()
-  const lowerName = name.toLowerCase()
-  const lowerPath = path.toLowerCase()
-
-  // Exact name match → highest
-  if (lowerName === q) return 1000
-  // Name starts with query → very high
-  if (lowerName.startsWith(q)) return 800
-  // Path starts with query → high
-  if (lowerPath.startsWith(q)) return 600
-  // Name contains query → medium
-  if (lowerName.includes(q)) return 400
-  // Path contains query → lower
-  if (lowerPath.includes(q)) return 200
-  // Fuzzy match → lowest
-  return 100
-}
 
   const filteredItems: PaletteItem[] = useMemo(() => {
     const q = query.toLowerCase().trim()
 
     const matchedCommands: PaletteItem[] = q
-      ? commands.filter((c) => c.label.toLowerCase().includes(q))
+      ? commands.filter(c => c.label.toLowerCase().includes(q))
       : commands
 
     let matchedFiles: FlatFile[]
     if (q) {
       matchedFiles = files
-        .filter((f) => fuzzyMatchPath(q, f.path, f.name))
+        .filter(f => fuzzyMatchPath(q, f.path, f.name))
         .sort((a, b) => matchScore(q, b.path, b.name) - matchScore(q, a.path, a.name))
         .slice(0, 50)
     } else {
       matchedFiles = files.slice(0, 50)
     }
 
-    const fileItems: PaletteItem[] = matchedFiles.map((f) => ({
+    const fileItems: PaletteItem[] = matchedFiles.map(f => ({
       id: `file:${f.repo}:${f.path}`,
       label: f.path,
       sublabel: f.repo,
@@ -292,12 +299,12 @@ function matchScore(query: string, path: string, name: string): number {
     }))
 
     return [...matchedCommands, ...fileItems]
-  }, [query, commands, files, navigate, setCommandPaletteOpen])
+  }, [query, commands, files, navigate, setCommandPaletteOpen, fuzzyMatchPath, matchScore])
 
   // Reset selected index when query changes
   useEffect(() => {
     setSelectedIndex(0)
-  }, [query])
+  }, [])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -307,12 +314,12 @@ function matchScore(query: string, path: string, name: string): number {
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setSelectedIndex((i) => Math.min(i + 1, filteredItems.length - 1))
+        setSelectedIndex(i => Math.min(i + 1, filteredItems.length - 1))
         return
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setSelectedIndex((i) => Math.max(i - 1, 0))
+        setSelectedIndex(i => Math.max(i - 1, 0))
         return
       }
       if (e.key === 'Enter') {
@@ -328,8 +335,8 @@ function matchScore(query: string, path: string, name: string): number {
 
   if (!open) return null
 
-  const commandItems = filteredItems.filter((i) => i.group === 'commands')
-  const fileItems = filteredItems.filter((i) => i.group === 'files')
+  const commandItems = filteredItems.filter(i => i.group === 'commands')
+  const fileItems = filteredItems.filter(i => i.group === 'files')
 
   // Mobile: bottom sheet
   if (isMobile) {
@@ -339,7 +346,8 @@ function matchScore(query: string, path: string, name: string): number {
           className="absolute inset-0 bg-black/50"
           onClick={() => setCommandPaletteOpen(false)}
         />
-        <div className="relative flex flex-col bg-white dark:bg-gray-900 rounded-t-xl shadow-2xl animate-in slide-in-from-bottom duration-200 safe-top"
+        <div
+          className="relative flex flex-col bg-white dark:bg-gray-900 rounded-t-xl shadow-2xl animate-in slide-in-from-bottom duration-200 safe-top"
           style={{ height: '90dvh' }}
         >
           {/* Drag handle */}
@@ -353,7 +361,7 @@ function matchScore(query: string, path: string, name: string): number {
             <input
               ref={inputRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={e => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="输入命令或搜索文件..."
               className="flex-1 bg-transparent px-3 py-3 text-sm outline-none placeholder:text-muted-foreground"
@@ -412,7 +420,9 @@ function matchScore(query: string, path: string, name: string): number {
                       <span className="shrink-0 text-muted-foreground">{item.icon}</span>
                       <span className="min-w-0 flex-1 truncate">{item.label}</span>
                       {item.sublabel && (
-                        <span className="shrink-0 text-xs text-muted-foreground">{item.sublabel}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {item.sublabel}
+                        </span>
                       )}
                     </button>
                   )
@@ -422,11 +432,7 @@ function matchScore(query: string, path: string, name: string): number {
 
             {(filteredItems.length === 0 || filesError) && (
               <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                {filesError ? (
-                  <span className="text-red-500">{filesError}</span>
-                ) : (
-                  '未找到结果'
-                )}
+                {filesError ? <span className="text-red-500">{filesError}</span> : '未找到结果'}
               </div>
             )}
           </div>
@@ -444,10 +450,7 @@ function matchScore(query: string, path: string, name: string): number {
   // Desktop: centered dialog
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center pt-4 md:pt-[15vh] md:px-4">
-      <div
-        className="fixed inset-0 bg-black/50"
-        onClick={() => setCommandPaletteOpen(false)}
-      />
+      <div className="fixed inset-0 bg-black/50" onClick={() => setCommandPaletteOpen(false)} />
       <div className="relative z-[61] w-[calc(100%-2rem)] max-w-lg rounded-lg border bg-white shadow-2xl dark:bg-gray-900 md:w-full">
         {/* Search input */}
         <div className="flex items-center border-b px-3">
@@ -455,7 +458,7 @@ function matchScore(query: string, path: string, name: string): number {
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="输入命令或搜索文件..."
             className="flex-1 bg-transparent px-3 py-3 text-sm outline-none placeholder:text-muted-foreground"
@@ -512,7 +515,9 @@ function matchScore(query: string, path: string, name: string): number {
                     <span className="shrink-0 text-muted-foreground">{item.icon}</span>
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     {item.sublabel && (
-                      <span className="shrink-0 text-xs text-muted-foreground">{item.sublabel}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {item.sublabel}
+                      </span>
                     )}
                   </button>
                 )
@@ -522,11 +527,7 @@ function matchScore(query: string, path: string, name: string): number {
 
           {(filteredItems.length === 0 || filesError) && (
             <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-              {filesError ? (
-                <span className="text-red-500">{filesError}</span>
-              ) : (
-                '未找到结果'
-              )}
+              {filesError ? <span className="text-red-500">{filesError}</span> : '未找到结果'}
             </div>
           )}
         </div>

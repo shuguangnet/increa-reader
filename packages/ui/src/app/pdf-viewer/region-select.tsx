@@ -1,6 +1,6 @@
-import { apiFetch } from '@/app/api'
 import { Copy, MessageSquare, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { apiFetch } from '@/app/api'
 import { useSelectionQueue } from '@/contexts/selection-context'
 
 type Rect = { x: number; y: number; w: number; h: number }

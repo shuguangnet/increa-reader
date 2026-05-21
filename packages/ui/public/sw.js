@@ -42,7 +42,7 @@ const IMAGE_CACHE_MAX_ENTRIES = 200
 const TRIM_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
 
 // ── Online/Offline Tracking ──────────────────────────────────────────
-let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
+let _isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
 
 // ── Request Deduplication ────────────────────────────────────────────
 // Map of in-flight SWR requests to avoid duplicate fetches
@@ -71,10 +71,10 @@ const SWR_API_PATTERNS = [
 
 // API paths that should NEVER be cached (streams, mutations, large binary)
 const NEVER_CACHE_API_PATTERNS = [
-  /\/api\/chat\/query/,       // SSE streaming endpoint
-  /\/api\/pdf\/page-render/,  // Large binary responses (SVG/PNG)
-  /\/api\/preview/,           // Dynamic binary preview
-  /\/api\/temp-image\//,     // Temporary images — may be cleaned up server-side
+  /\/api\/chat\/query/, // SSE streaming endpoint
+  /\/api\/pdf\/page-render/, // Large binary responses (SVG/PNG)
+  /\/api\/preview/, // Dynamic binary preview
+  /\/api\/temp-image\//, // Temporary images — may be cleaned up server-side
 ]
 
 // Immutable asset patterns (font files, hashed Vite assets)
@@ -87,12 +87,7 @@ const IMMUTABLE_PATTERNS = [
 const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|svg|webp|avif|ico)$/i
 
 // Known image paths (screenshots, icons, manifest assets)
-const KNOWN_IMAGE_PATHS = [
-  '/screenshots/',
-  '/icon-',
-  '/apple-touch-icon',
-]
-
+const KNOWN_IMAGE_PATHS = ['/screenshots/', '/icon-', '/apple-touch-icon']
 
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 1: Cache First (static assets, fonts, hashed resources)
@@ -102,11 +97,13 @@ async function cacheFirst(request, cacheName = STATIC_CACHE) {
   if (cached) {
     // Revalidate in background for non-font/non-image resources
     if (cacheName === STATIC_CACHE) {
-      fetch(request).then((freshResponse) => {
-        if (freshResponse.ok) {
-          caches.open(cacheName).then((cache) => cache.put(request, freshResponse))
-        }
-      }).catch(() => {})
+      fetch(request)
+        .then(freshResponse => {
+          if (freshResponse.ok) {
+            caches.open(cacheName).then(cache => cache.put(request, freshResponse))
+          }
+        })
+        .catch(() => {})
     }
     return cached
   }
@@ -126,7 +123,6 @@ async function cacheFirst(request, cacheName = STATIC_CACHE) {
   }
 }
 
-
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 2: Stale-While-Revalidate (API data endpoints)
 // Returns cached immediately, updates cache in background
@@ -137,13 +133,13 @@ async function staleWhileRevalidate(request) {
   const cached = await cache.match(request)
 
   // Check if the cached entry is stale beyond TTL
-  let isExpired = false
+  let _isExpired = false
   if (cached) {
     const timestamp = cached.headers.get('sw-cache-timestamp')
     if (timestamp) {
       const age = Date.now() - parseInt(timestamp, 10)
       // If older than 2x TTL, mark as expired but still return it
-      isExpired = age > API_CACHE_TTL_MS * 2
+      _isExpired = age > API_CACHE_TTL_MS * 2
     }
   }
 
@@ -160,10 +156,13 @@ async function staleWhileRevalidate(request) {
     // No cache — wait for the in-flight fetch to resolve
     try {
       const response = await inFlightRequests.get(urlKey)
-      return response || new Response(JSON.stringify({ error: 'Offline', data: null }), {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return (
+        response ||
+        new Response(JSON.stringify({ error: 'Offline', data: null }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
     } catch {
       return new Response(JSON.stringify({ error: 'Offline', data: null }), {
         status: 503,
@@ -174,7 +173,7 @@ async function staleWhileRevalidate(request) {
 
   // Fetch fresh data in the background (or foreground if no cache)
   const fetchPromise = fetch(request)
-    .then((response) => {
+    .then(response => {
       if (response.ok) {
         // Efficient caching: clone response and inject timestamp header
         // We use the clone() + new Response(headers) approach instead of
@@ -186,7 +185,7 @@ async function staleWhileRevalidate(request) {
       inFlightRequests.delete(urlKey)
       return response
     })
-    .catch((err) => {
+    .catch(_err => {
       inFlightRequests.delete(urlKey)
       return null
     })
@@ -226,7 +225,7 @@ function injectTimestamp(response, source) {
   headers.set('sw-cache-source', source)
 
   // Return a new Response that can be put in cache without additional cloning
-  return response.arrayBuffer().then((body) => {
+  return response.arrayBuffer().then(body => {
     return new Response(body, {
       status: response.status,
       statusText: response.statusText,
@@ -234,7 +233,6 @@ function injectTimestamp(response, source) {
     })
   })
 }
-
 
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 3: Network First with offline fallback (navigation)
@@ -247,7 +245,7 @@ async function networkFirstNavigation(request, preloadResponsePromise) {
   if (preloadResponsePromise) {
     try {
       const preloadResponse = await preloadResponsePromise
-      if (preloadResponse && preloadResponse.ok) {
+      if (preloadResponse?.ok) {
         response = preloadResponse
       }
     } catch {
@@ -263,7 +261,7 @@ async function networkFirstNavigation(request, preloadResponsePromise) {
     }
   }
 
-  if (response && response.ok) {
+  if (response?.ok) {
     const cache = await caches.open(NAV_CACHE)
     const headers = new Headers(response.headers)
     headers.set('sw-cache-timestamp', Date.now().toString())
@@ -290,7 +288,7 @@ async function networkFirstNavigation(request, preloadResponsePromise) {
   const navCached = await caches.match(request, { cacheName: NAV_CACHE })
   if (navCached) {
     const timestamp = navCached.headers.get('sw-cache-timestamp')
-    if (timestamp && (Date.now() - parseInt(timestamp, 10)) < NAV_CACHE_TTL_MS) {
+    if (timestamp && Date.now() - parseInt(timestamp, 10) < NAV_CACHE_TTL_MS) {
       return navCached
     }
   }
@@ -306,7 +304,6 @@ async function networkFirstNavigation(request, preloadResponsePromise) {
   })
 }
 
-
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 4: Network Only (SSE streams, large binary, mutations)
 // ══════════════════════════════════════════════════════════════════════
@@ -320,7 +317,6 @@ async function networkOnly(request) {
     })
   }
 }
-
 
 // ══════════════════════════════════════════════════════════════════════
 // Strategy 5: Image Cache First (screenshots, icons, manifest images)
@@ -336,18 +332,23 @@ async function imageCacheFirst(request) {
       const age = Date.now() - parseInt(timestamp, 10)
       // Revalidate in background if older than IMAGE_CACHE_TTL_MS
       if (age > IMAGE_CACHE_TTL_MS) {
-        fetch(request).then((freshResponse) => {
-          if (freshResponse.ok) {
-            const headers = new Headers(freshResponse.headers)
-            headers.set('sw-cache-timestamp', Date.now().toString())
-            freshResponse.arrayBuffer().then((body) => {
-              cache.put(request, new Response(body, {
-                status: freshResponse.status,
-                headers,
-              }))
-            })
-          }
-        }).catch(() => {})
+        fetch(request)
+          .then(freshResponse => {
+            if (freshResponse.ok) {
+              const headers = new Headers(freshResponse.headers)
+              headers.set('sw-cache-timestamp', Date.now().toString())
+              freshResponse.arrayBuffer().then(body => {
+                cache.put(
+                  request,
+                  new Response(body, {
+                    status: freshResponse.status,
+                    headers,
+                  }),
+                )
+              })
+            }
+          })
+          .catch(() => {})
       }
     }
     return cached
@@ -359,10 +360,13 @@ async function imageCacheFirst(request) {
       const headers = new Headers(response.headers)
       headers.set('sw-cache-timestamp', Date.now().toString())
       const body = await response.arrayBuffer()
-      cache.put(request, new Response(body, {
-        status: response.status,
-        headers,
-      }))
+      cache.put(
+        request,
+        new Response(body, {
+          status: response.status,
+          headers,
+        }),
+      )
       return new Response(body, {
         status: response.status,
         headers: response.headers,
@@ -377,7 +381,6 @@ async function imageCacheFirst(request) {
   }
 }
 
-
 // ── Cross-Cache Search ─────────────────────────────────────────────
 // Search all Increa caches for a stale version of a resource
 async function findInAnyCache(request) {
@@ -387,11 +390,12 @@ async function findInAnyCache(request) {
       const cache = await caches.open(name)
       const match = await cache.match(request)
       if (match) return match
-    } catch { /* skip invalid cache */ }
+    } catch {
+      /* skip invalid cache */
+    }
   }
   return null
 }
-
 
 // ── Cache Pruning ────────────────────────────────────────────────────
 async function pruneCache(cacheName, maxEntries) {
@@ -431,7 +435,7 @@ async function pruneStaleApiEntries() {
 
 // ── Storage Quota Awareness ─────────────────────────────────────────
 async function checkStoragePressure() {
-  if (!navigator.storage || !navigator.storage.estimate) return false
+  if (!navigator.storage?.estimate) return false
   try {
     const estimate = await navigator.storage.estimate()
     if (!estimate.quota || !estimate.usage) return false
@@ -447,10 +451,19 @@ async function aggressivePrune() {
   // Always prune stale entries and enforce max limits
   const results = await Promise.all([
     pruneStaleApiEntries(),
-    pruneCache(STATIC_CACHE, underPressure ? Math.floor(STATIC_CACHE_MAX_ENTRIES / 2) : STATIC_CACHE_MAX_ENTRIES),
-    pruneCache(API_CACHE, underPressure ? Math.floor(API_CACHE_MAX_ENTRIES / 2) : API_CACHE_MAX_ENTRIES),
+    pruneCache(
+      STATIC_CACHE,
+      underPressure ? Math.floor(STATIC_CACHE_MAX_ENTRIES / 2) : STATIC_CACHE_MAX_ENTRIES,
+    ),
+    pruneCache(
+      API_CACHE,
+      underPressure ? Math.floor(API_CACHE_MAX_ENTRIES / 2) : API_CACHE_MAX_ENTRIES,
+    ),
     pruneCache(NAV_CACHE, NAV_CACHE_MAX_ENTRIES),
-    pruneCache(IMAGE_CACHE, underPressure ? Math.floor(IMAGE_CACHE_MAX_ENTRIES / 2) : IMAGE_CACHE_MAX_ENTRIES),
+    pruneCache(
+      IMAGE_CACHE,
+      underPressure ? Math.floor(IMAGE_CACHE_MAX_ENTRIES / 2) : IMAGE_CACHE_MAX_ENTRIES,
+    ),
   ])
   return results.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0)
 }
@@ -480,17 +493,19 @@ async function migrateOldCaches() {
   return deleted
 }
 
-
 // ── Online/Offline Client Notification ────────────────────────────────
 function notifyClientsOfConnectivity(online) {
-  self.clients.matchAll({ includeUncontrolled: true }).then((clients) => {
-    for (const client of clients) {
-      client.postMessage({
-        type: online ? 'SW_ONLINE' : 'SW_OFFLINE',
-        timestamp: Date.now(),
-      })
-    }
-  }).catch(() => {})
+  self.clients
+    .matchAll({ includeUncontrolled: true })
+    .then(clients => {
+      for (const client of clients) {
+        client.postMessage({
+          type: online ? 'SW_ONLINE' : 'SW_OFFLINE',
+          timestamp: Date.now(),
+        })
+      }
+    })
+    .catch(() => {})
 }
 
 // ── Cache Status Reporting ───────────────────────────────────────────
@@ -507,16 +522,17 @@ async function getCacheStats() {
     }
   }
   // Add storage quota info if available
-  if (navigator.storage && navigator.storage.estimate) {
+  if (navigator.storage?.estimate) {
     try {
       const est = await navigator.storage.estimate()
       stats._quota = est.quota
       stats._usage = est.usage
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   return stats
 }
-
 
 // ── Offline page ─────────────────────────────────────────────────────
 const OFFLINE_PAGE = `<!DOCTYPE html>
@@ -551,35 +567,35 @@ const OFFLINE_PAGE = `<!DOCTYPE html>
 </body>
 </html>`
 
-
 // ══════════════════════════════════════════════════════════════════════
 // Service Worker Lifecycle
 // ══════════════════════════════════════════════════════════════════════
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => {
+    caches
+      .open(STATIC_CACHE)
+      .then(cache => {
         // Cache APP_SHELL resources — individual failures shouldn't block install
         return Promise.allSettled(
-          APP_SHELL.map((url) =>
-            cache.add(url).catch((err) => {
+          APP_SHELL.map(url =>
+            cache.add(url).catch(err => {
               console.warn(`[SW] Failed to cache ${url}:`, err)
-            })
-          )
+            }),
+          ),
         )
       })
       .then(() => {
         // Activate immediately without waiting for existing tabs to close
         self.skipWaiting()
-      })
+      }),
   )
 })
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
     migrateOldCaches()
-      .then((deleted) => {
+      .then(deleted => {
         if (deleted > 0) {
           console.log(`[SW] Migrated/deleted ${deleted} old cache(s)`)
         }
@@ -592,12 +608,11 @@ self.addEventListener('activate', (event) => {
       .then(() => {
         // Enable navigation preload if supported
         if (self.registration.navigationPreload) {
-          return self.registration.navigationPreload.enable()
-            .catch((err) => {
-              console.warn('[SW] Navigation preload not supported:', err)
-            })
+          return self.registration.navigationPreload.enable().catch(err => {
+            console.warn('[SW] Navigation preload not supported:', err)
+          })
         }
-      })
+      }),
   )
 })
 
@@ -608,14 +623,16 @@ function maybePeriodicTrim() {
   const now = Date.now()
   if (now - lastTrimTime < TRIM_INTERVAL_MS) return
   lastTrimTime = now
-  aggressivePrune().then((pruned) => {
-    if (pruned > 0) {
-      console.log(`[SW] Periodic trim: removed ${pruned} stale entries`)
-    }
-  }).catch(() => {})
+  aggressivePrune()
+    .then(pruned => {
+      if (pruned > 0) {
+        console.log(`[SW] Periodic trim: removed ${pruned} stale entries`)
+      }
+    })
+    .catch(() => {})
 }
 
-self.addEventListener('message', (event) => {
+self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting()
   }
@@ -625,32 +642,34 @@ self.addEventListener('message', (event) => {
         pruneCache(STATIC_CACHE, STATIC_CACHE_MAX_ENTRIES),
         pruneCache(API_CACHE, API_CACHE_MAX_ENTRIES),
         pruneStaleApiEntries(),
-      ])
+      ]),
     )
   }
   if (event.data && event.data.type === 'CLEAR_ALL_CACHES') {
     event.waitUntil(
-      caches.keys().then((keys) =>
-        Promise.all(keys.map((key) => caches.delete(key)))
-      ).then(() => self.clients.claim())
+      caches
+        .keys()
+        .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+        .then(() => self.clients.claim()),
     )
   }
   // Respond to cache status requests from the UI
   if (event.data && event.data.type === 'GET_CACHE_STATS') {
-    getCacheStats().then((stats) => {
-      event.source?.postMessage({
-        type: 'CACHE_STATS',
-        stats,
+    getCacheStats()
+      .then(stats => {
+        event.source?.postMessage({
+          type: 'CACHE_STATS',
+          stats,
+        })
       })
-    }).catch(() => {})
+      .catch(() => {})
   }
 })
-
 
 // ══════════════════════════════════════════════════════════════════════
 // Fetch Event — Route Requests to Strategies
 // ══════════════════════════════════════════════════════════════════════
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   const url = new URL(event.request.url)
 
   // Only handle GET requests
@@ -670,13 +689,13 @@ self.addEventListener('fetch', (event) => {
   maybePeriodicTrim()
 
   // ── Route: Never-cache API (SSE streams, large binary) ──
-  if (NEVER_CACHE_API_PATTERNS.some((p) => p.test(url.pathname))) {
+  if (NEVER_CACHE_API_PATTERNS.some(p => p.test(url.pathname))) {
     event.respondWith(networkOnly(event.request))
     return
   }
 
   // ── Route: SWR API data endpoints ──
-  if (SWR_API_PATTERNS.some((p) => p.test(url.pathname))) {
+  if (SWR_API_PATTERNS.some(p => p.test(url.pathname))) {
     event.respondWith(staleWhileRevalidate(event.request))
     return
   }
@@ -707,8 +726,10 @@ self.addEventListener('fetch', (event) => {
 
   // ── Route: Images — dedicated image cache with medium TTL ──
   // Screenshots, icons, manifest images, and other image files
-  if (IMAGE_EXTENSIONS.test(url.pathname) ||
-      KNOWN_IMAGE_PATHS.some((p) => url.pathname.startsWith(p))) {
+  if (
+    IMAGE_EXTENSIONS.test(url.pathname) ||
+    KNOWN_IMAGE_PATHS.some(p => url.pathname.startsWith(p))
+  ) {
     event.respondWith(imageCacheFirst(event.request))
     return
   }
@@ -717,9 +738,8 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(cacheFirst(event.request, STATIC_CACHE))
 })
 
-
 // ── Background Sync ──────────────────────────────────────────────────
-self.addEventListener('sync', (event) => {
+self.addEventListener('sync', event => {
   if (event.tag === 'sync-file-operations') {
     event.waitUntil(replayOfflineOperations())
   }
@@ -733,7 +753,7 @@ async function replayOfflineOperations() {
 }
 
 // ── Push Notification Handler ─────────────────────────────────────────
-self.addEventListener('push', (event) => {
+self.addEventListener('push', event => {
   if (!event.data) return
   const data = event.data.json()
   event.waitUntil(
@@ -746,18 +766,18 @@ self.addEventListener('push', (event) => {
       data: {
         url: data.url || '/',
       },
-    })
+    }),
   )
 })
 
 // ── Notification Click Handler ────────────────────────────────────────
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', event => {
   event.notification.close()
 
   const urlToOpen = event.notification.data?.url || '/'
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       // Focus existing window if available
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
@@ -766,18 +786,17 @@ self.addEventListener('notificationclick', (event) => {
       }
       // Open new window
       return self.clients.openWindow(urlToOpen)
-    })
+    }),
   )
 })
 
-
 // ── Online/Offline Event Awareness ─────────────────────────────────────
 self.addEventListener('online', () => {
-  isOnline = true
+  _isOnline = true
   notifyClientsOfConnectivity(true)
 })
 
 self.addEventListener('offline', () => {
-  isOnline = false
+  _isOnline = false
   notifyClientsOfConnectivity(false)
 })

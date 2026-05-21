@@ -1,5 +1,5 @@
-import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { apiFetch } from '@/app/api'
 import { useEventCallback } from '@/hooks/use-event-callback'
 import type { ContextData } from '@/stores/view-context'
 import type { Message, Repo, Session } from '@/types/chat'

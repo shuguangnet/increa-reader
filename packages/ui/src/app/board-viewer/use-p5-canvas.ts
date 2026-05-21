@@ -131,7 +131,7 @@ export function useP5Canvas({
   const p5Ref = useRef<p5 | null>(null)
 
   // Stable store — subscribe/get never change identity, created once
-  const loopStore = useMemo(() => createLoopStore(animation?.loop ?? false), [])
+  const loopStore = useMemo(() => createLoopStore(animation?.loop ?? false), [animation?.loop])
   const isLooping = useSyncExternalStore(loopStore.subscribe, loopStore.get)
 
   const positionRef = useRef(position)
@@ -226,7 +226,7 @@ export function useP5Canvas({
     return () => {
       observer.disconnect()
     }
-  }, [])
+  }, [animation, containerRef.current, renderer])
 
   // Rebuild p5 instance when renderer mode changes
   useEffect(() => {
@@ -247,7 +247,7 @@ export function useP5Canvas({
       rendererRef,
     }
     p5Ref.current = createP5Instance(container, refs, animationRef.current, setupReadyRef, renderer)
-  }, [renderer])
+  }, [renderer, containerRef.current])
 
   const toggleLoop = useCallback(() => {
     const p = p5Ref.current

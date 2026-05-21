@@ -1,11 +1,30 @@
-import { Calendar, Clock, FolderOpen, Monitor, Moon, Search, Settings, Star, Sun, Tag, X } from 'lucide-react'
+import {
+  Calendar,
+  Clock,
+  FolderOpen,
+  Monitor,
+  Moon,
+  Search,
+  Settings,
+  Star,
+  Sun,
+  Tag,
+  X,
+} from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-
+import { FileTreeSkeleton } from '@/components/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTheme } from '@/hooks/use-theme'
-import { createFile, fetchRepos, fetchWorkspaceTree, type RepoInfo, type WorkspaceTreeData } from './api'
+import { useUIStore } from '@/stores/ui-store'
+import {
+  createFile,
+  fetchRepos,
+  fetchWorkspaceTree,
+  type RepoInfo,
+  type WorkspaceTreeData,
+} from './api'
 import { CalendarView } from './calendar_view'
 import { FavoritesPanel } from './favorites-panel'
 import { getLeftPanelSearchStatus } from './left-panel-search-status'
@@ -13,8 +32,6 @@ import { RecentFilesPanel } from './recent-files-panel'
 import { RepoPanel } from './repo-panel'
 import { SettingsDrawer } from './settings-drawer'
 import { TagsPanel } from './tags-panel'
-import { useUIStore } from '@/stores/ui-store'
-import { FileTreeSkeleton } from '@/components/skeleton'
 
 type LeftTab = 'files' | 'favorites' | 'recent' | 'tags' | 'calendar'
 
@@ -25,7 +42,7 @@ export function LeftPanel() {
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const setSearchPanelOpen = useUIStore((s) => s.setSearchPanelOpen)
+  const setSearchPanelOpen = useUIStore(s => s.setSearchPanelOpen)
   const [activeTab, setActiveTab] = useState<LeftTab>('files')
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const isFiltering = searchQuery !== deferredSearchQuery
@@ -66,11 +83,27 @@ export function LeftPanel() {
       <div className="flex items-center justify-between border-b px-3 py-2">
         <span className="text-sm font-medium">仓库</span>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" onClick={() => setSearchPanelOpen(true)} title="全局搜索">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setSearchPanelOpen(true)}
+            title="全局搜索"
+          >
             <Search className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={toggleTheme} title={`主题: ${theme === 'dark' ? '深色' : theme === 'light' ? '浅色' : '跟随系统'}`}>
-            {theme === 'dark' ? <Moon className="size-4" /> : theme === 'light' ? <Sun className="size-4" /> : <Monitor className="size-4" />}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleTheme}
+            title={`主题: ${theme === 'dark' ? '深色' : theme === 'light' ? '浅色' : '跟随系统'}`}
+          >
+            {theme === 'dark' ? (
+              <Moon className="size-4" />
+            ) : theme === 'light' ? (
+              <Sun className="size-4" />
+            ) : (
+              <Monitor className="size-4" />
+            )}
           </Button>
           <Button variant="ghost" size="icon-sm" onClick={() => setDrawerOpen(true)} title="设置">
             <Settings className="size-4" />
@@ -166,11 +199,11 @@ export function LeftPanel() {
           {repos.length > 0 && (
             <CalendarView
               repoName={repos[0].name}
-              onFileClick={(filePath) => {
+              onFileClick={filePath => {
                 // Navigate to the file using React Router
                 navigate(`/views/${repos[0].name}/${filePath}`)
               }}
-              onCreateFile={(date) => {
+              onCreateFile={date => {
                 // Create a date-named markdown file
                 const fileName = `${date}.md`
                 createFile(repos[0].name, fileName, 'file', `# ${date}\n\n`)

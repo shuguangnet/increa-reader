@@ -1,5 +1,5 @@
-import { apiFetch } from '@/app/api'
 import { useEffect, useRef } from 'react'
+import { apiFetch } from '@/app/api'
 import { useSelectionQueue } from '@/contexts/selection-context'
 import { getTab, setAnimation, setRenderer, useBoardStore } from '@/stores/board-store'
 import { getDocumentNotesPayload, getVisibleNotesPayload } from '@/stores/note-tool-store'
@@ -22,8 +22,7 @@ export const useFrontendTools = () => {
     const connect = () => {
       eventSource = new EventSource('/api/chat/frontend-events')
 
-      eventSource.onopen = () => {
-      }
+      eventSource.onopen = () => {}
 
       eventSource.onmessage = async event => {
         try {

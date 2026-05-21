@@ -1,33 +1,47 @@
-"use no memo"
+'use no memo'
 
-import { AlertTriangle, ArrowLeftRight, Code, Download, Eye, FileQuestion, History, Pencil, RefreshCw, Sparkles, Table } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  Code,
+  Download,
+  Eye,
+  FileQuestion,
+  History,
+  Pencil,
+  RefreshCw,
+  Sparkles,
+  Table,
+} from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { MermaidBlock } from '@/components/mermaid-block'
+import { useVisibleContent } from '@/contexts/visible-content-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useTheme } from '@/hooks/use-theme'
-import { useVisibleContent } from '@/contexts/visible-content-context'
-import { useNoteToolStore } from '@/stores/note-tool-store'
 import { useEditorStore } from '@/stores/editor-store'
+import { useNoteToolStore } from '@/stores/note-tool-store'
 import { useProgressStore } from '@/stores/progress-store'
 import { useRefreshKey, useViewContext } from '@/stores/view-context'
 import type { BoardFile } from '@/types/board'
-import { fetchPreview, saveFile } from './api'
 import { AiToolsPanel } from './ai-tools-panel'
+import { fetchPreview, saveFile } from './api'
 import { BacklinksPanel } from './backlinks-panel'
 import { ExportImportPanel } from './export-import-panel'
 import { HtmlViewer } from './html-viewer'
 import { ImageViewer } from './image-viewer'
 import { InlineTagsEditor } from './inline-tags-editor'
+
 const MarkdownEditor = React.lazy(() =>
   import('./markdown/markdown-editor').then(m => ({ default: m.MarkdownEditor })),
 )
+
 import { MarkdownViewer } from './markdown/markdown-viewer'
 import { PDFViewer } from './pdf-viewer'
 import { SelectionToolbar } from './selection/selection-toolbar'
-import { TableView, parseCSV } from './table-view'
+import { parseCSV, TableView } from './table-view'
 import { VersionHistoryPanel } from './version-history-panel'
 
 const BoardViewer = React.lazy(() =>
@@ -64,20 +78,24 @@ type FileViewerProps = {
 }
 
 /** Full-screen overlay wrapper for side panels on mobile */
-function MobilePanelOverlay({ children }: {
-  children: React.ReactNode
-}) {
+function MobilePanelOverlay({ children }: { children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
-      <div className="flex-1 min-h-0 overflow-auto">
-        {children}
-      </div>
+      <div className="flex-1 min-h-0 overflow-auto">{children}</div>
     </div>
   )
 }
 
 /** Code viewer with line numbers that supports scrolling to a specific line */
-function CodeViewerWithLines({ language, code, scrollToLine }: { language: string; code: string; scrollToLine?: number }) {
+function CodeViewerWithLines({
+  language,
+  code,
+  scrollToLine,
+}: {
+  language: string
+  code: string
+  scrollToLine?: number
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { isDark } = useTheme()
   const codeStyle = isDark ? vscDarkPlus : oneLight
@@ -227,7 +245,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
         elementsSet.delete(el)
       })
     }
-  }, [state.preview, elementsRef])
+  }, [elementsRef])
 
   const { loading, error, preview } = state
   useEffect(() => {
@@ -327,7 +345,8 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
     const displayBody = editedContent ?? preview.body
 
     // On mobile, side panels display as fullscreen overlays
-    const panelOverlay = isMobile && (showAiPanel || showExportPanel || showVersionPanel || showBacklinksPanel)
+    const panelOverlay =
+      isMobile && (showAiPanel || showExportPanel || showVersionPanel || showBacklinksPanel)
 
     return (
       <div className="h-full flex">
@@ -346,7 +365,9 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
                     setShowExportPanel(false)
                   }}
                   className={`p-1.5 rounded-md transition-colors ${
-                    showBacklinksPanel ? 'text-amber-600 dark:text-amber-400 bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    showBacklinksPanel
+                      ? 'text-amber-600 dark:text-amber-400 bg-accent'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                   }`}
                   title="链接关系"
                 >
@@ -361,7 +382,9 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
                     setShowBacklinksPanel(false)
                   }}
                   className={`p-1.5 rounded-md transition-colors ${
-                    showExportPanel ? 'text-emerald-600 dark:text-emerald-400 bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    showExportPanel
+                      ? 'text-emerald-600 dark:text-emerald-400 bg-accent'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                   }`}
                   title="导出/导入"
                 >
@@ -376,7 +399,9 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
                     setShowBacklinksPanel(false)
                   }}
                   className={`p-1.5 rounded-md transition-colors ${
-                    showAiPanel ? 'text-violet-600 dark:text-violet-400 bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    showAiPanel
+                      ? 'text-violet-600 dark:text-violet-400 bg-accent'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                   }`}
                   title="AI工具"
                 >
@@ -391,7 +416,9 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
                     setShowBacklinksPanel(false)
                   }}
                   className={`p-1.5 rounded-md transition-colors ${
-                    showVersionPanel ? 'text-blue-600 dark:text-blue-400 bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    showVersionPanel
+                      ? 'text-blue-600 dark:text-blue-400 bg-accent'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                   }`}
                   title="版本历史"
                 >
@@ -420,8 +447,19 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
           )}
           {isEditMode ? (
             <div className="flex-1 min-h-0">
-              <React.Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">加载编辑器…</div>}>
-                <MarkdownEditor repo={repo} path={path} initialContent={displayBody} onExitEdit={() => setIsEditMode(false)} />
+              <React.Suspense
+                fallback={
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    加载编辑器…
+                  </div>
+                }
+              >
+                <MarkdownEditor
+                  repo={repo}
+                  path={path}
+                  initialContent={displayBody}
+                  onExitEdit={() => setIsEditMode(false)}
+                />
               </React.Suspense>
             </div>
           ) : (
@@ -439,42 +477,54 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
             </ErrorBoundary>
           )}
         </div>
-        {showAiPanel && (
-          isMobile ? (
+        {showAiPanel &&
+          (isMobile ? (
             <MobilePanelOverlay>
               <AiToolsPanel repo={repo} path={path} onClose={() => setShowAiPanel(false)} />
             </MobilePanelOverlay>
           ) : (
             <AiToolsPanel repo={repo} path={path} onClose={() => setShowAiPanel(false)} />
-          )
-        )}
-        {showExportPanel && (
-          isMobile ? (
+          ))}
+        {showExportPanel &&
+          (isMobile ? (
             <MobilePanelOverlay>
-              <ExportImportPanel repo={repo} path={path} onClose={() => setShowExportPanel(false)} />
+              <ExportImportPanel
+                repo={repo}
+                path={path}
+                onClose={() => setShowExportPanel(false)}
+              />
             </MobilePanelOverlay>
           ) : (
             <ExportImportPanel repo={repo} path={path} onClose={() => setShowExportPanel(false)} />
-          )
-        )}
-        {showVersionPanel && (
-          isMobile ? (
+          ))}
+        {showVersionPanel &&
+          (isMobile ? (
             <MobilePanelOverlay>
-              <VersionHistoryPanel repo={repo} path={path} onClose={() => setShowVersionPanel(false)} />
+              <VersionHistoryPanel
+                repo={repo}
+                path={path}
+                onClose={() => setShowVersionPanel(false)}
+              />
             </MobilePanelOverlay>
           ) : (
-            <VersionHistoryPanel repo={repo} path={path} onClose={() => setShowVersionPanel(false)} />
-          )
-        )}
-        {showBacklinksPanel && (
-          isMobile ? (
+            <VersionHistoryPanel
+              repo={repo}
+              path={path}
+              onClose={() => setShowVersionPanel(false)}
+            />
+          ))}
+        {showBacklinksPanel &&
+          (isMobile ? (
             <MobilePanelOverlay>
-              <BacklinksPanel repo={repo} path={path} onClose={() => setShowBacklinksPanel(false)} />
+              <BacklinksPanel
+                repo={repo}
+                path={path}
+                onClose={() => setShowBacklinksPanel(false)}
+              />
             </MobilePanelOverlay>
           ) : (
             <BacklinksPanel repo={repo} path={path} onClose={() => setShowBacklinksPanel(false)} />
-          )
-        )}
+          ))}
       </div>
     )
   }
@@ -503,7 +553,7 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
         <div className="flex-1 min-h-0">
           <textarea
             value={displayBody}
-            onChange={(e) => useEditorStore.getState().updateContent(repo, path, e.target.value)}
+            onChange={e => useEditorStore.getState().updateContent(repo, path, e.target.value)}
             className="h-full w-full resize-none bg-background p-3 font-mono text-sm leading-[1.5] outline-none"
             spellCheck={false}
           />
@@ -514,7 +564,10 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
 
   return (
     <div className="h-full flex">
-      <div ref={scrollBodyRef} className={`flex-1 overflow-auto scroll-body ${showBacklinksPanel && !isMobile ? 'min-w-0' : ''}`}>
+      <div
+        ref={scrollBodyRef}
+        className={`flex-1 overflow-auto scroll-body ${showBacklinksPanel && !isMobile ? 'min-w-0' : ''}`}
+      >
         <SelectionToolbar containerRef={scrollBodyRef} />
 
         {/* Edit button for code files */}
@@ -526,7 +579,9 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
                 setShowBacklinksPanel(v => !v)
               }}
               className={`p-1.5 rounded-md bg-background/80 border border-border backdrop-blur-sm transition-colors ${
-                showBacklinksPanel ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground hover:text-foreground'
+                showBacklinksPanel
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
               title="链接关系"
             >
@@ -550,71 +605,78 @@ export function FileViewer({ repo, path, scrollToLine }: FileViewerProps) {
           </div>
         )}
 
-      {preview.type === 'code' && !isEditMode && (
-        <CodeViewerWithLines language={preview.lang} code={preview.body} scrollToLine={scrollToLine} />
-      )}
+        {preview.type === 'code' && !isEditMode && (
+          <CodeViewerWithLines
+            language={preview.lang}
+            code={preview.body}
+            scrollToLine={scrollToLine}
+          />
+        )}
 
-      {preview.type === 'mermaid' && (
-        <div className="p-4">
-          <MermaidBlock code={preview.body} />
-        </div>
-      )}
-
-      {preview.type === 'image' && (
-        <ImageViewer src={`/api/raw/${repo}/${preview.path}`} alt={preview.path} />
-      )}
-
-      {preview.type === 'pdf' && (
-        <PDFViewer repo={repo} filePath={preview.path} metadata={preview.metadata} />
-      )}
-
-      {preview.type === 'board' && (
-        <React.Suspense fallback={null}>
-          <BoardViewer repo={repo} filePath={preview.path} data={preview.data} />
-        </React.Suspense>
-      )}
-
-      {preview.type === 'table' && (() => {
-        const { headers, data } = preview.format === 'csv'
-          ? parseCSV(preview.body)
-          : { headers: [] as string[], data: [] as string[][] }
-        const handleTableSave = (newData: string[][]) => {
-          const csvContent = [headers.join(','), ...newData.map(row => row.join(','))].join('\n')
-          saveFile(repo, path, csvContent).catch(console.error)
-        }
-        return (
-          <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 border-b px-3 py-2 bg-muted/30">
-              <Table className="size-4 text-muted-foreground" />
-              <span className="text-sm font-medium">{path.split('/').pop()}</span>
-              <span className="text-xs text-muted-foreground">
-                {data.length} 行 × {headers.length} 列
-              </span>
-            </div>
-            <div className="flex-1 min-h-0">
-              <TableView headers={headers} data={data} onSave={handleTableSave} />
-            </div>
+        {preview.type === 'mermaid' && (
+          <div className="p-4">
+            <MermaidBlock code={preview.body} />
           </div>
-        )
-      })()}
+        )}
 
-      {preview.type === 'unsupported' && (
-        <div className="h-full flex flex-col items-center justify-center gap-4 text-muted-foreground">
-          <FileQuestion size={48} />
-          <p>不支持的文件类型</p>
-          <p className="text-sm font-mono">{preview.path}</p>
-        </div>
-      )}
+        {preview.type === 'image' && (
+          <ImageViewer src={`/api/raw/${repo}/${preview.path}`} alt={preview.path} />
+        )}
+
+        {preview.type === 'pdf' && (
+          <PDFViewer repo={repo} filePath={preview.path} metadata={preview.metadata} />
+        )}
+
+        {preview.type === 'board' && (
+          <React.Suspense fallback={null}>
+            <BoardViewer repo={repo} filePath={preview.path} data={preview.data} />
+          </React.Suspense>
+        )}
+
+        {preview.type === 'table' &&
+          (() => {
+            const { headers, data } =
+              preview.format === 'csv'
+                ? parseCSV(preview.body)
+                : { headers: [] as string[], data: [] as string[][] }
+            const handleTableSave = (newData: string[][]) => {
+              const csvContent = [headers.join(','), ...newData.map(row => row.join(','))].join(
+                '\n',
+              )
+              saveFile(repo, path, csvContent).catch(console.error)
+            }
+            return (
+              <div className="h-full flex flex-col">
+                <div className="flex items-center gap-2 border-b px-3 py-2 bg-muted/30">
+                  <Table className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{path.split('/').pop()}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {data.length} 行 × {headers.length} 列
+                  </span>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <TableView headers={headers} data={data} onSave={handleTableSave} />
+                </div>
+              </div>
+            )
+          })()}
+
+        {preview.type === 'unsupported' && (
+          <div className="h-full flex flex-col items-center justify-center gap-4 text-muted-foreground">
+            <FileQuestion size={48} />
+            <p>不支持的文件类型</p>
+            <p className="text-sm font-mono">{preview.path}</p>
+          </div>
+        )}
       </div>
-      {showBacklinksPanel && (
-        isMobile ? (
+      {showBacklinksPanel &&
+        (isMobile ? (
           <MobilePanelOverlay>
             <BacklinksPanel repo={repo} path={path} onClose={() => setShowBacklinksPanel(false)} />
           </MobilePanelOverlay>
         ) : (
           <BacklinksPanel repo={repo} path={path} onClose={() => setShowBacklinksPanel(false)} />
-        )
-      )}
+        ))}
     </div>
   )
 }

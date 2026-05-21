@@ -29,11 +29,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   currentFile: null,
   isEditMode: false,
 
-  setEditMode: (mode) => set({ isEditMode: mode }),
+  setEditMode: mode => set({ isEditMode: mode }),
 
   openFile: (repo, path, content) => {
     const key = makeKey(repo, path)
-    set((state) => ({
+    set(state => ({
       currentFile: { repo, path },
       editedFiles: {
         ...state.editedFiles,
@@ -44,7 +44,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   updateContent: (repo, path, content) => {
     const key = makeKey(repo, path)
-    set((state) => {
+    set(state => {
       const existing = state.editedFiles[key]
       if (!existing) return state
       return {
@@ -58,13 +58,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   markSaved: (repo, path) => {
     const key = makeKey(repo, path)
-    set((state) => {
+    set(state => {
       const existing = state.editedFiles[key]
       if (!existing) return state
       return {
         editedFiles: {
           ...state.editedFiles,
-          [key]: { content: existing.content, originalContent: existing.content, lastSaved: Date.now() },
+          [key]: {
+            content: existing.content,
+            originalContent: existing.content,
+            lastSaved: Date.now(),
+          },
         },
       }
     })
@@ -84,7 +88,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   closeFile: (repo, path) => {
     const key = makeKey(repo, path)
-    set((state) => {
+    set(state => {
       const { [key]: _, ...rest } = state.editedFiles
       return { editedFiles: rest }
     })

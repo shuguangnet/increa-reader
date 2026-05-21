@@ -1,8 +1,8 @@
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
 import { visualizer } from 'rollup-plugin-visualizer'
+import { defineConfig } from 'vite'
 
 /**
  * Extract the actual package name from a module ID, handling both
@@ -17,9 +17,7 @@ function extractPackageName(id: string): string | null {
 
   const afterNm = id.slice(nmIndex + 'node_modules/'.length)
   // Skip .pnpm/ prefix used by pnpm: ".pnpm/pkg@ver/node_modules/actual-pkg/"
-  const afterPnpm = afterNm.startsWith('.pnpm/')
-    ? afterNm.slice('.pnpm/'.length)
-    : afterNm
+  const afterPnpm = afterNm.startsWith('.pnpm/') ? afterNm.slice('.pnpm/'.length) : afterNm
 
   // e.g. "lodash-es@4.17.21/node_modules/lodash-es/..." → take first segment
   const firstSegment = afterPnpm.split('/')[0]
@@ -105,7 +103,8 @@ export default defineConfig({
           if (id.includes('/w3c-keynames')) return 'codemirror'
 
           // Syntax highlighting: react-syntax-highlighter + prismjs
-          if (id.includes('/react-syntax-highlighter') || id.includes('/prismjs')) return 'syntax-highlighter'
+          if (id.includes('/react-syntax-highlighter') || id.includes('/prismjs'))
+            return 'syntax-highlighter'
           if (id.includes('/refractor')) return 'syntax-highlighter'
           if (id.includes('/prism-')) return 'syntax-highlighter'
 
@@ -121,7 +120,16 @@ export default defineConfig({
           if (!pkg) return
 
           // React ecosystem → react-vendor
-          if (['react', 'react-dom', 'react-router', 'scheduler', 'zustand', 'use-sync-external-store'].includes(pkg)) {
+          if (
+            [
+              'react',
+              'react-dom',
+              'react-router',
+              'scheduler',
+              'zustand',
+              'use-sync-external-store',
+            ].includes(pkg)
+          ) {
             return 'react-vendor'
           }
 
@@ -137,7 +145,12 @@ export default defineConfig({
 
           // Group other packages by name — rollup will merge small ones
           // Avoid creating too many tiny chunks: only group known large ones
-          const largeUngrouped = ['clsx', 'tailwind-merge', 'class-variance-authority', 'react-resizable-panels']
+          const largeUngrouped = [
+            'clsx',
+            'tailwind-merge',
+            'class-variance-authority',
+            'react-resizable-panels',
+          ]
           if (largeUngrouped.includes(pkg)) {
             return 'react-vendor'
           }
@@ -153,8 +166,18 @@ export default defineConfig({
     port: 5177,
     proxy: {
       '/api': {
-        target: 'http://localhost:3002',
+        target: 'http://localhost:3003',
         changeOrigin: true,
+        secure: false,
+        ws: false,
+        configure: proxy => {
+          proxy.on('error', err => {
+            console.log('[proxy error]', err.message)
+          })
+          proxy.on('proxyReq', (proxyReq, req) => {
+            console.log('[proxy]', req.method, req.url, '->', proxyReq.path)
+          })
+        },
       },
     },
     headers: {

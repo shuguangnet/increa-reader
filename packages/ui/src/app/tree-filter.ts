@@ -26,22 +26,15 @@ type FilterNodeResult = {
 }
 
 const indexNode = (node: TreeNode, repoName: string): IndexedTreeNode => {
-  const children = node.type === 'dir'
-    ? (node.children ?? []).map(child => indexNode(child, repoName))
-    : []
+  const children =
+    node.type === 'dir' ? (node.children ?? []).map(child => indexNode(child, repoName)) : []
 
   const childDirectoryPaths: string[] = []
   for (const child of children) {
     childDirectoryPaths.push(...child.subtreeDirPaths)
   }
 
-  const subtreeDirPaths =
-    node.type === 'dir'
-      ? [
-          node.path,
-          ...childDirectoryPaths,
-        ]
-      : []
+  const subtreeDirPaths = node.type === 'dir' ? [node.path, ...childDirectoryPaths] : []
 
   return {
     source: node,
@@ -98,10 +91,7 @@ const filterIndexedNode = (
   }
 }
 
-export const createTreeFilter = (
-  nodes: TreeNode[],
-  repoName: string,
-) => {
+export const createTreeFilter = (nodes: TreeNode[], repoName: string) => {
   const indexedNodes = nodes.map(node => indexNode(node, repoName))
   const resultCache = new Map<string, TreeFilterResult>()
 
@@ -148,8 +138,5 @@ export const createTreeFilter = (
   }
 }
 
-export const filterTree = (
-  nodes: TreeNode[],
-  query: string,
-  repoName: string,
-): TreeFilterResult => createTreeFilter(nodes, repoName)(query)
+export const filterTree = (nodes: TreeNode[], query: string, repoName: string): TreeFilterResult =>
+  createTreeFilter(nodes, repoName)(query)

@@ -24,8 +24,9 @@ export function PullToRefresh({ children, onRefresh, className = '' }: PullToRef
   const isMobile = useIsMobile()
   const contentRef = useRef<HTMLDivElement>(null)
 
-  const { pullDistance, isRefreshing, onTouchStart, onTouchMove, onTouchEnd } =
-    usePullToRefresh({ onRefresh })
+  const { pullDistance, isRefreshing, onTouchStart, onTouchMove, onTouchEnd } = usePullToRefresh({
+    onRefresh,
+  })
 
   // Compute indicator state
   const isPastThreshold = pullDistance >= 60
@@ -54,7 +55,8 @@ export function PullToRefresh({ children, onRefresh, className = '' }: PullToRef
           height: 60,
           opacity: showIndicator ? 1 : 0,
           transform: `translateY(${translateY}px)`,
-          transition: pullDistance === 0 ? 'transform 0.3s ease, opacity 0.3s ease' : 'opacity 0.1s ease',
+          transition:
+            pullDistance === 0 ? 'transform 0.3s ease, opacity 0.3s ease' : 'opacity 0.1s ease',
         }}
         aria-hidden
       >

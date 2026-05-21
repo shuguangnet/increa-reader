@@ -1,5 +1,5 @@
-import { apiFetch } from '@/app/api'
 import { useCallback, useState } from 'react'
+import { apiFetch } from '@/app/api'
 import type { Session, SessionMetadata } from '@/types/chat'
 
 type SessionsData = {

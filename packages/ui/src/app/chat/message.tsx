@@ -142,7 +142,10 @@ export const Message = ({ role, content, isStreaming, toolCalls }: MessageType) 
                     }
                     if (!inline) {
                       return (
-                        <code className="block font-mono text-sm overflow-x-auto bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-3 rounded" {...props}>
+                        <code
+                          className="block font-mono text-sm overflow-x-auto bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-3 rounded"
+                          {...props}
+                        >
                           {children}
                         </code>
                       )

@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 export interface ReadingProgress {
   repo: string
   path: string
-  percent: number  // 0-1
+  percent: number // 0-1
   scrollY: number
   lastReadAt: string
 }

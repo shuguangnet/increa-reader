@@ -26,7 +26,10 @@ export function Breadcrumb({ repo, path }: BreadcrumbProps) {
   if (segments.length === 0) {
     return (
       <div className="flex items-center gap-1 text-xs text-muted-foreground px-3 py-1 bg-muted/30 border-b select-none">
-        <span className="hover:text-foreground cursor-pointer transition-colors" onClick={() => navigate('/')}>
+        <span
+          className="hover:text-foreground cursor-pointer transition-colors"
+          onClick={() => navigate('/')}
+        >
           {repo}
         </span>
       </div>

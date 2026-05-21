@@ -34,7 +34,7 @@ export function useServiceWorkerUpdate() {
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
-        .then((reg) => {
+        .then(reg => {
           registrationRef.current = reg
 
           // Check for updates on load
@@ -55,11 +55,14 @@ export function useServiceWorkerUpdate() {
           }
 
           // Periodic update check (every 60 minutes)
-          const interval = setInterval(() => {
-            reg.update().catch(() => {
-              // Update check failed, ignore
-            })
-          }, 60 * 60 * 1000)
+          const interval = setInterval(
+            () => {
+              reg.update().catch(() => {
+                // Update check failed, ignore
+              })
+            },
+            60 * 60 * 1000,
+          )
 
           // Trigger cache pruning on registration to keep caches tidy
           if (reg.active) {
@@ -68,7 +71,7 @@ export function useServiceWorkerUpdate() {
 
           return () => clearInterval(interval)
         })
-        .catch((err) => {
+        .catch(err => {
           console.warn('[PWA] Service Worker registration failed:', err)
         })
     })
@@ -76,7 +79,7 @@ export function useServiceWorkerUpdate() {
 
   const applyUpdate = useCallback(() => {
     const reg = registrationRef.current
-    if (!reg || !reg.waiting) return
+    if (!reg?.waiting) return
 
     setUpdateStatus('updating')
 
@@ -116,7 +119,7 @@ export function registerServiceWorker() {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
-      .then((reg) => {
+      .then(reg => {
         // Handle updates
         reg.addEventListener('updatefound', () => {
           // no-op
@@ -127,7 +130,7 @@ export function registerServiceWorker() {
           reg.active.postMessage({ type: 'PRUNE_CACHES' })
         }
       })
-      .catch((err) => {
+      .catch(err => {
         console.warn('[PWA] Service Worker registration failed:', err)
       })
   })
@@ -221,7 +224,7 @@ export async function getCacheStats(): Promise<Record<string, number> | null> {
   const reg = await navigator.serviceWorker.getRegistration('/sw.js')
   if (!reg?.active) return null
 
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const timeout = setTimeout(() => resolve(null), 3000)
 
     const handleMessage = (event: MessageEvent) => {

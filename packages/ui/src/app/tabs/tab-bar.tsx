@@ -1,9 +1,15 @@
 import { X } from 'lucide-react'
-import { useCallback, useRef, useState, type MouseEvent as RMouseEvent, type TouchEvent as RTouchEvent } from 'react'
+import {
+  type MouseEvent as RMouseEvent,
+  type TouchEvent as RTouchEvent,
+  useCallback,
+  useRef,
+  useState,
+} from 'react'
 import { useNavigate } from 'react-router-dom'
-import { type Tab, useTabsStore } from '@/stores/tabs-store'
-import { useEditorStore } from '@/stores/editor-store'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useEditorStore } from '@/stores/editor-store'
+import { type Tab, useTabsStore } from '@/stores/tabs-store'
 import { getFileIcon } from '../file-tree'
 
 export function TabBar() {
@@ -40,8 +46,10 @@ export function TabBar() {
       {tabs.map(tab => {
         const isActive = tab.id === activeId
         const filename = tab.path.split('/').pop() ?? tab.path
-        const isDirty = editedFiles[`${tab.repo}:${tab.path}`] &&
-          editedFiles[`${tab.repo}:${tab.path}`].content !== editedFiles[`${tab.repo}:${tab.path}`].originalContent
+        const isDirty =
+          editedFiles[`${tab.repo}:${tab.path}`] &&
+          editedFiles[`${tab.repo}:${tab.path}`].content !==
+            editedFiles[`${tab.repo}:${tab.path}`].originalContent
 
         return (
           <MobileTabItem
@@ -52,10 +60,10 @@ export function TabBar() {
             isDirty={isDirty}
             isMobile={isMobile}
             onClick={() => handleClick(tab)}
-            onAuxClick={(event) => {
+            onAuxClick={event => {
               if (event.button === 1) handleClose(event, tab)
             }}
-            onClose={(event) => handleClose(event, tab)}
+            onClose={event => handleClose(event, tab)}
           />
         )
       })}
@@ -85,33 +93,41 @@ function MobileTabItem({
 }) {
   const itemRef = useRef<HTMLDivElement>(null)
   const touchRef = useRef<{ startX: number; currentX: number; swiping: boolean }>({
-    startX: 0, currentX: 0, swiping: false,
+    startX: 0,
+    currentX: 0,
+    swiping: false,
   })
   const [translateX, setTranslateX] = useState(0)
 
-  const handleTouchStart = useCallback((e: RTouchEvent) => {
-    if (!isMobile) return
-    const touch = e.touches[0]
-    touchRef.current = { startX: touch.clientX, currentX: 0, swiping: false }
-  }, [isMobile])
+  const handleTouchStart = useCallback(
+    (e: RTouchEvent) => {
+      if (!isMobile) return
+      const touch = e.touches[0]
+      touchRef.current = { startX: touch.clientX, currentX: 0, swiping: false }
+    },
+    [isMobile],
+  )
 
-  const handleTouchMove = useCallback((e: RTouchEvent) => {
-    if (!isMobile) return
-    const t = touchRef.current
-    const touch = e.touches[0]
-    const dx = touch.clientX - t.startX
+  const handleTouchMove = useCallback(
+    (e: RTouchEvent) => {
+      if (!isMobile) return
+      const t = touchRef.current
+      const touch = e.touches[0]
+      const dx = touch.clientX - t.startX
 
-    if (!t.swiping && Math.abs(dx) > 8) {
-      t.swiping = true
-    }
+      if (!t.swiping && Math.abs(dx) > 8) {
+        t.swiping = true
+      }
 
-    if (t.swiping) {
-      // Only allow swiping left (negative dx) to close
-      const clampedDx = Math.min(0, Math.max(dx, -120))
-      t.currentX = clampedDx
-      setTranslateX(clampedDx)
-    }
-  }, [isMobile])
+      if (t.swiping) {
+        // Only allow swiping left (negative dx) to close
+        const clampedDx = Math.min(0, Math.max(dx, -120))
+        t.currentX = clampedDx
+        setTranslateX(clampedDx)
+      }
+    },
+    [isMobile],
+  )
 
   const handleTouchEnd = useCallback(() => {
     if (!isMobile) return
@@ -135,14 +151,14 @@ function MobileTabItem({
       title={`${tab.repo}/${tab.path}`}
       className={`group flex h-full cursor-pointer items-center gap-1.5 border-r text-sm whitespace-nowrap select-none transition-colors ${
         isMobile ? 'px-2.5' : 'px-3'
-      } ${
-        isActive
-          ? 'bg-background text-foreground'
-          : 'text-muted-foreground hover:bg-muted/60'
-      }`}
+      } ${isActive ? 'bg-background text-foreground' : 'text-muted-foreground hover:bg-muted/60'}`}
       style={
         translateX !== 0
-          ? { transform: `translateX(${translateX}px)`, opacity: 1 + translateX / 120, transition: 'none' }
+          ? {
+              transform: `translateX(${translateX}px)`,
+              opacity: 1 + translateX / 120,
+              transition: 'none',
+            }
           : { transition: 'transform 0.2s, opacity 0.2s' }
       }
     >
@@ -153,12 +169,10 @@ function MobileTabItem({
       ) : (
         <span className="max-w-[120px] truncate md:max-w-[160px]">{filename}</span>
       )}
-      {isDirty && (
-        <span className="size-2 shrink-0 rounded-full bg-amber-500" />
-      )}
+      {isDirty && <span className="size-2 shrink-0 rounded-full bg-amber-500" />}
       <button
         type="button"
-        onClick={(event) => {
+        onClick={event => {
           event.stopPropagation()
           onClose(event as unknown as RMouseEvent)
         }}

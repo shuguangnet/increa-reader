@@ -1,6 +1,5 @@
-import { apiFetch } from '@/app/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchApiSettings } from '@/app/api'
+import { apiFetch, fetchApiSettings } from '@/app/api'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useSelectionQueue } from '@/contexts/selection-context'
 import { useGetContext } from '@/stores/view-context'
@@ -75,7 +74,7 @@ export const ChatPanel = ({ hideHeader }: ChatPanelProps) => {
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [messages])
+  }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

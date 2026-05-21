@@ -1,30 +1,52 @@
-"use no memo"
+'use no memo'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Bold, Italic, Heading1, Heading2, Heading3,
-  Link, Code, List, Quote, Eye, Save, PenLine, ScrollText,
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from '@codemirror/autocomplete'
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { bracketMatching, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { languages } from '@codemirror/language-data'
+import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search'
+import { Compartment, EditorState } from '@codemirror/state'
+import { oneDark } from '@codemirror/theme-one-dark'
+import {
+  crosshairCursor,
+  drawSelection,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  rectangularSelection,
+} from '@codemirror/view'
+import {
+  Bold,
+  Code,
+  Eye,
+  Heading1,
+  Heading2,
+  Heading3,
+  Italic,
+  Link,
+  List,
+  PenLine,
+  Quote,
+  Save,
+  ScrollText,
 } from 'lucide-react'
-import { MarkdownViewer } from './markdown-viewer'
-import { useEditorStore } from '@/stores/editor-store'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { saveFile } from '@/app/api'
 import { showToast } from '@/app/toast'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useTheme } from '@/hooks/use-theme'
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from '@/components/ui/resizable'
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, highlightActiveLine, rectangularSelection, crosshairCursor } from '@codemirror/view'
-import { EditorState, Compartment } from '@codemirror/state'
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { languages } from '@codemirror/language-data'
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
-import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
-import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search'
-import { oneDark } from '@codemirror/theme-one-dark'
-import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
+import { useEditorStore } from '@/stores/editor-store'
+import { MarkdownViewer } from './markdown-viewer'
 
 type ToolbarAction = {
   icon: React.ReactNode
@@ -126,7 +148,7 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
   useEffect(() => {
     if (!editorContainerRef.current) return
 
-    const updateListener = EditorView.updateListener.of((update) => {
+    const updateListener = EditorView.updateListener.of(update => {
       if (update.docChanged) {
         const newContent = update.state.doc.toString()
         // Update stats
@@ -141,13 +163,15 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
       }
     })
 
-    const saveKeymap = keymap.of([{
-      key: 'Mod-s',
-      run: () => {
-        handleSave()
-        return true
+    const saveKeymap = keymap.of([
+      {
+        key: 'Mod-s',
+        run: () => {
+          handleSave()
+          return true
+        },
       },
-    }])
+    ])
 
     const state = EditorState.create({
       doc: content,
@@ -239,7 +263,7 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
     }
     // Only re-create the editor when repo/path changes (file switch)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repo, path])
+  }, [repo, path, content, handleSave, isDark, isMobile, updateContent])
 
   // Sync content when it changes externally (e.g. file switch, store update from outside)
   useEffect(() => {
@@ -264,23 +288,24 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
   }, [isDark])
 
   // Toolbar insert via CodeMirror dispatch
-  const handleInsert = useCallback(
-    (action: ToolbarAction) => {
-      const view = editorViewRef.current
-      if (!view) return
-      const { from, to } = view.state.selection.main
-      const selected = view.state.sliceDoc(from, to)
-      const replacement = action.block && !selected
+  const handleInsert = useCallback((action: ToolbarAction) => {
+    const view = editorViewRef.current
+    if (!view) return
+    const { from, to } = view.state.selection.main
+    const selected = view.state.sliceDoc(from, to)
+    const replacement =
+      action.block && !selected
         ? `${action.prefix}code${action.suffix}`
         : `${action.prefix}${selected || 'text'}${action.suffix}`
-      view.dispatch({
-        changes: { from, to, insert: replacement },
-        selection: { anchor: from + action.prefix.length, head: from + action.prefix.length + (selected || 'text').length },
-      })
-      view.focus()
-    },
-    [],
-  )
+    view.dispatch({
+      changes: { from, to, insert: replacement },
+      selection: {
+        anchor: from + action.prefix.length,
+        head: from + action.prefix.length + (selected || 'text').length,
+      },
+    })
+    view.focus()
+  }, [])
 
   // Global Ctrl+S handler (for when editor is not focused)
   useEffect(() => {
@@ -294,9 +319,12 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
     return () => document.removeEventListener('keydown', handler)
   }, [handleSave])
 
-  useEffect(() => () => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    },
+    [],
+  )
 
   // Synchronized scrolling: CodeMirror scroll → preview
   useEffect(() => {
@@ -330,7 +358,7 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
     return () => {
       view.scrollDOM.removeEventListener('scroll', onScroll)
     }
-  }, [repo, path])
+  }, [])
 
   const handlePreviewScroll = useCallback(() => {
     if (!syncScrollEnabled.current) return
@@ -367,7 +395,9 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className={`flex shrink-0 items-center gap-0.5 border-b px-2 py-1 bg-muted/30 ${isMobile ? 'overflow-x-auto scrollbar-thin' : ''}`}>
+      <div
+        className={`flex shrink-0 items-center gap-0.5 border-b px-2 py-1 bg-muted/30 ${isMobile ? 'overflow-x-auto scrollbar-thin' : ''}`}
+      >
         {TOOLBAR.map(a => (
           <button
             key={a.label}
@@ -500,7 +530,11 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
           </ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel defaultSize={50} minSize={20}>
-            <div ref={previewScrollRef} onScroll={handlePreviewScroll} className="h-full overflow-auto">
+            <div
+              ref={previewScrollRef}
+              onScroll={handlePreviewScroll}
+              className="h-full overflow-auto"
+            >
               <MarkdownViewer
                 body={content}
                 repoName={repo}
@@ -513,7 +547,9 @@ export function MarkdownEditor({ repo, path, initialContent, onExitEdit }: Props
       )}
 
       {/* Status bar */}
-      <div className={`flex shrink-0 items-center gap-3 border-t bg-muted/30 px-3 py-0.5 text-xs text-muted-foreground ${isMobile ? 'safe-bottom' : ''}`}>
+      <div
+        className={`flex shrink-0 items-center gap-3 border-t bg-muted/30 px-3 py-0.5 text-xs text-muted-foreground ${isMobile ? 'safe-bottom' : ''}`}
+      >
         <span>行 {editorStats.lineCount}</span>
         <span>词 {editorStats.wordCount}</span>
         {!isMobile && (

@@ -74,7 +74,9 @@ export function CreateFileDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={() => onOpenChange(false)} />
       <div className="relative z-50 w-full max-w-md rounded-lg border bg-white p-6 shadow-lg dark:bg-gray-900">
-        <h2 className="mb-4 text-lg font-semibold">New {createType === 'file' ? 'File' : 'Folder'}</h2>
+        <h2 className="mb-4 text-lg font-semibold">
+          New {createType === 'file' ? 'File' : 'Folder'}
+        </h2>
 
         <div className="mb-4 flex gap-2">
           <Button
@@ -106,9 +108,7 @@ export function CreateFileDialog({
           </Button>
         </div>
 
-        <div className="mb-2 text-sm text-muted-foreground">
-          Parent: {parentPath || '/'}
-        </div>
+        <div className="mb-2 text-sm text-muted-foreground">Parent: {parentPath || '/'}</div>
 
         <Input
           ref={inputRef}
@@ -123,7 +123,12 @@ export function CreateFileDialog({
         {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isCreating}
+          >
             Cancel
           </Button>
           <Button type="button" onClick={handleCreate} disabled={isCreating || !name.trim()}>

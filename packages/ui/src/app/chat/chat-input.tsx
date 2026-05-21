@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react'
 import { SendHorizontal, Square } from 'lucide-react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { uploadImage } from '@/lib/upload'
 
@@ -32,7 +32,7 @@ export const ChatInput = ({
     textarea.style.height = '0px'
     // Set new height based on scrollHeight
     textarea.style.height = `${textarea.scrollHeight}px`
-  }, [input])
+  }, [])
 
   // On mobile, scroll input into view when focused (helps with virtual keyboard)
   useEffect(() => {
@@ -113,11 +113,7 @@ export const ChatInput = ({
           }`}
           title={isStreaming ? 'Abort' : 'Send'}
         >
-          {isStreaming ? (
-            <Square className="size-4" />
-          ) : (
-            <SendHorizontal className="size-4" />
-          )}
+          {isStreaming ? <Square className="size-4" /> : <SendHorizontal className="size-4" />}
         </button>
       )}
     </div>

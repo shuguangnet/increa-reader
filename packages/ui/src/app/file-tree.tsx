@@ -1,4 +1,4 @@
-import { type VirtualItem, useVirtualizer } from '@tanstack/react-virtual'
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual'
 import {
   ChevronDown,
   ChevronRight,
@@ -18,14 +18,14 @@ import {
   Trash2,
 } from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { deleteFile } from './api'
-import { useFileTreeStore } from '@/stores/file-tree-store'
-import { useFavoritesStore } from '@/stores/favorites-store'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useFavoritesStore } from '@/stores/favorites-store'
+import { useFileTreeStore } from '@/stores/file-tree-store'
+import type { TreeNode } from './api'
+import { deleteFile } from './api'
 import { CreateFileDialog } from './create-file-dialog'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { RenameDialog } from './rename-dialog'
-import type { TreeNode } from './api'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -49,11 +49,30 @@ type FlatNode = {
 type FileIconType = 'code' | 'config' | 'text' | 'image' | 'pdf' | 'default'
 
 const EXT_TO_TYPE: Record<string, FileIconType> = {
-  js: 'code', jsx: 'code', ts: 'code', tsx: 'code', py: 'code',
-  java: 'code', cpp: 'code', c: 'code', go: 'code', rs: 'code',
-  json: 'config', yaml: 'config', yml: 'config', toml: 'config',
-  md: 'text', txt: 'text', doc: 'text', docx: 'text',
-  png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', svg: 'image', webp: 'image',
+  js: 'code',
+  jsx: 'code',
+  ts: 'code',
+  tsx: 'code',
+  py: 'code',
+  java: 'code',
+  cpp: 'code',
+  c: 'code',
+  go: 'code',
+  rs: 'code',
+  json: 'config',
+  yaml: 'config',
+  yml: 'config',
+  toml: 'config',
+  md: 'text',
+  txt: 'text',
+  doc: 'text',
+  docx: 'text',
+  png: 'image',
+  jpg: 'image',
+  jpeg: 'image',
+  gif: 'image',
+  svg: 'image',
+  webp: 'image',
   pdf: 'pdf',
 }
 
@@ -154,7 +173,10 @@ function ContextMenu({
   const menuHeight = node.type === 'dir' ? 180 : 160
   const vw = window.innerWidth
   const vh = window.innerHeight
-  const safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('padding-bottom') || '0')
+  const safeBottom = parseInt(
+    getComputedStyle(document.documentElement).getPropertyValue('padding-bottom') || '0',
+    10,
+  )
   const clampedX = Math.max(8, Math.min(x, vw - menuWidth - 8))
   const clampedY = Math.max(8, Math.min(y, vh - menuHeight - 8 - safeBottom))
 
@@ -168,7 +190,10 @@ function ContextMenu({
       {node.type === 'file' && (
         <div
           className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
-          onClick={() => { onOpenFile?.(); onClose() }}
+          onClick={() => {
+            onOpenFile?.()
+            onClose()
+          }}
         >
           <File className="size-4" />
           打开
@@ -177,7 +202,10 @@ function ContextMenu({
       {node.type === 'file' && onToggleFavorite && (
         <div
           className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
-          onClick={() => { onToggleFavorite?.(); onClose() }}
+          onClick={() => {
+            onToggleFavorite?.()
+            onClose()
+          }}
         >
           <Star className="size-4" />
           收藏/取消收藏
@@ -185,7 +213,10 @@ function ContextMenu({
       )}
       <div
         className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
-        onClick={() => { onRename?.(); onClose() }}
+        onClick={() => {
+          onRename?.()
+          onClose()
+        }}
       >
         <Pencil className="size-4" />
         重命名
@@ -194,14 +225,20 @@ function ContextMenu({
         <>
           <div
             className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
-            onClick={() => { onCreateFile?.(); onClose() }}
+            onClick={() => {
+              onCreateFile?.()
+              onClose()
+            }}
           >
             <FilePlus className="size-4" />
             新建文件
           </div>
           <div
             className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 active:bg-accent/80"
-            onClick={() => { onCreateFolder?.(); onClose() }}
+            onClick={() => {
+              onCreateFolder?.()
+              onClose()
+            }}
           >
             <FolderPlus className="size-4" />
             新建文件夹
@@ -211,7 +248,10 @@ function ContextMenu({
       <div className="my-1 border-t border-border" />
       <div
         className="px-3 py-2.5 text-sm hover:bg-accent cursor-pointer flex items-center gap-2 text-destructive active:bg-accent/80"
-        onClick={() => { onDeleteClick?.(); onClose() }}
+        onClick={() => {
+          onDeleteClick?.()
+          onClose()
+        }}
       >
         <Trash2 className="size-4" />
         删除
@@ -230,19 +270,22 @@ function useLongPressContextMenu(
   const longPressTriggeredRef = useRef(false)
   const touchStartPosRef = useRef({ x: 0, y: 0 })
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0]
-    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY }
-    longPressTriggeredRef.current = false
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      const touch = e.touches[0]
+      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY }
+      longPressTriggeredRef.current = false
 
-    longPressTimerRef.current = window.setTimeout(() => {
-      longPressTriggeredRef.current = true
-      if (navigator.vibrate) {
-        navigator.vibrate(30)
-      }
-      setContextMenu({ x: touchStartPosRef.current.x, y: touchStartPosRef.current.y, node })
-    }, 500)
-  }, [node, setContextMenu])
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTriggeredRef.current = true
+        if (navigator.vibrate) {
+          navigator.vibrate(30)
+        }
+        setContextMenu({ x: touchStartPosRef.current.x, y: touchStartPosRef.current.y, node })
+      }, 500)
+    },
+    [node, setContextMenu],
+  )
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0]
@@ -504,17 +547,23 @@ export function FileTree({
   const virtualizer = useVirtualizer({
     count: flatNodes.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => isMobile ? MOBILE_ITEM_HEIGHT : ITEM_HEIGHT,
+    estimateSize: () => (isMobile ? MOBILE_ITEM_HEIGHT : ITEM_HEIGHT),
     overscan: 20,
   })
 
   // ── Dialogs & context menu state ──
   const [contextMenuState, setContextMenuState] = useState<ContextMenuState>(null)
-  const [deleteDialogState, setDeleteDialogState] = useState<{ open: boolean; node: FlatNode | null }>({
+  const [deleteDialogState, setDeleteDialogState] = useState<{
+    open: boolean
+    node: FlatNode | null
+  }>({
     open: false,
     node: null,
   })
-  const [renameDialogState, setRenameDialogState] = useState<{ open: boolean; node: FlatNode | null }>({
+  const [renameDialogState, setRenameDialogState] = useState<{
+    open: boolean
+    node: FlatNode | null
+  }>({
     open: false,
     node: null,
   })
@@ -567,11 +616,7 @@ export function FileTree({
   )
 
   return (
-    <div
-      ref={parentRef}
-      className="text-foreground overflow-auto"
-      style={{ height: '100%' }}
-    >
+    <div ref={parentRef} className="text-foreground overflow-auto" style={{ height: '100%' }}>
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -582,8 +627,7 @@ export function FileTree({
         {virtualizer.getVirtualItems().map(virtualItem => {
           const node = flatNodes[virtualItem.index]!
           const isDirExpanded = node.type === 'dir' && effectiveExpanded.has(node.path)
-          const isSelected =
-            node.type === 'file' && selectedPath === `${repoName}/${node.path}`
+          const isSelected = node.type === 'file' && selectedPath === `${repoName}/${node.path}`
           const fav = node.type === 'file' ? isFavorite(node.path) : false
 
           return (

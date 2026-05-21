@@ -85,31 +85,28 @@ export function usePullToRefresh(options: UsePullToRefreshOptions): PullToRefres
     [isRefreshing, maxPullDistance],
   )
 
-  const handleTouchEnd = useCallback(
-    async () => {
-      if (!touchRef.current.isPulling || isRefreshing) return
+  const handleTouchEnd = useCallback(async () => {
+    if (!touchRef.current.isPulling || isRefreshing) return
 
-      touchRef.current.isPulling = false
-      const currentPull = pullDistance
+    touchRef.current.isPulling = false
+    const currentPull = pullDistance
 
-      if (currentPull >= threshold && !touchRef.current.refreshCalled) {
-        touchRef.current.refreshCalled = true
-        setIsRefreshing(true)
-        setRefreshTriggered(true)
+    if (currentPull >= threshold && !touchRef.current.refreshCalled) {
+      touchRef.current.refreshCalled = true
+      setIsRefreshing(true)
+      setRefreshTriggered(true)
 
-        try {
-          await onRefresh()
-        } finally {
-          setIsRefreshing(false)
-          setPullDistance(0)
-          setTimeout(() => setRefreshTriggered(false), 300)
-        }
-      } else {
+      try {
+        await onRefresh()
+      } finally {
+        setIsRefreshing(false)
         setPullDistance(0)
+        setTimeout(() => setRefreshTriggered(false), 300)
       }
-    },
-    [isRefreshing, pullDistance, threshold, onRefresh],
-  )
+    } else {
+      setPullDistance(0)
+    }
+  }, [isRefreshing, pullDistance, threshold, onRefresh])
 
   return {
     pullDistance,

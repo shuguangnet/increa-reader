@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -19,7 +19,9 @@ export function useTheme() {
   useEffect(() => {
     localStorage.setItem('increa-theme', theme)
     const root = document.documentElement
-    const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    const dark =
+      theme === 'dark' ||
+      (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
     root.classList.toggle('dark', dark)
     setIsDark(dark)
   }, [theme])
@@ -36,7 +38,8 @@ export function useTheme() {
     return () => mq.removeEventListener('change', handler)
   }, [theme])
 
-  const toggle = () => setTheme(prev => prev === 'dark' ? 'light' : prev === 'light' ? 'system' : 'dark')
+  const toggle = () =>
+    setTheme(prev => (prev === 'dark' ? 'light' : prev === 'light' ? 'system' : 'dark'))
 
   return { theme, setTheme, toggle, isDark }
 }

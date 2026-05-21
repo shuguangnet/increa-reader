@@ -1,9 +1,9 @@
 import { Clock, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useRecentFilesStore } from '@/stores/recent-files-store'
-import { useProgressStore } from '@/stores/progress-store'
-import { getFileIcon } from './file-tree'
 import { Button } from '@/components/ui/button'
+import { useProgressStore } from '@/stores/progress-store'
+import { useRecentFilesStore } from '@/stores/recent-files-store'
+import { getFileIcon } from './file-tree'
 
 function relativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp

@@ -15,13 +15,24 @@ import { useCallback, useEffect, useState } from 'react'
 import { isDesktop } from '@/lib/platform'
 
 const SUPPORTED_EXTENSIONS = [
-  '.md', '.markdown', '.txt', '.pdf', '.html', '.json',
-  '.org', '.rst', '.csv', '.xml', '.yaml', '.yml', '.toml',
+  '.md',
+  '.markdown',
+  '.txt',
+  '.pdf',
+  '.html',
+  '.json',
+  '.org',
+  '.rst',
+  '.csv',
+  '.xml',
+  '.yaml',
+  '.yml',
+  '.toml',
 ]
 
 function isSupportedFile(filename: string): boolean {
   const lower = filename.toLowerCase()
-  return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext))
+  return SUPPORTED_EXTENSIONS.some(ext => lower.endsWith(ext))
 }
 
 export interface DroppedFile {
@@ -43,9 +54,7 @@ export interface UseFileDropResult {
  *                       In Tauri mode, paths are native filesystem paths.
  * @returns `{ isOver, dropHandler }`
  */
-export function useFileDrop(
-  onDropFiles: (files: DroppedFile[]) => void,
-): UseFileDropResult {
+export function useFileDrop(onDropFiles: (files: DroppedFile[]) => void): UseFileDropResult {
   const [isOver, setIsOver] = useState(false)
 
   const handleDrop = useCallback(
@@ -105,12 +114,14 @@ export function useFileDrop(
     let unlistenTauriLeave: (() => void) | null = null
 
     if (isDesktop()) {
-      (async () => {
+      ;(async () => {
         try {
-          const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
+          const { getCurrentWindow } = await import(
+            /* @vite-ignore */ '@tauri-apps' + '/api/window'
+          )
           const win = getCurrentWindow()
 
-          // Listen for Tauri drag-drop event  
+          // Listen for Tauri drag-drop event
           unlistenTauriDrop = await win.listen('tauri://drag-drop', (event: unknown) => {
             setIsOver(false)
             const payload = (event as { payload: { paths: string[] } }).payload

@@ -1,7 +1,7 @@
-import { apiFetch } from '@/app/api'
 import { ChevronDown, ChevronRight, Hash, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiFetch } from '@/app/api'
 
 import { showToast } from '@/app/toast'
 import { useViewContext } from '@/stores/view-context'
@@ -37,7 +37,10 @@ export function TagsPanel() {
   }, [])
 
   const loadFileTags = useCallback(async () => {
-    if (!repo || !path) { setFileTags([]); return }
+    if (!repo || !path) {
+      setFileTags([])
+      return
+    }
     try {
       const params = new URLSearchParams({ repo, path })
       const res = await apiFetch(`/api/tags/file?${params}`)
@@ -48,13 +51,23 @@ export function TagsPanel() {
     }
   }, [repo, path])
 
-  useEffect(() => { loadTags() }, [loadTags])
-  useEffect(() => { loadFileTags() }, [loadFileTags])
+  useEffect(() => {
+    loadTags()
+  }, [loadTags])
+  useEffect(() => {
+    loadFileTags()
+  }, [loadFileTags])
 
   // Close suggestions dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (showSuggestions && suggestionsRef.current && !suggestionsRef.current.contains(e.target as HTMLElement) && tagInputRef.current && !tagInputRef.current.contains(e.target as HTMLElement)) {
+      if (
+        showSuggestions &&
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as HTMLElement) &&
+        tagInputRef.current &&
+        !tagInputRef.current.contains(e.target as HTMLElement)
+      ) {
         setShowSuggestions(false)
         setHighlightedSuggestion(-1)
       }
@@ -64,7 +77,11 @@ export function TagsPanel() {
   }, [showSuggestions])
 
   const toggleExpand = async (tagName: string) => {
-    if (expanded === tagName) { setExpanded(null); setTagFiles([]); return }
+    if (expanded === tagName) {
+      setExpanded(null)
+      setTagFiles([])
+      return
+    }
     setExpanded(tagName)
     setLoadingFiles(true)
     try {
@@ -137,7 +154,10 @@ export function TagsPanel() {
       {/* 当前文件标签 */}
       {repo && path && (
         <div className="border-b p-3">
-          <div className="text-xs font-medium text-muted-foreground mb-1.5 truncate" title={`${repo}/${path}`}>
+          <div
+            className="text-xs font-medium text-muted-foreground mb-1.5 truncate"
+            title={`${repo}/${path}`}
+          >
             {path.split('/').pop()}
           </div>
           <div className="flex flex-wrap gap-1 mb-2">
@@ -145,9 +165,15 @@ export function TagsPanel() {
               <span className="text-xs text-muted-foreground opacity-60">暂无标签</span>
             )}
             {fileTags.map(t => (
-              <span key={t} className="inline-flex items-center gap-0.5 rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-xs">
-                <Hash className="size-3" />{t}
-                <button onClick={() => removeTag(t)} className="ml-0.5 hover:text-red-500"><X className="size-3" /></button>
+              <span
+                key={t}
+                className="inline-flex items-center gap-0.5 rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-xs"
+              >
+                <Hash className="size-3" />
+                {t}
+                <button onClick={() => removeTag(t)} className="ml-0.5 hover:text-red-500">
+                  <X className="size-3" />
+                </button>
               </span>
             ))}
           </div>
@@ -189,7 +215,12 @@ export function TagsPanel() {
                 placeholder="添加标签..."
                 className="flex-1 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-xs outline-none focus:border-gray-400 dark:focus:border-gray-500"
               />
-              <button onClick={() => addTag()} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"><Plus className="size-3.5" /></button>
+              <button
+                onClick={() => addTag()}
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Plus className="size-3.5" />
+              </button>
             </div>
             {/* Tag autocomplete suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
@@ -221,7 +252,9 @@ export function TagsPanel() {
       {/* 标签列表 */}
       <div className="flex-1 overflow-auto">
         {loading && <div className="p-3 text-xs text-muted-foreground">加载中...</div>}
-        {!loading && tags.length === 0 && <div className="p-3 text-xs text-muted-foreground">暂无标签</div>}
+        {!loading && tags.length === 0 && (
+          <div className="p-3 text-xs text-muted-foreground">暂无标签</div>
+        )}
         {tags.map(tag => (
           <div key={tag.name}>
             <button
@@ -229,7 +262,11 @@ export function TagsPanel() {
               className="w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               <span className="flex items-center gap-1.5">
-                {expanded === tag.name ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                {expanded === tag.name ? (
+                  <ChevronDown className="size-3.5" />
+                ) : (
+                  <ChevronRight className="size-3.5" />
+                )}
                 <Hash className="size-3.5 text-muted-foreground" />
                 <span>{tag.name}</span>
               </span>
@@ -237,7 +274,9 @@ export function TagsPanel() {
             </button>
             {expanded === tag.name && (
               <div className="pl-6 pb-1">
-                {loadingFiles && <div className="text-xs text-muted-foreground px-2 py-1">加载中...</div>}
+                {loadingFiles && (
+                  <div className="text-xs text-muted-foreground px-2 py-1">加载中...</div>
+                )}
                 {tagFiles.map((f, i) => (
                   <button
                     key={`${f.repo}-${f.file_path}-${i}`}

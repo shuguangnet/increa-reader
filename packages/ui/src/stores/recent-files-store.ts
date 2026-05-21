@@ -25,13 +25,8 @@ export const useRecentFilesStore = create<RecentFilesState>()(
           const cleanPath = path.startsWith('/') ? path.slice(1) : path
           const name = cleanPath.split('/').pop() ?? cleanPath
           // Remove existing entry for same repo/path, then add at front
-          const filtered = state.recentFiles.filter(
-            f => !(f.repo === repo && f.path === cleanPath),
-          )
-          const updated = [
-            { repo, path: cleanPath, name, openedAt: Date.now() },
-            ...filtered,
-          ]
+          const filtered = state.recentFiles.filter(f => !(f.repo === repo && f.path === cleanPath))
+          const updated = [{ repo, path: cleanPath, name, openedAt: Date.now() }, ...filtered]
           return { recentFiles: updated.slice(0, MAX_RECENT) }
         }),
       clearRecent: () => set({ recentFiles: [] }),

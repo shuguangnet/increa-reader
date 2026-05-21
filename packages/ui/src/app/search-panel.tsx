@@ -1,13 +1,12 @@
-import { apiFetch } from '@/app/api'
 import { Clock, RefreshCw, RegexIcon, Search, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-
+import { apiFetch } from '@/app/api'
+import { showToast } from '@/app/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useSearchHistoryStore } from '@/stores/search-history-store'
-import { showToast } from '@/app/toast'
 import { fetchRepos, type RepoInfo } from './api'
 import { getFileIcon } from './file-tree'
 
@@ -33,7 +32,9 @@ function highlightWithRegex(text: string, regex: RegExp | null) {
     const parts = text.split(regex)
     return parts.map((part, i) =>
       i % 2 === 1 ? (
-        <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">{part}</mark>
+        <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">
+          {part}
+        </mark>
       ) : (
         part
       ),
@@ -102,19 +103,25 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   }, [query])
 
   // Swipe-to-close for mobile
-  const touchStartRef = useRef<{ startY: number; currentTranslateY: number; swiping: boolean }>({ startY: 0, currentTranslateY: 0, swiping: false })
+  const touchStartRef = useRef<{ startY: number; currentTranslateY: number; swiping: boolean }>({
+    startY: 0,
+    currentTranslateY: 0,
+    swiping: false,
+  })
 
   // Load repos for repo filter
   useEffect(() => {
     if (open) {
-      fetchRepos().then(setRepos).catch(() => setRepos([]))
+      fetchRepos()
+        .then(setRepos)
+        .catch(() => setRepos([]))
     }
   }, [open])
 
   // Reset selected index when results or query change
   useEffect(() => {
     setSelectedIndex(-1)
-  }, [results])
+  }, [])
 
   // Auto-focus input when panel opens
   useEffect(() => {
@@ -126,31 +133,34 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   }, [open])
 
   // Debounced search
-  const doSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      setResults([])
-      return
-    }
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({ q: searchQuery })
-      if (typeFilter) params.set('file_types', typeFilter)
-      if (repoFilter) params.set('repo', repoFilter)
-      if (useRegex) params.set('regex', 'true')
-      params.set('context_lines', '2')
-      const res = await apiFetch(`/api/search?${params}`)
-      const data = await res.json()
-      setResults(data.results ?? [])
-      // Save to search history when we get results
-      if ((data.results ?? []).length > 0) {
-        addSearch(searchQuery.trim())
+  const doSearch = useCallback(
+    async (searchQuery: string) => {
+      if (!searchQuery.trim()) {
+        setResults([])
+        return
       }
-    } catch {
-      setResults([])
-    } finally {
-      setLoading(false)
-    }
-  }, [typeFilter, repoFilter, useRegex, addSearch])
+      setLoading(true)
+      try {
+        const params = new URLSearchParams({ q: searchQuery })
+        if (typeFilter) params.set('file_types', typeFilter)
+        if (repoFilter) params.set('repo', repoFilter)
+        if (useRegex) params.set('regex', 'true')
+        params.set('context_lines', '2')
+        const res = await apiFetch(`/api/search?${params}`)
+        const data = await res.json()
+        setResults(data.results ?? [])
+        // Save to search history when we get results
+        if ((data.results ?? []).length > 0) {
+          addSearch(searchQuery.trim())
+        }
+      } catch {
+        setResults([])
+      } finally {
+        setLoading(false)
+      }
+    },
+    [typeFilter, repoFilter, useRegex, addSearch],
+  )
 
   // Keep ref in sync so rebuild can call it
   doSearchRef.current = doSearch
@@ -169,18 +179,21 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   useEffect(() => {
     if (!open || !query.trim()) return
     doSearch(query)
-  }, [typeFilter, repoFilter, useRegex, open]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, doSearch, query]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const navigateToFile = useCallback((repo: string, filePath: string, lineNumber?: number) => {
-    const clean = filePath.startsWith('/') ? filePath.slice(1) : filePath
-    const url = lineNumber
-      ? `/views/${repo}/${clean}?line=${lineNumber}`
-      : `/views/${repo}/${clean}`
-    navigate(url)
-    onClose()
-    // Dismiss mobile keyboard
-    inputRef.current?.blur()
-  }, [navigate, onClose])
+  const navigateToFile = useCallback(
+    (repo: string, filePath: string, lineNumber?: number) => {
+      const clean = filePath.startsWith('/') ? filePath.slice(1) : filePath
+      const url = lineNumber
+        ? `/views/${repo}/${clean}?line=${lineNumber}`
+        : `/views/${repo}/${clean}`
+      navigate(url)
+      onClose()
+      // Dismiss mobile keyboard
+      inputRef.current?.blur()
+    },
+    [navigate, onClose],
+  )
 
   // Scroll selected item into view
   useEffect(() => {
@@ -222,31 +235,37 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
   }, [open, onClose, results, selectedIndex, navigateToFile])
 
   // Mobile touch handlers for swipe-to-close
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!isMobile) return
-    const touch = e.touches[0]
-    const rect = panelRef.current?.getBoundingClientRect()
-    if (!rect) return
-    if (touch.clientY - rect.top < 48) {
-      touchStartRef.current = { startY: touch.clientY, currentTranslateY: 0, swiping: false }
-    }
-  }, [isMobile])
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isMobile) return
+      const touch = e.touches[0]
+      const rect = panelRef.current?.getBoundingClientRect()
+      if (!rect) return
+      if (touch.clientY - rect.top < 48) {
+        touchStartRef.current = { startY: touch.clientY, currentTranslateY: 0, swiping: false }
+      }
+    },
+    [isMobile],
+  )
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isMobile) return
-    const t = touchStartRef.current
-    if (t.startY === 0) return
-    const touch = e.touches[0]
-    const dy = touch.clientY - t.startY
-    if (!t.swiping && dy > 10) {
-      t.swiping = true
-    }
-    if (t.swiping && dy > 0 && panelRef.current) {
-      t.currentTranslateY = dy
-      panelRef.current.style.transform = `translateY(${dy}px)`
-      panelRef.current.style.transition = 'none'
-    }
-  }, [isMobile])
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isMobile) return
+      const t = touchStartRef.current
+      if (t.startY === 0) return
+      const touch = e.touches[0]
+      const dy = touch.clientY - t.startY
+      if (!t.swiping && dy > 10) {
+        t.swiping = true
+      }
+      if (t.swiping && dy > 0 && panelRef.current) {
+        t.currentTranslateY = dy
+        panelRef.current.style.transform = `translateY(${dy}px)`
+        panelRef.current.style.transition = 'none'
+      }
+    },
+    [isMobile],
+  )
 
   const handleTouchEnd = useCallback(() => {
     if (!isMobile) return
@@ -293,7 +312,13 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
               <Search className="size-4" /> 搜索
             </h2>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon-sm" onClick={handleRebuild} disabled={rebuilding} title="重建搜索索引">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleRebuild}
+                disabled={rebuilding}
+                title="重建搜索索引"
+              >
                 <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
               </Button>
               <Button variant="ghost" size="icon-sm" onClick={onClose}>
@@ -376,8 +401,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
             {!loading && results.length === 0 && query && (
               <div className="p-4 text-sm text-muted-foreground">未找到结果</div>
             )}
-            {!loading && results.length === 0 && !query && (
-              recentSearches.length > 0 ? (
+            {!loading &&
+              results.length === 0 &&
+              !query &&
+              (recentSearches.length > 0 ? (
                 <div>
                   <div className="flex items-center justify-between px-4 py-2">
                     <span className="text-xs font-medium text-muted-foreground">最近搜索</span>
@@ -393,14 +420,20 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                     <button
                       key={searchTerm}
                       type="button"
-                      onClick={() => { setQuery(searchTerm); doSearch(searchTerm) }}
+                      onClick={() => {
+                        setQuery(searchTerm)
+                        doSearch(searchTerm)
+                      }}
                       className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left border-b"
                     >
                       <Clock className="size-3.5 text-muted-foreground shrink-0" />
                       <span className="text-sm truncate flex-1">{searchTerm}</span>
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); removeSearch(searchTerm) }}
+                        onClick={e => {
+                          e.stopPropagation()
+                          removeSearch(searchTerm)
+                        }}
                         className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                       >
                         <X className="size-3" />
@@ -413,8 +446,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                   <Search className="size-8 mx-auto mb-2 opacity-30" />
                   <p>输入关键词搜索所有仓库内容</p>
                 </div>
-              )
-            )}
+              ))}
             {Object.entries(groupedResults).map(([repo, repoResults]) => (
               <div key={repo}>
                 {repos.length > 1 && (
@@ -429,7 +461,13 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                     <button
                       key={`${r.repo}-${r.file_path}-${r.line_number}-${i}`}
                       data-result-index={globalIndex}
-                      onClick={() => navigateToFile(r.repo, r.file_path, r.line_number > 0 ? r.line_number : undefined)}
+                      onClick={() =>
+                        navigateToFile(
+                          r.repo,
+                          r.file_path,
+                          r.line_number > 0 ? r.line_number : undefined,
+                        )
+                      }
                       className={`w-full text-left px-4 py-3 border-b transition-colors active:bg-accent ${
                         selectedIndex === globalIndex
                           ? 'bg-accent text-accent-foreground'
@@ -438,7 +476,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                     >
                       <div className="flex items-center gap-1.5 mb-0.5">
                         {getFileIcon(fileName)}
-                        <span className="text-xs text-muted-foreground truncate flex-1" title={`${r.repo}/${r.file_path}`}>
+                        <span
+                          className="text-xs text-muted-foreground truncate flex-1"
+                          title={`${r.repo}/${r.file_path}`}
+                        >
                           {r.file_path}
                         </span>
                         {r.line_number > 0 && (
@@ -450,7 +491,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                       {r.line && (
                         <div className="text-xs font-mono mt-0.5 space-y-0">
                           {r.context_before?.map((ctxLine, ci) => (
-                            <div key={`before-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
+                            <div
+                              key={`before-${ci}`}
+                              className="text-gray-300 dark:text-gray-600 line-clamp-1"
+                            >
                               {ctxLine.trim()}
                             </div>
                           ))}
@@ -458,7 +502,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                             {highlightWithRegex(r.line.trim(), highlightRegex)}
                           </div>
                           {r.context_after?.map((ctxLine, ci) => (
-                            <div key={`after-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
+                            <div
+                              key={`after-${ci}`}
+                              className="text-gray-300 dark:text-gray-600 line-clamp-1"
+                            >
                               {ctxLine.trim()}
                             </div>
                           ))}
@@ -476,9 +523,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
               <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↑↓</kbd> 导航{' '}
               <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↵</kbd> 打开
             </span>
-            {results.length > 0 && (
-              <span>{results.length} 条结果</span>
-            )}
+            {results.length > 0 && <span>{results.length} 条结果</span>}
           </div>
         </div>
       </div>
@@ -495,7 +540,13 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
             <Search className="size-4" /> 全局搜索
           </h2>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon-sm" onClick={handleRebuild} disabled={rebuilding} title="重建搜索索引">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleRebuild}
+              disabled={rebuilding}
+              title="重建搜索索引"
+            >
               <RefreshCw className={`size-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
             </Button>
             <Button variant="ghost" size="icon-sm" onClick={onClose}>
@@ -578,8 +629,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
           {!loading && results.length === 0 && query && (
             <div className="p-4 text-sm text-muted-foreground">未找到结果</div>
           )}
-          {!loading && results.length === 0 && !query && (
-            recentSearches.length > 0 ? (
+          {!loading &&
+            results.length === 0 &&
+            !query &&
+            (recentSearches.length > 0 ? (
               <div>
                 <div className="flex items-center justify-between px-4 py-2 border-b">
                   <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -599,14 +652,20 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                   <button
                     key={searchTerm}
                     type="button"
-                    onClick={() => { setQuery(searchTerm); doSearch(searchTerm) }}
+                    onClick={() => {
+                      setQuery(searchTerm)
+                      doSearch(searchTerm)
+                    }}
                     className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left border-b"
                   >
                     <Clock className="size-3.5 text-muted-foreground shrink-0" />
                     <span className="text-sm truncate flex-1">{searchTerm}</span>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); removeSearch(searchTerm) }}
+                      onClick={e => {
+                        e.stopPropagation()
+                        removeSearch(searchTerm)
+                      }}
                       className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-muted-foreground hover:text-foreground transition-colors shrink-0 opacity-0 group-hover:opacity-100"
                     >
                       <X className="size-3" />
@@ -616,8 +675,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
               </div>
             ) : (
               <div className="p-4 text-sm text-muted-foreground">输入关键词开始搜索</div>
-            )
-          )}
+            ))}
           {Object.entries(groupedResults).map(([repo, repoResults]) => (
             <div key={repo}>
               {repos.length > 1 && (
@@ -632,7 +690,13 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                   <button
                     key={`${r.repo}-${r.file_path}-${r.line_number}-${i}`}
                     data-result-index={globalIndex}
-                    onClick={() => navigateToFile(r.repo, r.file_path, r.line_number > 0 ? r.line_number : undefined)}
+                    onClick={() =>
+                      navigateToFile(
+                        r.repo,
+                        r.file_path,
+                        r.line_number > 0 ? r.line_number : undefined,
+                      )
+                    }
                     onMouseEnter={() => setSelectedIndex(globalIndex)}
                     className={`w-full text-left px-4 py-2.5 border-b transition-colors ${
                       selectedIndex === globalIndex
@@ -642,7 +706,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                   >
                     <div className="flex items-center gap-1.5 mb-0.5">
                       {getFileIcon(fileName)}
-                      <span className="text-xs text-muted-foreground truncate flex-1" title={`${r.repo}/${r.file_path}`}>
+                      <span
+                        className="text-xs text-muted-foreground truncate flex-1"
+                        title={`${r.repo}/${r.file_path}`}
+                      >
                         {r.file_path}
                       </span>
                       {r.line_number > 0 && (
@@ -654,7 +721,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                     {r.line && (
                       <div className="text-xs font-mono mt-0.5 space-y-0">
                         {r.context_before?.map((ctxLine, ci) => (
-                          <div key={`before-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
+                          <div
+                            key={`before-${ci}`}
+                            className="text-gray-300 dark:text-gray-600 line-clamp-1"
+                          >
                             {ctxLine.trim()}
                           </div>
                         ))}
@@ -662,7 +732,10 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
                           {highlightWithRegex(r.line.trim(), highlightRegex)}
                         </div>
                         {r.context_after?.map((ctxLine, ci) => (
-                          <div key={`after-${ci}`} className="text-gray-300 dark:text-gray-600 line-clamp-1">
+                          <div
+                            key={`after-${ci}`}
+                            className="text-gray-300 dark:text-gray-600 line-clamp-1"
+                          >
                             {ctxLine.trim()}
                           </div>
                         ))}
@@ -681,9 +754,7 @@ export function SearchPanel({ open, onClose }: SearchPanelProps) {
             <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">↵</kbd> 打开{' '}
             <kbd className="rounded border px-1 py-0.5 font-mono text-[10px]">Esc</kbd> 关闭
           </span>
-          {results.length > 0 && (
-            <span>{results.length} 条结果</span>
-          )}
+          {results.length > 0 && <span>{results.length} 条结果</span>}
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 
 type ExpandedDirsState = {
   /** Per-repo expanded dir paths: repoName → Set of dir paths */
@@ -82,7 +82,7 @@ export const useFileTreeStore = create<ExpandedDirsState>()(
           return { expandedDirs: { ...state.expandedDirs, [repoName]: next } }
         }),
 
-      closeAll: (repoName) =>
+      closeAll: repoName =>
         set(state => {
           if (!state.expandedDirs[repoName]) return state
           const { [repoName]: _, ...rest } = state.expandedDirs
@@ -114,7 +114,7 @@ export const useFileTreeStore = create<ExpandedDirsState>()(
     {
       name: 'increa-file-tree-expanded',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => serialize(state.expandedDirs),
+      partialize: state => serialize(state.expandedDirs),
       merge: (persistedState, _currentState) => {
         const expandedDirs = deserializeExpandedDirs(persistedState)
         return { expandedDirs } as unknown as ExpandedDirsState

@@ -1,5 +1,5 @@
+import { AlertTriangle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 
 type ErrorBoundaryProps = {
   children: ReactNode
@@ -65,9 +65,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <AlertTriangle className="size-6 text-red-600 dark:text-red-400" />
           </div>
 
-          <h2 className="text-lg font-semibold text-foreground">
-            页面出现了问题
-          </h2>
+          <h2 className="text-lg font-semibold text-foreground">页面出现了问题</h2>
 
           <p className="text-sm text-muted-foreground">
             {isDev ? error.message : '渲染时发生了意外错误，请尝试刷新页面。'}

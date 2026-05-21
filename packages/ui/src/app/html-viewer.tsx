@@ -1,12 +1,12 @@
 import { Code, Eye, Pencil, Save } from 'lucide-react'
-import { useState, useRef, useCallback } from 'react'
-import { Button } from '@/components/ui/button'
-import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
+import { useCallback, useRef, useState } from 'react'
 import { oneLight, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { useEditorStore } from '@/stores/editor-store'
 import { saveFile } from '@/app/api'
 import { showToast } from '@/app/toast'
+import { CodeBlockWithCopy } from '@/components/code-block-with-copy'
+import { Button } from '@/components/ui/button'
 import { useTheme } from '@/hooks/use-theme'
+import { useEditorStore } from '@/stores/editor-store'
 
 type HtmlViewerProps = {
   body: string
@@ -95,12 +95,7 @@ export function HtmlViewer({ body, repo, path }: HtmlViewerProps) {
             源码
           </Button>
           {mode !== 'edit' ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-xs"
-              onClick={handleEdit}
-            >
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleEdit}>
               <Pencil className="h-3.5 w-3.5" />
               编辑
             </Button>
@@ -143,7 +138,7 @@ export function HtmlViewer({ body, repo, path }: HtmlViewerProps) {
         <div className="flex-1 min-h-0">
           <textarea
             value={content}
-            onChange={(e) => updateContent(repo, path, e.target.value)}
+            onChange={e => updateContent(repo, path, e.target.value)}
             className="h-full w-full resize-none bg-background p-3 font-mono text-sm leading-[1.5] outline-none"
             spellCheck={false}
           />

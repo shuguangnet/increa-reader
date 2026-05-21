@@ -26,10 +26,7 @@ export const useFavoritesStore = create<FavoritesState>()(
           const exists = state.favorites.some(f => f.repo === repo && f.path === cleanPath)
           if (exists) return state
           return {
-            favorites: [
-              ...state.favorites,
-              { repo, path: cleanPath, name, addedAt: Date.now() },
-            ],
+            favorites: [...state.favorites, { repo, path: cleanPath, name, addedAt: Date.now() }],
           }
         }),
       removeFavorite: (repo, path) =>

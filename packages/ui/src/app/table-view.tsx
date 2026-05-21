@@ -25,14 +25,13 @@ function detectColumnType(values: string[]): ColumnType {
     const trimmed = v.trim()
     if (!trimmed) continue
     // Check number
-    if (!isNaN(Number(trimmed))) {
+    if (!Number.isNaN(Number(trimmed))) {
       numCount++
       continue
     }
     // Check date (YYYY-MM-DD or YYYY/MM/DD)
     if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(trimmed)) {
       dateCount++
-      continue
     }
   }
 
@@ -52,7 +51,7 @@ export function TableView({ data, headers, onSave }: TableViewProps) {
   // Detect column types on data change
   useEffect(() => {
     const types: ColumnType[] = headers.map((_, i) =>
-      detectColumnType(localData.map(row => row[i] ?? ''))
+      detectColumnType(localData.map(row => row[i] ?? '')),
     )
     setColumnTypes(types)
   }, [headers, localData])
@@ -61,7 +60,7 @@ export function TableView({ data, headers, onSave }: TableViewProps) {
     setSort(prev =>
       prev && prev.colIndex === colIndex
         ? { colIndex, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
-        : { colIndex, direction: 'asc' }
+        : { colIndex, direction: 'asc' },
     )
   }, [])
 
@@ -96,32 +95,38 @@ export function TableView({ data, headers, onSave }: TableViewProps) {
     return sorted
   }, [filteredData, sort, columnTypes])
 
-  const handleDoubleClick = useCallback((rowIndex: number, colIndex: number) => {
-    // Find actual index in localData from the sorted/filtered result
-    const actualRow = localData.indexOf(sortedData[rowIndex])
-    setEditingCell({ row: actualRow, col: colIndex })
-    setEditValue(localData[actualRow]?.[colIndex] ?? '')
-  }, [localData, sortedData])
+  const handleDoubleClick = useCallback(
+    (rowIndex: number, colIndex: number) => {
+      // Find actual index in localData from the sorted/filtered result
+      const actualRow = localData.indexOf(sortedData[rowIndex])
+      setEditingCell({ row: actualRow, col: colIndex })
+      setEditValue(localData[actualRow]?.[colIndex] ?? '')
+    },
+    [localData, sortedData],
+  )
 
   const handleEditCommit = useCallback(() => {
     if (!editingCell) return
     const { row, col } = editingCell
     const newData = localData.map((r, ri) =>
-      ri === row ? r.map((c, ci) => (ci === col ? editValue : c)) : r
+      ri === row ? r.map((c, ci) => (ci === col ? editValue : c)) : r,
     )
     setLocalData(newData)
     setEditingCell(null)
     onSave?.(newData)
   }, [editingCell, editValue, localData, onSave])
 
-  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleEditCommit()
-    }
-    if (e.key === 'Escape') {
-      setEditingCell(null)
-    }
-  }, [handleEditCommit])
+  const handleEditKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleEditCommit()
+      }
+      if (e.key === 'Escape') {
+        setEditingCell(null)
+      }
+    },
+    [handleEditCommit],
+  )
 
   // Get actual row index in localData from sortedData index
   const getActualIndex = (sortedIndex: number): number => {
@@ -154,11 +159,12 @@ export function TableView({ data, headers, onSave }: TableViewProps) {
                 >
                   <div className="flex items-center gap-1">
                     <span>{h}</span>
-                    {sort?.colIndex === i && (
-                      sort.direction === 'asc'
-                        ? <ArrowUp className="size-3" />
-                        : <ArrowDown className="size-3" />
-                    )}
+                    {sort?.colIndex === i &&
+                      (sort.direction === 'asc' ? (
+                        <ArrowUp className="size-3" />
+                      ) : (
+                        <ArrowDown className="size-3" />
+                      ))}
                   </div>
                 </th>
               ))}
@@ -199,7 +205,10 @@ export function TableView({ data, headers, onSave }: TableViewProps) {
             ))}
             {sortedData.length === 0 && (
               <tr>
-                <td colSpan={headers.length} className="px-3 py-8 text-center text-muted-foreground">
+                <td
+                  colSpan={headers.length}
+                  className="px-3 py-8 text-center text-muted-foreground"
+                >
                   {filter ? '没有匹配的行' : '空表格'}
                 </td>
               </tr>
@@ -260,7 +269,9 @@ export function parseCSV(content: string): { headers: string[]; data: string[][]
 /**
  * Parse a Markdown table string into headers and rows.
  */
-export function parseMarkdownTable(content: string): { headers: string[]; data: string[][] } | null {
+export function parseMarkdownTable(
+  content: string,
+): { headers: string[]; data: string[][] } | null {
   const lines = content.trim().split(/\r?\n/)
   if (lines.length < 2) return null
 
@@ -278,6 +289,9 @@ export function parseMarkdownTable(content: string): { headers: string[]; data: 
   // Second line: separator (skip)
   if (!lines[1].match(/^\|?\s*[-:]+(\s*[-:]+)*\s*\|?$/)) return null
 
-  const data = lines.slice(2).filter(l => l.trim()).map(parseMDLine)
+  const data = lines
+    .slice(2)
+    .filter(l => l.trim())
+    .map(parseMDLine)
   return { headers, data }
 }

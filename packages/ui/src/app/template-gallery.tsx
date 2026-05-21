@@ -2,7 +2,13 @@ import { LayoutTemplate, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { applyTemplate, fetchTemplateDetail, fetchTemplates, type TemplateInfo, type TemplateDetail } from './api'
+import {
+  applyTemplate,
+  fetchTemplateDetail,
+  fetchTemplates,
+  type TemplateDetail,
+  type TemplateInfo,
+} from './api'
 
 type TemplateGalleryProps = {
   repoName: string
@@ -12,12 +18,17 @@ type TemplateGalleryProps = {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  '工作': 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-  '开发': 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  '个人': 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+  工作: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+  开发: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+  个人: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
 }
 
-export function TemplateGallery({ repoName, parentPath, onCreated, onClose }: TemplateGalleryProps) {
+export function TemplateGallery({
+  repoName,
+  parentPath,
+  onCreated,
+  onClose,
+}: TemplateGalleryProps) {
   const [templates, setTemplates] = useState<TemplateInfo[]>([])
   const [selected, setSelected] = useState<TemplateDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -83,11 +94,7 @@ export function TemplateGallery({ repoName, parentPath, onCreated, onClose }: Te
             <LayoutTemplate className="size-5" />
             <h2 className="text-lg font-semibold">模板画廊</h2>
           </div>
-          <button
-            type="button"
-            className="rounded-md p-1 hover:bg-accent"
-            onClick={onClose}
-          >
+          <button type="button" className="rounded-md p-1 hover:bg-accent" onClick={onClose}>
             <X className="size-4" />
           </button>
         </div>
@@ -106,7 +113,9 @@ export function TemplateGallery({ repoName, parentPath, onCreated, onClose }: Te
                   onClick={() => handleSelect(tpl.id)}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${CATEGORY_COLORS[tpl.category] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
+                    <span
+                      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${CATEGORY_COLORS[tpl.category] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}
+                    >
                       {tpl.category}
                     </span>
                     <span className="font-medium text-sm">{tpl.name}</span>
@@ -131,15 +140,26 @@ export function TemplateGallery({ repoName, parentPath, onCreated, onClose }: Te
                       value={fileName}
                       onChange={e => setFileName(e.target.value)}
                       placeholder="例如: meeting-2024-01-15.md"
-                      onKeyDown={e => { if (e.key === 'Enter') handleApply() }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleApply()
+                      }}
                       disabled={applying}
                     />
                     {error && <p className="text-xs text-destructive">{error}</p>}
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setShowApplyDialog(false)} disabled={applying}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowApplyDialog(false)}
+                        disabled={applying}
+                      >
                         取消
                       </Button>
-                      <Button size="sm" onClick={handleApply} disabled={applying || !fileName.trim()}>
+                      <Button
+                        size="sm"
+                        onClick={handleApply}
+                        disabled={applying || !fileName.trim()}
+                      >
                         {applying ? '创建中...' : '创建'}
                       </Button>
                     </div>

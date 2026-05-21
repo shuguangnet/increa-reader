@@ -1,5 +1,5 @@
-import type { DocumentNote, NotePosition } from '@/types/notes'
 import { getApiBase as getPlatformApiBase } from '@/lib/platform'
+import type { DocumentNote, NotePosition } from '@/types/notes'
 
 /** Get the API base URL — uses Tauri local server in desktop mode */
 export function getApiBase(): string {
@@ -15,25 +15,27 @@ function showToastAsync(message: string, type: 'success' | 'error' | 'info') {
 
 /** Fetch wrapper that auto-prefixes the API base URL with enhanced error handling */
 export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
-  return fetch(getApiBase() + url, init).then(response => {
-    if (response.status === 401) {
-      // Dispatch event to open settings drawer for API configuration
-      // (BrowserRouter doesn't support hash-based navigation)
-      window.dispatchEvent(new CustomEvent('increa:navigate-settings'))
-      showToastAsync('API 认证失败，请检查 API 配置', 'error')
-      throw response
-    }
-    if (!response.ok && response.status >= 500) {
-      showToastAsync(`服务器错误 (${response.status})`, 'error')
-    }
-    return response
-  }).catch(err => {
-    // Network error (no response at all) — TypeError from failed fetch
-    if (err instanceof TypeError) {
-      showToastAsync('网络连接失败，请检查网络或 API 配置', 'error')
-    }
-    throw err
-  })
+  return fetch(getApiBase() + url, init)
+    .then(response => {
+      if (response.status === 401) {
+        // Dispatch event to open settings drawer for API configuration
+        // (BrowserRouter doesn't support hash-based navigation)
+        window.dispatchEvent(new CustomEvent('increa:navigate-settings'))
+        showToastAsync('API 认证失败，请检查 API 配置', 'error')
+        throw response
+      }
+      if (!response.ok && response.status >= 500) {
+        showToastAsync(`服务器错误 (${response.status})`, 'error')
+      }
+      return response
+    })
+    .catch(err => {
+      // Network error (no response at all) — TypeError from failed fetch
+      if (err instanceof TypeError) {
+        showToastAsync('网络连接失败，请检查网络或 API 配置', 'error')
+      }
+      throw err
+    })
 }
 
 type TreeNode = {
@@ -88,7 +90,7 @@ export async function fetchPreview(repo: string, path: string): Promise<PreviewR
 
 export async function fetchDocumentNotes(repo: string, path: string): Promise<DocumentNote[]> {
   const params = new URLSearchParams({ repo, path })
-  const response = await fetch(getApiBase() + `/api/notes?${params}`)
+  const response = await fetch(`${getApiBase()}/api/notes?${params}`)
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.detail || 'Failed to load notes')
@@ -102,7 +104,7 @@ export async function createDocumentNote(
   path: string,
   note: { color: DocumentNote['color']; content: string; position: NotePosition },
 ): Promise<DocumentNote> {
-  const response = await fetch(getApiBase() + '/api/notes', {
+  const response = await fetch(`${getApiBase()}/api/notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ repo, path, note }),
@@ -121,7 +123,7 @@ export async function updateDocumentNote(
   noteId: string,
   note: { color: DocumentNote['color']; content: string; position: NotePosition },
 ): Promise<{ deleted: boolean; note?: DocumentNote }> {
-  const response = await fetch(getApiBase() + `/api/notes/${encodeURIComponent(noteId)}`, {
+  const response = await fetch(`${getApiBase()}/api/notes/${encodeURIComponent(noteId)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ repo, path, note }),
@@ -139,9 +141,12 @@ export async function deleteDocumentNote(
   noteId: string,
 ): Promise<void> {
   const params = new URLSearchParams({ repo, path })
-  const response = await fetch(getApiBase() + `/api/notes/${encodeURIComponent(noteId)}?${params}`, {
-    method: 'DELETE',
-  })
+  const response = await fetch(
+    `${getApiBase()}/api/notes/${encodeURIComponent(noteId)}?${params}`,
+    {
+      method: 'DELETE',
+    },
+  )
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.detail || 'Failed to delete note')
@@ -149,7 +154,7 @@ export async function deleteDocumentNote(
 }
 
 export async function deleteFile(repo: string, path: string): Promise<{ success: boolean }> {
-  const response = await fetch(getApiBase() + `/api/files/${encodeURIComponent(repo)}/${path}`, {
+  const response = await fetch(`${getApiBase()}/api/files/${encodeURIComponent(repo)}/${path}`, {
     method: 'DELETE',
   })
   if (!response.ok) {
@@ -172,7 +177,7 @@ export async function fetchConfigRepos(): Promise<RepoConfigInfo[]> {
 }
 
 export async function updateConfigRepos(paths: string[]): Promise<RepoConfigInfo[]> {
-  const response = await fetch(getApiBase() + '/api/config/repos', {
+  const response = await fetch(`${getApiBase()}/api/config/repos`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ repos: paths.map(path => ({ path })) }),
@@ -197,7 +202,7 @@ export async function fetchApiSettings(): Promise<ApiSettings> {
 }
 
 export async function updateApiSettings(settings: Partial<ApiSettings>): Promise<ApiSettings> {
-  const response = await fetch(getApiBase() + '/api/config/api-settings', {
+  const response = await fetch(`${getApiBase()}/api/config/api-settings`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
@@ -205,8 +210,13 @@ export async function updateApiSettings(settings: Partial<ApiSettings>): Promise
   return response.json()
 }
 
-export async function createFile(repo: string, path: string, type: 'file' | 'dir', content?: string): Promise<{ success: boolean; path: string }> {
-  const response = await fetch(getApiBase() + `/api/files/${encodeURIComponent(repo)}/${path}`, {
+export async function createFile(
+  repo: string,
+  path: string,
+  type: 'file' | 'dir',
+  content?: string,
+): Promise<{ success: boolean; path: string }> {
+  const response = await fetch(`${getApiBase()}/api/files/${encodeURIComponent(repo)}/${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type, content }),
@@ -218,8 +228,12 @@ export async function createFile(repo: string, path: string, type: 'file' | 'dir
   return response.json()
 }
 
-export async function saveFile(repo: string, path: string, content: string): Promise<{ success: boolean }> {
-  const response = await fetch(getApiBase() + `/api/files/${encodeURIComponent(repo)}/${path}`, {
+export async function saveFile(
+  repo: string,
+  path: string,
+  content: string,
+): Promise<{ success: boolean }> {
+  const response = await fetch(`${getApiBase()}/api/files/${encodeURIComponent(repo)}/${path}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
@@ -231,8 +245,12 @@ export async function saveFile(repo: string, path: string, content: string): Pro
   return response.json()
 }
 
-export async function renameFile(repo: string, path: string, newPath: string): Promise<{ success: boolean; new_path: string }> {
-  const response = await fetch(getApiBase() + `/api/files/${encodeURIComponent(repo)}/${path}`, {
+export async function renameFile(
+  repo: string,
+  path: string,
+  newPath: string,
+): Promise<{ success: boolean; new_path: string }> {
+  const response = await fetch(`${getApiBase()}/api/files/${encodeURIComponent(repo)}/${path}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ new_path: newPath }),
@@ -244,8 +262,12 @@ export async function renameFile(repo: string, path: string, newPath: string): P
   return response.json()
 }
 
-export async function copyFile(repo: string, sourcePath: string, targetPath: string): Promise<{ success: boolean }> {
-  const response = await fetch(getApiBase() + `/api/files/${encodeURIComponent(repo)}/copy`, {
+export async function copyFile(
+  repo: string,
+  sourcePath: string,
+  targetPath: string,
+): Promise<{ success: boolean }> {
+  const response = await fetch(`${getApiBase()}/api/files/${encodeURIComponent(repo)}/copy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ source_path: sourcePath, target_path: targetPath }),
@@ -281,7 +303,7 @@ export async function fetchTemplates(): Promise<TemplateInfo[]> {
 }
 
 export async function fetchTemplateDetail(templateId: string): Promise<TemplateDetail> {
-  const response = await fetch(getApiBase() + `/api/templates/${encodeURIComponent(templateId)}`)
+  const response = await fetch(`${getApiBase()}/api/templates/${encodeURIComponent(templateId)}`)
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.detail || 'Failed to load template')
@@ -289,12 +311,19 @@ export async function fetchTemplateDetail(templateId: string): Promise<TemplateD
   return response.json()
 }
 
-export async function applyTemplate(templateId: string, repo: string, path: string): Promise<{ success: boolean }> {
-  const response = await fetch(getApiBase() + `/api/templates/${encodeURIComponent(templateId)}/apply`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, path }),
-  })
+export async function applyTemplate(
+  templateId: string,
+  repo: string,
+  path: string,
+): Promise<{ success: boolean }> {
+  const response = await fetch(
+    `${getApiBase()}/api/templates/${encodeURIComponent(templateId)}/apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo, path }),
+    },
+  )
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.detail || 'Failed to apply template')
@@ -314,9 +343,13 @@ export type CalendarData = {
   days: Record<string, CalendarDayData>
 }
 
-export async function fetchCalendar(repo: string, year: number, month: number): Promise<CalendarData> {
+export async function fetchCalendar(
+  repo: string,
+  year: number,
+  month: number,
+): Promise<CalendarData> {
   const params = new URLSearchParams({ repo, year: String(year), month: String(month) })
-  const response = await fetch(getApiBase() + `/api/calendar?${params}`)
+  const response = await fetch(`${getApiBase()}/api/calendar?${params}`)
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.detail || 'Failed to load calendar')

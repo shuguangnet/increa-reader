@@ -92,7 +92,8 @@ export const isTauri = (): boolean => _hasTauri
 
 /** True when the user-agent indicates a mobile device */
 export const isMobile = (): boolean =>
-  _hasNavigator && /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+  _hasNavigator &&
+  /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
 
 /** True when the app is running as an installed PWA (detected via display-mode or standalone) */
 export const isPWA = (): boolean =>
@@ -130,7 +131,8 @@ export function getApiBase(): string {
     const port = _hasWindow ? localStorage.getItem(SERVER_PORT_KEY) || DEFAULT_PORT : DEFAULT_PORT
     return `http://127.0.0.1:${port}`
   }
-  return ''
+  // Web dev: use backend directly (Vite proxy unreliable in container env)
+  return 'http://127.0.0.1:3003'
 }
 
 /** Persist a discovered server port (Tauri desktop only). */
@@ -269,9 +271,12 @@ export async function onFileDrop(callback: FileDropCallback): Promise<UnlistenFn
   try {
     const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
     const win = getCurrentWindow()
-    const unlisten = await win.listen('tauri://drag-drop', (event: { payload: { paths: string[] } }) => {
-      callback(event.payload.paths)
-    })
+    const unlisten = await win.listen(
+      'tauri://drag-drop',
+      (event: { payload: { paths: string[] } }) => {
+        callback(event.payload.paths)
+      },
+    )
     return unlisten
   } catch {
     return () => {}
@@ -364,7 +369,9 @@ export async function restoreWindowBounds(): Promise<void> {
       return
     }
     const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/window')
-    const { LogicalPosition, LogicalSize } = await import(/* @vite-ignore */ '@tauri-apps' + '/api/dpi')
+    const { LogicalPosition, LogicalSize } = await import(
+      /* @vite-ignore */ '@tauri-apps' + '/api/dpi'
+    )
     const win = getCurrentWindow()
     if (bounds.maximized) {
       await win.maximize()

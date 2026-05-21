@@ -100,7 +100,12 @@ export function RenameDialog({
         {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isRenaming}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isRenaming}
+          >
             取消
           </Button>
           <Button type="button" onClick={handleRename} disabled={isRenaming || !newName.trim()}>

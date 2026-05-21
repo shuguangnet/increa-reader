@@ -1,7 +1,7 @@
-import { apiFetch } from '@/app/api'
 import { ArrowLeftRight, ExternalLink, Loader2, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiFetch } from '@/app/api'
 import { EmptyState } from '@/components/empty-state'
 
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -32,10 +32,12 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
     setError(null)
 
     Promise.all([
-      apiFetch(`/api/links/backlinks?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`)
-        .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch backlinks'))),
-      apiFetch(`/api/links/outgoing?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`)
-        .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch outgoing links'))),
+      apiFetch(
+        `/api/links/backlinks?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`,
+      ).then(r => (r.ok ? r.json() : Promise.reject(new Error('Failed to fetch backlinks')))),
+      apiFetch(
+        `/api/links/outgoing?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`,
+      ).then(r => (r.ok ? r.json() : Promise.reject(new Error('Failed to fetch outgoing links')))),
     ])
       .then(([backlinksData, outgoingData]) => {
         if (cancelled) return
@@ -52,20 +54,28 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
         if (!cancelled) setLoading(false)
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [repo, path])
 
-  const navigateToFile = useCallback((filePath: string) => {
-    onClose()
-    navigate(`/views/${repo}/${filePath}`)
-  }, [repo, navigate, onClose])
+  const navigateToFile = useCallback(
+    (filePath: string) => {
+      onClose()
+      navigate(`/views/${repo}/${filePath}`)
+    },
+    [repo, navigate, onClose],
+  )
 
   const links = activeTab === 'backlinks' ? (data?.backlinks ?? []) : (data?.outgoing ?? [])
   const label = activeTab === 'backlinks' ? '反向链接' : '出链'
-  const emptyText = activeTab === 'backlinks' ? '没有其他文件链接到此文件' : '此文件没有链接到其他文件'
+  const emptyText =
+    activeTab === 'backlinks' ? '没有其他文件链接到此文件' : '此文件没有链接到其他文件'
 
   return (
-    <div className={`flex flex-col h-full bg-background ${isMobile ? 'w-full' : 'border-l border-border w-80 min-w-[320px]'}`}>
+    <div
+      className={`flex flex-col h-full bg-background ${isMobile ? 'w-full' : 'border-l border-border w-80 min-w-[320px]'}`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -94,11 +104,13 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
         >
           反向链接
           {data && (
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-              activeTab === 'backlinks'
-                ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
-                : 'bg-muted text-muted-foreground'
-            }`}>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                activeTab === 'backlinks'
+                  ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
               {data.backlinks.length}
             </span>
           )}
@@ -114,11 +126,13 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
         >
           出链
           {data && (
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-              activeTab === 'outgoing'
-                ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
-                : 'bg-muted text-muted-foreground'
-            }`}>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                activeTab === 'outgoing'
+                  ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
               {data.outgoing.length}
             </span>
           )}
@@ -140,9 +154,7 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
           </div>
         )}
 
-        {error && (
-          <div className="p-4 text-sm text-red-500 text-center">{error}</div>
-        )}
+        {error && <div className="p-4 text-sm text-red-500 text-center">{error}</div>}
 
         {!loading && !error && data && links.length === 0 && (
           <EmptyState icon={ArrowLeftRight} title={emptyText} />
@@ -152,7 +164,9 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
           <div className="divide-y">
             {links.map((linkPath, index) => {
               const fileName = linkPath.split('/').pop() || linkPath
-              const dirPath = linkPath.includes('/') ? linkPath.substring(0, linkPath.lastIndexOf('/')) : ''
+              const dirPath = linkPath.includes('/')
+                ? linkPath.substring(0, linkPath.lastIndexOf('/'))
+                : ''
               return (
                 <button
                   key={`${linkPath}-${index}`}
@@ -171,7 +185,10 @@ export function BacklinksPanel({ repo, path, onClose }: BacklinksPanelProps) {
                       </div>
                     )}
                   </div>
-                  <ExternalLink size={12} className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ExternalLink
+                    size={12}
+                    className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
                 </button>
               )
             })}

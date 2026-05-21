@@ -47,8 +47,16 @@ export function TabbedViewer() {
       {activeView && <Breadcrumb repo={activeView.repo} path={activeView.path} />}
       <div className="relative min-h-0 flex-1">
         {tabs.map(tab => (
-          <div key={tab.id} className="absolute inset-0" style={{ visibility: tab.id === activeId ? 'visible' : 'hidden' }}>
-            <FileViewer repo={tab.repo} path={tab.path} scrollToLine={tab.id === activeId ? scrollToLine : undefined} />
+          <div
+            key={tab.id}
+            className="absolute inset-0"
+            style={{ visibility: tab.id === activeId ? 'visible' : 'hidden' }}
+          >
+            <FileViewer
+              repo={tab.repo}
+              path={tab.path}
+              scrollToLine={tab.id === activeId ? scrollToLine : undefined}
+            />
           </div>
         ))}
       </div>

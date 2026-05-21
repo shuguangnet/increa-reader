@@ -96,7 +96,7 @@ export function StickyNoteCard({
   useEffect(() => {
     setDragPosition(null)
     dragPositionRef.current = null
-  }, [left, top])
+  }, [])
 
   const commitContent = async (content: string) => {
     const trimmed = content.trim()
