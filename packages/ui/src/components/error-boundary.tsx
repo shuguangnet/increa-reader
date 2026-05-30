@@ -1,5 +1,6 @@
 import { AlertTriangle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { captureError } from '@/lib/sentry'
 
 type ErrorBoundaryProps = {
   children: ReactNode
@@ -35,6 +36,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Log to console in development for debugging
     console.error('[ErrorBoundary]', error, info.componentStack)
+
+    // Report to Sentry with component stack context
+    captureError(error, {
+      componentStack: info.componentStack,
+      boundary: 'ErrorBoundary',
+    })
   }
 
   handleReset = () => {

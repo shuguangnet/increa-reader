@@ -2,7 +2,11 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './app/app.tsx'
 import { registerServiceWorker } from './hooks/use-pwa'
+import { initSentry } from './lib/sentry'
 import './style.css'
+
+// Initialize Sentry error tracking (no-op if VITE_SENTRY_DSN is not set)
+initSentry()
 
 // Register PWA service worker for offline support
 registerServiceWorker()
