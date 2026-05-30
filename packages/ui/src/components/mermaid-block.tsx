@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import DOMPurify from 'dompurify'
 
 let idCounter = 0
 
@@ -35,7 +36,13 @@ export function MermaidBlock({ code }: { code: string }) {
       try {
         const { svg } = await mermaid.render(id, sanitized)
         if (!cancelled) {
-          setHtml(svg)
+          // Sanitize SVG to prevent XSS - allow safe HTML/SVG but strip scripts
+          const cleanSvg = DOMPurify.sanitize(svg, {
+            USE_PROFILES: { svg: true, svgFilters: true },
+            ADD_TAGS: ['foreignObject'],
+            ADD_ATTR: ['xmlns:xlink'],
+          })
+          setHtml(cleanSvg)
           setError(null)
         }
       } catch (err) {
